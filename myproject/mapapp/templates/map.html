@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mineral Interests Map - Texas Land Grid Test</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #0b0b0c; color: #eaeaea; }
+    #controls { display:flex; gap:1rem; align-items:center; margin-bottom:1rem; }
+    #map { width: 100%; height: 80vh; background:#111; border-radius: 12px; }
+    input[type="range"] { width: 320px; }
+    label { font-weight: 600; }
+    .badge { background:#1f2937; padding:.25rem .5rem; border-radius:.5rem; font-variant-numeric: tabular-nums; }
+    .status { background:#1f2937; padding:.5rem 1rem; border-radius:.5rem; margin-bottom:1rem; }
+    .error { background:#dc2626; }
+    .success { background:#059669; }
+  </style>
+</head>
+<body>
+  <div id="status" class="status">Ready to test...</div>
+  
+  <div id="controls">
+    <label for="year">Year:</label>
+    <input id="year" type="range" min="1950" max="2025" step="1" value="2024" />
+    <span id="year-val" class="badge">2024</span>
+  </div>
+  <div id="map"></div>
+
+  <script>
+    const yearInput = document.getElementById('year');
+    const yearVal = document.getElementById('year-val');
+    const statusDiv = document.getElementById('status');
+
+    const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
+
+    function updateStatus(message, isError = false, isSuccess = false) {
+      statusDiv.textContent = message;
+      statusDiv.className = 'status';
+      if (isError) statusDiv.classList.add('error');
+      if (isSuccess) statusDiv.classList.add('success');
+    }
+
+    // Global variable to store all data
+    let allWellData = null;
+
+    // Fetch ALL Snowflake data once
+    async function fetchAllData() {
+      updateStatus(`Fetching all Snowflake data...`);
+      
+      try {
+        const res = await fetch(`/map-data/`);  // Remove date parameter to get all data
+        if (!res.ok) { 
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`); 
+        }
+        const data = await res.json();
+        
+        // Validate data structure - expect arrays
+        if (!data.lat || !data.lon || !data.text) {
+          throw new Error('Invalid data format from server - need lat, lon, text arrays');
+        }
+        
+        // If no year data, create mock years for testing
+        if (!data.year) {
+          console.log('No year data found, creating mock years for testing');
+          data.year = data.lat.map(() => 2024); // All wells default to 2024
+        }
+        
+        updateStatus(`✓ Loaded ${data.lat.length} total wells from Snowflake`, false, true);
+        console.log(`Received ${data.lat.length} total wells from Snowflake`);
+        return data;
+        
+      } catch (error) {
+        updateStatus(`✗ Failed to load Snowflake data: ${error.message}`, true);
+        console.error('Snowflake fetch error:', error);
+        throw error;
+      }
+    }
+
+    // Filter data by year (frontend filtering) - show wells completed <= year
+    function filterDataByYear(year) {
+      if (!allWellData) {
+        console.error('No data loaded yet');
+        return { lat: [], lon: [], text: [] };
+      }
+
+      const filteredIndices = [];
+      for (let i = 0; i < allWellData.year.length; i++) {
+        if (allWellData.year[i] <= year) {  // Changed from === to <=
+          filteredIndices.push(i);
+        }
+      }
+
+      return {
+        lat: filteredIndices.map(i => allWellData.lat[i]),
+        lon: filteredIndices.map(i => allWellData.lon[i]),
+        text: filteredIndices.map(i => allWellData.text[i])
+      };
+    }
+
+    // Main draw function with frontend filtering
+    async function drawWithFilteredData(year) {
+      yearVal.textContent = year;
+      
+      try {
+        // If we don't have data yet, fetch it
+        if (!allWellData) {
+          allWellData = await fetchAllData();
+        }
+
+        // Filter data by year on frontend
+        const data = filterDataByYear(year);
+        updateStatus(`✓ Showing ${data.lat.length} wells for year ${year}`, false, true);
+
+        const trace = {
+          type: 'scattermapbox',
+          lat: data.lat, 
+          lon: data.lon, 
+          text: data.text,
+          mode: 'markers', 
+          marker: { 
+            size: 8,
+            color: '#ff6b35',
+            line: { color: 'white', width: 1 }
+          }
+        };
+
+        const layout = {
+          paper_bgcolor: '#0b0b0c',
+          plot_bgcolor: '#0b0b0c',
+          font: { color: '#eaeaea' },
+          mapbox: {
+            accesstoken: MAPBOX_TOKEN,
+            style: 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie',
+            center: { lat: 31.0, lon: -99.0 },
+            zoom: 6
+          },
+          margin: { t: 20, r: 10, b: 10, l: 10 },
+          height: window.innerHeight * 0.8,
+          title: {
+            text: `Texas Oil Wells - Year ${year} (${data.lat.length} wells)`,
+            font: { color: '#eaeaea' }
+          }
+        };
+
+        await Plotly.react('map', [trace], layout, {scrollZoom: true});
+
+        // Click handler
+        const mapDiv = document.getElementById('map');
+        mapDiv.on('plotly_click', (evt) => {
+          const p = evt.points?.[0];
+          if (p) {
+            alert(`Clicked: ${p.text}\nLat: ${p.lat}, Lon: ${p.lon}`);
+          }
+        });
+
+      } catch (error) {
+        updateStatus(`✗ Error: ${error.message}`, true);
+        console.error('Error in drawWithFilteredData:', error);
+      }
+    }
+
+    // Event listener
+    yearInput.addEventListener('input', e => drawWithFilteredData(parseInt(e.target.value, 10)));
+
+    // Initialize with frontend filtering
+    drawWithFilteredData(parseInt(yearInput.value, 10));
+  </script>
+</body>
+</html>
