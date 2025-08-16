@@ -73,6 +73,8 @@ def _snowflake_points():
             SELECT
                 LATITUDE   AS LAT,
                 LONGITUDE  AS LON,
+                LATITUDE_BH AS LAT_BH,     -- Add this
+                LONGITUDE_BH AS LON_BH,    -- Add this
                 COMPLETIONDATE,
                 DATE_PART(year, COMPLETIONDATE) AS COMPLETION_YEAR,
                 API_UWI,
@@ -87,12 +89,14 @@ def _snowflake_points():
         rows = cur.fetchall()
 
         out = []
-        for lat, lon, cdate, cyear, api_uwi, last_prod in rows:
-            label = f"Completion: {cdate}" if cdate is not None else "Well"
+        for lat, lon, lat_bh, lon_bh, cdate, cyear, api_uwi, last_prod in rows:
+            label = f"Completion: {cdate}" if cdate is not None else "Well"  # ADD THIS LINE
             out.append({
                 "lat": float(lat), 
                 "lon": float(lon), 
-                "label": label, 
+                "lat_bh": float(lat_bh) if lat_bh else None,
+                "lon_bh": float(lon_bh) if lon_bh else None,
+                "label": label,  # Now this works
                 "year": int(cyear),
                 "api_uwi": api_uwi,
                 "last_producing": last_prod
@@ -111,6 +115,8 @@ def map_data(request):
     return JsonResponse({
         "lat": [r["lat"] for r in rows],
         "lon": [r["lon"] for r in rows],
+        "lat_bh": [r["lat_bh"] for r in rows],       
+        "lon_bh": [r["lon_bh"] for r in rows],    
         "text": [r["label"] for r in rows],
         "year": [r["year"] for r in rows],
         "api_uwi": [r["api_uwi"] for r in rows],
