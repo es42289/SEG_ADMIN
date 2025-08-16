@@ -39,11 +39,6 @@ def map_page(request):
     """Renders the HTML page with Plotly map + slider."""
     return render(request, "map.html", {})
 
-import os
-import snowflake.connector
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.backends import default_backend
-
 def _snowflake_points():
     key_path = os.getenv("SNOWFLAKE_KEY_PATH")
     if not key_path or not os.path.exists(key_path):
@@ -79,20 +74,29 @@ def _snowflake_points():
                 LATITUDE   AS LAT,
                 LONGITUDE  AS LON,
                 COMPLETIONDATE,
-                DATE_PART(year, COMPLETIONDATE) AS COMPLETION_YEAR
+                DATE_PART(year, COMPLETIONDATE) AS COMPLETION_YEAR,
+                API_UWI,
+                LASTPRODUCINGMONTH
             FROM WELLS.MINERALS.RAW_WELL_DATA
             WHERE COMPLETIONDATE IS NOT NULL
-              AND LATITUDE IS NOT NULL
-              AND LONGITUDE IS NOT NULL
-              -- AND api_uwi IN ('42-041-32667', '42-041-32540', '42-041-32602') 
+            AND LATITUDE IS NOT NULL
+            AND LONGITUDE IS NOT NULL
+            -- AND api_uwi IN ('42-041-32667', '42-041-32540', '42-041-32602') 
             """
         )
         rows = cur.fetchall()
 
         out = []
-        for lat, lon, cdate, cyear in rows:
+        for lat, lon, cdate, cyear, api_uwi, last_prod in rows:
             label = f"Completion: {cdate}" if cdate is not None else "Well"
-            out.append({"lat": float(lat), "lon": float(lon), "label": label, "year": int(cyear)})
+            out.append({
+                "lat": float(lat), 
+                "lon": float(lon), 
+                "label": label, 
+                "year": int(cyear),
+                "api_uwi": api_uwi,
+                "last_producing": last_prod
+            })
         return out
     finally:
         try:
@@ -109,4 +113,6 @@ def map_data(request):
         "lon": [r["lon"] for r in rows],
         "text": [r["label"] for r in rows],
         "year": [r["year"] for r in rows],
+        "api_uwi": [r["api_uwi"] for r in rows],
+        "last_producing": [r["last_producing"] for r in rows],
     })
