@@ -116,19 +116,24 @@
         const data = filterDataByYear(year);
         updateStatus(`✓ Showing ${data.lat.length} wells for year ${year}`, false, true);
 
-        // Calculate colors based on well year (black to green for last 5 years only)
+        // Calculate colors based on well year (green to black to light grey)
         const colors = [];
         if (data.lat.length > 0) {
           for (let i = 0; i < data.years.length; i++) {
             const yearsSinceCompletion = year - data.years[i];
-            if (yearsSinceCompletion <= 5) {
-              // Well is within 5 years of slider - green gradient
-              const ratio = (5 - yearsSinceCompletion) / 5; // Newest = 1, 5 years old = 0
+            if (yearsSinceCompletion <= 10) {
+              // 0-10 years: Green to black gradient
+              const ratio = (10 - yearsSinceCompletion) / 10; // Newest = 1, 10 years old = 0
               const green = Math.round(255 * ratio);
               colors.push(`rgb(0, ${green}, 0)`);
+            } else if (yearsSinceCompletion <= 15) {
+              // 10-15 years: Black to light grey gradient
+              const ratio = (yearsSinceCompletion - 10) / 5; // 10 years = 0, 15 years = 1
+              const grey = Math.round(200 * ratio);
+              colors.push(`rgb(${grey}, ${grey}, ${grey})`);
             } else {
-              // Well is older than 5 years - black
-              colors.push('rgb(0, 0, 0)');
+              // Older than 15 years - light grey
+              colors.push('rgb(200, 200, 200)');
             }
           }
         }
