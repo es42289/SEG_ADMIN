@@ -5,6 +5,7 @@ import os
 import snowflake.connector
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
+from django.shortcuts import render, redirect
 
 def get_snowflake_connection():
     key_path = os.getenv("SNOWFLAKE_KEY_PATH") or os.getenv("SF_PRIVATE_KEY_PATH")
@@ -34,10 +35,6 @@ def get_snowflake_connection():
         "private_key": private_key_bytes,
     }
     return snowflake.connector.connect(**cfg)
-
-def map_page(request):
-    """Renders the HTML page with Plotly map + slider."""
-    return render(request, "map.html", {})
 
 def _snowflake_points():
     key_path = os.getenv("SNOWFLAKE_KEY_PATH")
@@ -109,16 +106,131 @@ def _snowflake_points():
             pass
         conn.close()
 
+def map_page(request):
+    """Renders the HTML page with Plotly map + slider."""
+    # Check if user is logged in
+    if 'user' not in request.session:
+        return redirect('/login/')
+    
+    return render(request, "map.html", {})
+
 def map_data(request):
-    """Returns JSON for map points based on ?date=YYYY-MM-DD (or just year)."""
+    """Returns JSON for map points."""
+    # Check if user is logged in
+    if 'user' not in request.session:
+        return redirect('/login/')
+    
+    # Your existing map_data code here...
     rows = _snowflake_points()
     return JsonResponse({
         "lat": [r["lat"] for r in rows],
         "lon": [r["lon"] for r in rows],
-        "lat_bh": [r["lat_bh"] for r in rows],       
-        "lon_bh": [r["lon_bh"] for r in rows],    
         "text": [r["label"] for r in rows],
         "year": [r["year"] for r in rows],
         "api_uwi": [r["api_uwi"] for r in rows],
+        "lat_bh": [r["lat_bh"] for r in rows],
+        "lon_bh": [r["lon_bh"] for r in rows],
         "last_producing": [r["last_producing"] for r in rows],
+    })
+
+def get_user_owner_name(user_email):
+    """Query Snowflake to get the owner name for a user's email"""
+    conn = get_snowflake_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT OWNER_NAME FROM WELLS.MINERALS.USER_MAPPINGS WHERE AUTH0_EMAIL = %s", (user_email,))
+        result = cur.fetchone()
+        return result[0] if result else None
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+def _snowflake_user_wells(owner_name):
+    """Get rich data for user's specific wells from multiple tables"""
+    conn = get_snowflake_connection()
+    
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT DISTINCT
+                w.LATITUDE AS LAT,
+                w.LONGITUDE AS LON,
+                w.LATITUDE_BH AS LAT_BH,
+                w.LONGITUDE_BH AS LON_BH,
+                w.COMPLETIONDATE,
+                DATE_PART(year, w.COMPLETIONDATE) AS COMPLETION_YEAR,
+                w.API_UWI,
+                w.LASTPRODUCINGMONTH,
+                a."Owner_Decimal_Interest",
+                a."Owner"
+            FROM WELLS.MINERALS.RAW_WELL_DATA w
+            JOIN WELLS.MINERALS.DI_TX_MINERAL_APPRAISALS_2023_EXPLODED a 
+                ON REPLACE(w.API_UWI, '-', '') = a.API_10
+            WHERE w.COMPLETIONDATE IS NOT NULL
+              AND w.LATITUDE IS NOT NULL
+              AND w.LONGITUDE IS NOT NULL
+              AND a."Owner" = %s
+            ORDER BY w.COMPLETIONDATE
+            """,
+            (owner_name,),
+        )
+        rows = cur.fetchall()
+
+        out = []
+        for lat, lon, lat_bh, lon_bh, cdate, cyear, api_uwi, last_prod, interest, owner in rows:
+            label = f"Well: {api_uwi}\nOwner: {owner}\nInterest: {interest}%\nCompletion: {cdate}"
+            out.append({
+                "lat": float(lat),
+                "lon": float(lon),
+                "lat_bh": float(lat_bh) if lat_bh else None,
+                "lon_bh": float(lon_bh) if lon_bh else None,
+                "label": label,
+                "year": int(cyear) if cyear is not None else 2024,
+                "api_uwi": api_uwi,
+                "last_producing": last_prod,
+                "owner_interest": float(interest) if interest else 0,
+                "owner_name": owner
+            })
+        return out
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+def user_wells_data(request):
+    """Returns JSON for user's specific wells with rich data."""
+    if 'user' not in request.session:
+        return redirect('/login/')
+    
+    # Get user's email and find their owner name
+    user_email = request.session['user'].get('email', '')
+    owner_name = get_user_owner_name(user_email)
+    
+    if not owner_name:
+        # User has no wells assigned
+        return JsonResponse({
+            "lat": [], "lon": [], "text": [], "year": [], 
+            "api_uwi": [], "lat_bh": [], "lon_bh": [], 
+            "last_producing": [], "owner_interest": [], "owner_name": []
+        })
+    
+    # Get user's wells with rich data
+    rows = _snowflake_user_wells(owner_name)
+    return JsonResponse({
+        "lat": [r["lat"] for r in rows],
+        "lon": [r["lon"] for r in rows],
+        "text": [r["label"] for r in rows],
+        "year": [r["year"] for r in rows],
+        "api_uwi": [r["api_uwi"] for r in rows],
+        "lat_bh": [r["lat_bh"] for r in rows],
+        "lon_bh": [r["lon_bh"] for r in rows],
+        "last_producing": [r["last_producing"] for r in rows],
+        "owner_interest": [r["owner_interest"] for r in rows],
+        "owner_name": [r["owner_name"] for r in rows],
     })

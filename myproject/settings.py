@@ -121,3 +121,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Auth0 Configuration
+AUTH0_DOMAIN = 'dev-qbev54elyui5jcxx.us.auth0.com'
+AUTH0_CLIENT_ID = 'kHiVaNotiG4dhVBueafMho0DaEFHOWjB'
+AUTH0_CLIENT_SECRET = 'npbudw7dVcqlg1TGmLhmj5sjkjTb9Wb6lWZfJdTnDfmlNC82fbSukSbfrgcSRMeT'
+AUTH0_CALLBACK_URL = 'http://localhost:8000/callback'
+
+# Session configuration
+SESSION_COOKIE_AGE = 60 * 60 * 24  # 1 day

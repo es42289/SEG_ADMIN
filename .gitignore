@@ -6,6 +6,7 @@ __pycache__/
 # Virtual env
 venv/
 .venv/
+Auth0/
 
 # Django
 *.log
