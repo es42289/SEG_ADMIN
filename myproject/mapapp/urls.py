@@ -10,4 +10,5 @@ urlpatterns = [
     path('logout/', auth_views.logout, name='logout'),
     path('callback/', auth_views.callback, name='callback'),
     path('user-wells-data/', views.user_wells_data, name='user_wells_data'),
+    path('bulk-production/', views.bulk_well_production, name='bulk_well_production'),
 ]

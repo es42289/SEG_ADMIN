@@ -20,7 +20,5 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('myproject.mapapp.urls')),
-    path('bulk-production/', views.bulk_well_production, name='bulk_well_production'),
-
 ]
 

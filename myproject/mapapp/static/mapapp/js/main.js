@@ -18,6 +18,59 @@ const yearInput = document.getElementById('year');
     let allWellData = null;
     let userWellData = null;
 
+    // ===== One-time loader for user production (fetches once, caches forever) =====
+    window.productionByApi = window.productionByApi || {};
+    let productionLoadPromise = null;
+
+    async function loadUserProductionOnce() {
+      if (productionLoadPromise) return productionLoadPromise; // already running or done
+
+      productionLoadPromise = (async () => {
+        try {
+          // Ensure user wells are loaded so we have the APIs
+          if (!userWellData) {
+            userWellData = await fetchUserWells();
+          }
+
+          const apis = [...new Set((userWellData.api_uwi || []).filter(Boolean))];
+          if (!apis.length) {
+            console.warn('No user API_UWI found in /user-wells-data/. Skipping production fetch.');
+            window.productionByApi = {};
+            return window.productionByApi;
+          }
+
+          const resp = await fetch('/bulk-production/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ apis })   // ← user wells only
+          });
+
+          const bodyText = await resp.text(); // capture any server message
+          if (!resp.ok) {
+            console.error('bulk-production (user-only) failed:', resp.status, bodyText);
+            window.productionByApi = {};
+            return window.productionByApi;
+          }
+
+          let prod;
+          try { prod = JSON.parse(bodyText); } catch { prod = null; }
+          window.productionByApi = (prod && prod.by_api) ? prod.by_api : {};
+          console.log('bulk-production (user only, ONCE):', {
+            apis_sent: apis.length,
+            rows_returned: prod ? prod.count : 0,
+            apis_with_rows: Object.keys(window.productionByApi).length
+          });
+          return window.productionByApi;
+        } catch (e) {
+          console.error('loadUserProductionOnce error:', e);
+          window.productionByApi = {};
+          return window.productionByApi;
+        }
+      })();
+
+      return productionLoadPromise;
+    }
+
     // Calculate distance between two lat/lon points in miles
     function calculateDistance(lat1, lon1, lat2, lon2) {
       const R = 3959; // Earth's radius in miles
@@ -182,7 +235,7 @@ const yearInput = document.getElementById('year');
         
         if (!data.lat || data.lat.length === 0) {
           console.log('No user wells found');
-          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [] };
+          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [] };
         }
         
         console.log(`Received ${data.lat.length} user wells`);
@@ -190,7 +243,7 @@ const yearInput = document.getElementById('year');
         
       } catch (error) {
         console.error('User wells fetch error:', error);
-        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [] };
+        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [] };
       }
     }
 
@@ -216,7 +269,8 @@ const yearInput = document.getElementById('year');
         lon_bh: filteredIndices.map(i => data.lon_bh[i]),
         owner_interest: filteredIndices.map(i => data.owner_interest ? data.owner_interest[i] : null),
         owner_name: filteredIndices.map(i => data.owner_name ? data.owner_name[i] : null),
-         last_producing: filteredIndices.map(i => data.last_producing ? data.last_producing[i] : null)
+        last_producing: filteredIndices.map(i => data.last_producing ? data.last_producing[i] : null),
+        api_uwi: filteredIndices.map(i => data.api_uwi ? data.api_uwi[i] : null)
       };
     }
 
@@ -290,17 +344,18 @@ const yearInput = document.getElementById('year');
         // Analyze nearby wells and create charts - use unfiltered user wells for centroid
         const nearbyAnalysis20 = analyzeNearbyWells(generalData, userWellData, year, 20);
         const nearbyAnalysis10 = analyzeNearbyWells(generalData, userWellData, year, 10);
-        
+
         if (window.Stats) {
           window.Stats.render(generalData, userData, {
             nearby10: (nearbyAnalysis10.nearbyWells || []).length,
             nearby20: (nearbyAnalysis20.nearbyWells || []).length
           });
         }
+
         // Call createNearbyWellsChart with swapped order - 10-mile first, then 20-mile
         createNearbyWellsChart(nearbyAnalysis10.ageCategories, nearbyAnalysis10.centroid, 10, 'nearby-chart-10', 'total-nearby-10', 'blue');
         createNearbyWellsChart(nearbyAnalysis20.ageCategories, nearbyAnalysis20.centroid, 20, 'nearby-chart', 'total-nearby', 'red');
-        
+
         updateStatus(`✓ Showing ${generalData.lat.length} total wells (${userData.lat.length} yours) for year ${year}`, false, true);
 
         // Calculate colors for general wells
@@ -555,3 +610,6 @@ const yearInput = document.getElementById('year');
 
     // Initialize with frontend filtering
     drawWithFilteredData(parseInt(yearInput.value, 10));
+    
+    // Fire-and-forget: fetch production for user wells once
+    loadUserProductionOnce();
