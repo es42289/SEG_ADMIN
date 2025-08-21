@@ -5,6 +5,8 @@
 
 {% block content %}
 
+{% include "mapapp/components/_stats.html" %}
+
 <div style="background: #333; padding: 10px; color: white;">
     {% if request.session.user %}
       Logged in as: {{ request.session.user.name|default:request.session.user.email }}
@@ -58,5 +60,6 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'mapapp/js/stats.js' %}"></script>
 <script src="{% static 'mapapp/js/main.js' %}"></script>
 {% endblock %}

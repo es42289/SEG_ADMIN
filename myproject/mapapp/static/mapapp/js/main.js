@@ -215,7 +215,8 @@ const yearInput = document.getElementById('year');
         lat_bh: filteredIndices.map(i => data.lat_bh[i]),
         lon_bh: filteredIndices.map(i => data.lon_bh[i]),
         owner_interest: filteredIndices.map(i => data.owner_interest ? data.owner_interest[i] : null),
-        owner_name: filteredIndices.map(i => data.owner_name ? data.owner_name[i] : null)
+        owner_name: filteredIndices.map(i => data.owner_name ? data.owner_name[i] : null),
+         last_producing: filteredIndices.map(i => data.last_producing ? data.last_producing[i] : null)
       };
     }
 
@@ -282,7 +283,7 @@ const yearInput = document.getElementById('year');
         // Filter both datasets by year on frontend
         const generalData = filterDataByYear(allWellData, year);
         const userData = filterDataByYear(userWellData, year);
-        
+
         // Update user wells count display
         userWellsCount.textContent = `Your Wells: ${userData.lat.length}`;
         
@@ -290,6 +291,12 @@ const yearInput = document.getElementById('year');
         const nearbyAnalysis20 = analyzeNearbyWells(generalData, userWellData, year, 20);
         const nearbyAnalysis10 = analyzeNearbyWells(generalData, userWellData, year, 10);
         
+        if (window.Stats) {
+          window.Stats.render(generalData, userData, {
+            nearby10: (nearbyAnalysis10.nearbyWells || []).length,
+            nearby20: (nearbyAnalysis20.nearbyWells || []).length
+          });
+        }
         // Call createNearbyWellsChart with swapped order - 10-mile first, then 20-mile
         createNearbyWellsChart(nearbyAnalysis10.ageCategories, nearbyAnalysis10.centroid, 10, 'nearby-chart-10', 'total-nearby-10', 'blue');
         createNearbyWellsChart(nearbyAnalysis20.ageCategories, nearbyAnalysis20.centroid, 20, 'nearby-chart', 'total-nearby', 'red');

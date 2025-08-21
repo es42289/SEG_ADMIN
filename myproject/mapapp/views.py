@@ -6,6 +6,10 @@ import snowflake.connector
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from django.shortcuts import render, redirect
+import json
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
 
 def get_snowflake_connection():
     key_path = os.getenv("SNOWFLAKE_KEY_PATH") or os.getenv("SF_PRIVATE_KEY_PATH")
@@ -234,3 +238,75 @@ def user_wells_data(request):
         "owner_interest": [r["owner_interest"] for r in rows],
         "owner_name": [r["owner_name"] for r in rows],
     })
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def bulk_well_production(request):
+    """
+    POST JSON: {"apis": ["42-161-32531", "42-xxx-xxxxx", ...]}
+    Returns:
+      {
+        "count": <total rows>,
+        "rows": [ {<FORECASTS columns>...}, ... ],
+        "by_api": { "42-161-32531": [ {...}, {...} ], ... }  # if API_UWI column present
+      }
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    apis = payload.get("apis")
+    if not isinstance(apis, list) or not apis:
+        return JsonResponse({"error": "Provide 'apis' as a non-empty list"}, status=400)
+
+    # Normalize & dedupe
+    apis = [str(a).strip() for a in apis if str(a).strip()]
+    # preserve order while deduping
+    seen = set()
+    apis = [a for a in apis if not (a in seen or seen.add(a))]
+
+    if len(apis) > 5000:
+        return JsonResponse({"error": "Too many APIs; max 5000 per request"}, status=400)
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    try:
+        rows = []
+        cols = None
+
+        CHUNK = 1000  # Snowflake handles big IN lists, but chunk to be safe
+        for i in range(0, len(apis), CHUNK):
+            chunk = apis[i:i+CHUNK]
+            placeholders = ",".join(["%s"] * len(chunk))
+            sql = f"""
+                SELECT *
+                FROM WELLS.MINERALS.FORECASTS
+                WHERE API_UWI IN ({placeholders})
+            """
+            cur.execute(sql, chunk)
+            part = cur.fetchall()
+            if cols is None:
+                cols = [d[0] for d in cur.description]
+            rows.extend(part)
+
+        data_rows = [dict(zip(cols, r)) for r in rows] if cols else []
+
+        # Group by API_UWI if present
+        by_api = None
+        if cols:
+            api_col = next((c for c in cols if c.upper() == "API_UWI"), None)
+            if api_col:
+                grouped = {}
+                for rec in data_rows:
+                    key = rec.get(api_col)
+                    grouped.setdefault(key, []).append(rec)
+                by_api = grouped
+
+        return JsonResponse({"count": len(data_rows), "rows": data_rows, "by_api": by_api})
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
