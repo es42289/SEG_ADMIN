@@ -1,3 +1,4 @@
+// static/js/prod-chart.js
 /* Production chart (Plotly) — instrumented for debugging
    Uses: window.productionByApi  (/bulk-production → WELLS.MINERALS.FORECASTS)
    Columns: API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF, OilFcst_BBL, GasFcst_MCF
@@ -165,7 +166,7 @@
       return el;
     }
     if (el.tagName.toLowerCase() === 'canvas') {
-      console.warn('[prod-chart] found <canvas id=\"prodChart\">; replacing with <div> for Plotly');
+      console.warn('[prod-chart] found <canvas id="prodChart">; replacing with <div> for Plotly');
       const d = document.createElement('div');
       d.id = 'prodChart';
       d.style.height = (el.height ? el.height : 360) + 'px';
@@ -184,7 +185,7 @@
       if (!window.Plotly) {
         console.error('[prod-chart] Plotly is not defined. Check base.html include.');
         el.innerHTML =
-          '<div style=\"padding:8px;color:#f66;\">Plotly not loaded. Ensure base.html includes the Plotly script in &lt;head&gt;.</div>';
+          '<div style="padding:8px;color:#f66;">Plotly not loaded. Ensure base.html includes the Plotly script in &lt;head&gt;.</div>';
         return;
       }
 
@@ -194,7 +195,18 @@
       console.log('[prod-chart] data ready: api keys/len=%d', apiCount);
 
       const agg = aggregate(byApi);
-      const x = agg.keys.map((k) => k.slice(0, 7)); // YYYY-MM
+      // Build x as 'YYYY-MM' categories, but derive ticks from full keys 'YYYY-MM-01'
+      const months = agg.keys; // e.g., ['2019-01-01','2019-02-01',...]
+      const x = months.map(k => k.slice(0, 7)); // 'YYYY-MM'
+
+      // Keep only Januaries (sorted already), then take every 3rd one
+      const janMonths = months.filter(k => k.slice(5, 7) === '01');
+      const janEvery3 = janMonths.filter((_, i) => i % 3 === 0); // 0,3,6,...
+
+      const yearTicks = janEvery3.map(k => k.slice(0, 7)); // ['YYYY-01', ...]
+      const yearText  = janEvery3.map(k => k.slice(0, 4)); // ['YYYY', ...]
+
+
 
       const traces = [
         { name: 'Oil (BBL)', x, y: agg.oil, mode: 'markers', marker: { size: 6, color: OIL_COLOR, opacity: 0.7 }, hovertemplate: '%{x}<br>Oil: %{y:,}<extra></extra>', yaxis: 'y' },
@@ -205,10 +217,29 @@
       ];
 
       const layout = {
-        height: 360,
-        margin: { l: 50, r: 60, t: 10, b: 40 },
+        height: (el && (el.clientHeight || parseInt(getComputedStyle(el).height))) || 720,
+        margin: { l: 50, r: 60, t: 10, b: 60 }, // extra bottom margin for angled labels
         showlegend: true,
-        xaxis: { title: 'Production Month', type: 'category', tickangle: -45 },
+        legend: {
+          x: 0.98,               // right edge
+          y: 0.9,            // a touch below the top (lower = more down)
+          xanchor: 'right',
+          yanchor: 'top',
+          orientation: 'v',
+          bgcolor: 'rgba(26,26,26,0.6)', // optional: improves readability on dark bg
+          bordercolor: 'rgba(255,255,255,0.2)',
+          borderwidth: 1,
+          font: { size: 12 }  // optional: tweak as you like
+        },
+        xaxis: {
+          title: 'Production Month',
+          type: 'category',
+          tickmode: 'array',
+          tickvals: yearTicks,   // only January points
+          ticktext: yearText,    // show "YYYY" only
+          tickangle: -45,         // rotate labels 45° (use -45 for down-right)
+          automargin: true       // avoid clipping when rotated
+        },
         yaxis: { title: 'MCF or BBL per Month', type: 'log', range: [Math.log10(agg.yMin), Math.log10(agg.yMax)], gridcolor: '#333' },
         yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: 'rgba(0,0,0,0)' },
         paper_bgcolor: '#1a1a1a',
