@@ -363,7 +363,8 @@ def fetch_forecasts_for_apis(apis):
     placeholders = ",".join(["%s"] * len(apis))
     sql = (
         "SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF, "
-        '"OilFcst_BBL", "GasFcst_MCF" FROM WELLS.MINERALS.FORECASTS '
+        '"OILFCST_BBL" AS OilFcst_BBL, "GASFCST_MCF" AS GasFcst_MCF '
+        "FROM WELLS.MINERALS.FORECASTS "
         f"WHERE API_UWI IN ({placeholders})"
     )
     cur.execute(sql, apis)
