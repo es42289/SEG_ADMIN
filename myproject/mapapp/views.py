@@ -335,6 +335,7 @@ def get_blended_price_deck(active_name, price_decks):
     combined = combined.set_index("MONTH_DATE")
     all_months = pd.date_range(combined.index.min(), pd.Timestamp("2075-01-01"), freq="MS")
     combined = combined.reindex(all_months)
+    combined[["OIL", "GAS"]] = combined[["OIL", "GAS"]].apply(pd.to_numeric, errors="coerce")
     combined[["OIL", "GAS"]] = combined[["OIL", "GAS"]].interpolate()
     combined = combined.reset_index().rename(columns={"index": "MONTH_DATE"})
     combined["PRICE_DECK_NAME"].fillna("Interpolated", inplace=True)
