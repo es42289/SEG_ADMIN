@@ -338,7 +338,9 @@ def get_blended_price_deck(active_name, price_decks):
     combined[["OIL", "GAS"]] = combined[["OIL", "GAS"]].apply(pd.to_numeric, errors="coerce")
     combined[["OIL", "GAS"]] = combined[["OIL", "GAS"]].interpolate()
     combined = combined.reset_index().rename(columns={"index": "MONTH_DATE"})
-    combined["PRICE_DECK_NAME"].fillna("Interpolated", inplace=True)
+    combined["PRICE_DECK_NAME"] = combined["PRICE_DECK_NAME"].fillna("Interpolated")
+    combined = combined[combined["MONTH_DATE"] <= pd.Timestamp("2038-01-01")]
+    combined = combined.dropna(subset=["OIL", "GAS"])
     return combined
 
 
@@ -361,7 +363,7 @@ def fetch_forecasts_for_apis(apis):
     placeholders = ",".join(["%s"] * len(apis))
     sql = (
         "SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF, "
-        "OilFcst_BBL, GasFcst_MCF FROM WELLS.MINERALS.FORECASTS "
+        '"OilFcst_BBL", "GasFcst_MCF" FROM WELLS.MINERALS.FORECASTS '
         f"WHERE API_UWI IN ({placeholders})"
     )
     cur.execute(sql, apis)

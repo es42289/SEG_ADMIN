@@ -33,8 +33,8 @@
 
   function renderPriceDeck(rows){
     const dates = rows.map(r=>r.MONTH_DATE);
-    const oil = rows.map(r=>r.OIL);
-    const gas = rows.map(r=>r.GAS);
+    const oil = rows.map(r=>r.OIL==null?null:Number(r.OIL));
+    const gas = rows.map(r=>r.GAS==null?null:Number(r.GAS));
     const fig = [
       {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'}},
       {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}}
