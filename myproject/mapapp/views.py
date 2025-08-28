@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-from datetime import date
+from datetime import date, datetime
 import os
 import snowflake.connector
 from cryptography.hazmat.primitives import serialization
@@ -10,6 +10,8 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
+import pandas as pd
+import numpy as np
 
 def get_snowflake_connection():
     key_path = os.getenv("SNOWFLAKE_KEY_PATH") or os.getenv("SF_PRIVATE_KEY_PATH")
@@ -310,3 +312,129 @@ def bulk_well_production(request):
         except Exception:
             pass
         conn.close()
+
+
+def fetch_price_decks():
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT PRICE_DECK_NAME, MONTH_DATE, OIL, GAS FROM PRICE_DECK"
+    )
+    rows = cur.fetchall()
+    cols = [c[0] for c in cur.description]
+    conn.close()
+    return pd.DataFrame(rows, columns=cols)
+
+
+def get_blended_price_deck(active_name, price_decks):
+    hist = price_decks[price_decks["PRICE_DECK_NAME"] == "HIST"].copy()
+    df = price_decks[price_decks["PRICE_DECK_NAME"] == active_name].copy()
+    combined = pd.concat([df, hist], ignore_index=True)
+    combined["MONTH_DATE"] = pd.to_datetime(combined["MONTH_DATE"])
+    combined = combined.drop_duplicates("MONTH_DATE").sort_values("MONTH_DATE")
+    combined = combined.set_index("MONTH_DATE")
+    all_months = pd.date_range(combined.index.min(), pd.Timestamp("2075-01-01"), freq="MS")
+    combined = combined.reindex(all_months)
+    combined[["OIL", "GAS"]] = combined[["OIL", "GAS"]].interpolate()
+    combined = combined.reset_index().rename(columns={"index": "MONTH_DATE"})
+    combined["PRICE_DECK_NAME"].fillna("Interpolated", inplace=True)
+    return combined
+
+
+def price_decks(request):
+    if "user" not in request.session:
+        return redirect("/login/")
+    deck = request.GET.get("deck")
+    df = fetch_price_decks()
+    options = sorted(df["PRICE_DECK_NAME"].unique())
+    if deck:
+        blended = get_blended_price_deck(deck, df)
+        data = blended.to_dict(orient="records")
+        return JsonResponse({"options": options, "data": data})
+    return JsonResponse({"options": options})
+
+
+def fetch_forecasts_for_apis(apis):
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    placeholders = ",".join(["%s"] * len(apis))
+    sql = (
+        "SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF, "
+        "OilFcst_BBL, GasFcst_MCF FROM WELLS.MINERALS.FORECASTS "
+        f"WHERE API_UWI IN ({placeholders})"
+    )
+    cur.execute(sql, apis)
+    rows = cur.fetchall()
+    cols = [c[0] for c in cur.description]
+    conn.close()
+    df = pd.DataFrame(rows, columns=cols)
+    df["PRODUCINGMONTH"] = pd.to_datetime(df["PRODUCINGMONTH"])
+    return df
+
+
+def economics_data(request):
+    if "user" not in request.session:
+        return redirect("/login/")
+    deck = request.GET.get("deck")
+    user_email = request.session["user"].get("email", "")
+    owner_name = get_user_owner_name(user_email)
+    wells = _snowflake_user_wells(owner_name)
+    apis = [w["api_uwi"] for w in wells]
+    price_df = fetch_price_decks()
+    deck_df = get_blended_price_deck(deck, price_df)
+    fc = fetch_forecasts_for_apis(apis)
+    fc["OilVol"] = fc["LIQUIDSPROD_BBL"].fillna(fc["OilFcst_BBL"])
+    fc["GasVol"] = fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"])
+    monthly = fc.groupby("PRODUCINGMONTH").agg({"OilVol": "sum", "GasVol": "sum"}).reset_index()
+    merged = monthly.merge(
+        deck_df[["MONTH_DATE", "OIL", "GAS"]],
+        left_on="PRODUCINGMONTH",
+        right_on="MONTH_DATE",
+        how="left",
+    )
+    merged["OilRevenue"] = merged["OilVol"] * merged["OIL"]
+    merged["GasRevenue"] = merged["GasVol"] * merged["GAS"]
+    merged["NetCashFlow"] = merged["OilRevenue"] + merged["GasRevenue"]
+    merged = merged.sort_values("PRODUCINGMONTH").reset_index(drop=True)
+    merged["CumRevenue"] = (merged["OilRevenue"] + merged["GasRevenue"]).cumsum()
+    merged["CumNCF"] = merged["NetCashFlow"].cumsum()
+    merged["month_index"] = merged.index
+
+    def npv(rate):
+        return float((merged["NetCashFlow"] / (1 + rate) ** (merged["month_index"] / 12)).sum())
+
+    npvs = [{"rate": r, "npv": npv(r)} for r in [0.0, 0.05, 0.1]]
+
+    cum = {
+        "dates": merged["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d").tolist(),
+        "cum_revenue": merged["CumRevenue"].tolist(),
+        "cum_ncf": merged["CumNCF"].tolist(),
+    }
+
+    today = pd.Timestamp.today().normalize().replace(day=1)
+    start = today - pd.DateOffset(months=12)
+    end = today + pd.DateOffset(months=24)
+    window_df = merged[(merged["PRODUCINGMONTH"] >= start) & (merged["PRODUCINGMONTH"] <= end)]
+    window = {
+        "dates": window_df["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d").tolist(),
+        "ncf": window_df["NetCashFlow"].tolist(),
+        "today": today.strftime("%Y-%m-%d"),
+    }
+
+    def period_sum(start, end):
+        mask = (merged["PRODUCINGMONTH"] >= start) & (merged["PRODUCINGMONTH"] <= end)
+        sub = merged.loc[mask]
+        if sub.empty:
+            return 0
+        return float(sub["CumNCF"].iloc[-1] - sub["CumNCF"].iloc[0])
+
+    summary = []
+    summary.append({"label": "LTM", "value": period_sum(start, today)})
+    summary.append({"label": "NTM", "value": period_sum(today, today + pd.DateOffset(months=12))})
+    year = today.year
+    for yr in range(year, year + 6):
+        s = pd.Timestamp(f"{yr}-01-01")
+        e = pd.Timestamp(f"{yr}-12-31")
+        summary.append({"label": str(yr), "value": period_sum(s, e)})
+
+    return JsonResponse({"npv": npvs, "cum": cum, "window": window, "summary": summary})

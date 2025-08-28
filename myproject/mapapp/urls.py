@@ -11,4 +11,6 @@ urlpatterns = [
     path('callback/', auth_views.callback, name='callback'),
     path('user-wells-data/', views.user_wells_data, name='user_wells_data'),
     path('bulk-production/', views.bulk_well_production, name='bulk_well_production'),
+    path('price-decks/', views.price_decks, name='price_decks'),
+    path('econ-data/', views.economics_data, name='economics_data'),
 ]

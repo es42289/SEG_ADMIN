@@ -57,9 +57,23 @@
 </div>
 
 <!-- Production chart (Plotly target) -->
-<section id="prod-chart" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;">
+<section id="prod-chart" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;"> 
   <h3 style="margin:0 0 .5rem 0;">Production</h3>
   <div id="prodChart" style="width:100%; height:600px;"></div>
+</section>
+
+<section id="price-deck" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;">
+  <h3 style="margin:0 0 .5rem 0;">Price Deck</h3>
+  <select id="priceDeckSelect" style="margin-bottom:0.5rem;"></select>
+  <div id="priceDeckChart" style="width:100%; height:600px;"></div>
+</section>
+
+<section id="econ-charts" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;">
+  <h3 style="margin:0 0 .5rem 0;">Economics</h3>
+  <div id="npvChart" style="width:100%; height:400px;"></div>
+  <div id="cumCashChart" style="width:100%; height:400px; margin-top:1rem;"></div>
+  <div id="cashflowWindowChart" style="width:100%; height:400px; margin-top:1rem;"></div>
+  <div id="cashflowSummaryChart" style="width:100%; height:400px; margin-top:1rem;"></div>
 </section>
 
 
@@ -72,4 +86,5 @@
 
   <!-- production chart (must be last so it runs after main.js populates window.productionByApi) -->
   <script src="{% static 'mapapp/js/prod_chart_plotly.js' %}?v=2025-08-25a"></script>
+  <script src="{% static 'mapapp/js/econ_charts.js' %}?v=2025-08-25a"></script>
 {% endblock %}
