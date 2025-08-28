@@ -349,7 +349,7 @@ def price_decks(request):
     options = sorted(df["PRICE_DECK_NAME"].unique())
     if deck:
         blended = get_blended_price_deck(deck, df)
-        data = blended.to_dict(orient="records")
+        data = json.loads(blended.to_json(orient="records", date_format="iso"))
         return JsonResponse({"options": options, "data": data})
     return JsonResponse({"options": options})
 
