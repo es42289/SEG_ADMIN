@@ -362,17 +362,32 @@ def fetch_forecasts_for_apis(apis):
     cur = conn.cursor()
     placeholders = ",".join(["%s"] * len(apis))
     sql = (
-        "SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF, "
-        '"OILFCST_BBL" AS OilFcst_BBL, "GASFCST_MCF" AS GasFcst_MCF '
-        "FROM WELLS.MINERALS.FORECASTS "
+        "SELECT * FROM WELLS.MINERALS.FORECASTS "
         f"WHERE API_UWI IN ({placeholders})"
     )
     cur.execute(sql, apis)
     rows = cur.fetchall()
     cols = [c[0] for c in cur.description]
     conn.close()
+
     df = pd.DataFrame(rows, columns=cols)
     df["PRODUCINGMONTH"] = pd.to_datetime(df["PRODUCINGMONTH"])
+
+    # Normalize forecast column names regardless of case in the source table
+    rename_map = {}
+    for col in df.columns:
+        upper = col.upper()
+        if upper == "OILFCST_BBL":
+            rename_map[col] = "OilFcst_BBL"
+        elif upper == "GASFCST_MCF":
+            rename_map[col] = "GasFcst_MCF"
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    for col in ["OilFcst_BBL", "GasFcst_MCF"]:
+        if col not in df.columns:
+            df[col] = pd.NA
+
     return df
 
 
