@@ -371,7 +371,9 @@ def fetch_forecasts_for_apis(apis):
     conn.close()
 
     df = pd.DataFrame(rows, columns=cols)
-    df["PRODUCINGMONTH"] = pd.to_datetime(df["PRODUCINGMONTH"])
+    # Ensure we have a proper datetime column for monthly aggregation
+    df["PRODUCINGMONTH"] = pd.to_datetime(df["PRODUCINGMONTH"], errors="coerce")
+    df = df.dropna(subset=["PRODUCINGMONTH"])
 
     # Normalize forecast column names regardless of case in the source table
     rename_map = {}
@@ -402,21 +404,35 @@ def economics_data(request):
     price_df = fetch_price_decks()
     deck_df = get_blended_price_deck(deck, price_df)
     fc = fetch_forecasts_for_apis(apis)
-    fc["OilVol"] = fc["LIQUIDSPROD_BBL"].fillna(fc["OilFcst_BBL"])
-    fc["GasVol"] = fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"])
-    monthly = fc.groupby("PRODUCINGMONTH").agg({"OilVol": "sum", "GasVol": "sum"}).reset_index()
+    fc["OilVol"] = (
+        fc["LIQUIDSPROD_BBL"].fillna(fc["OilFcst_BBL"]).fillna(0)
+    )
+    fc["GasVol"] = (
+        fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"]).fillna(0)
+    )
+    monthly = (
+        fc.groupby("PRODUCINGMONTH").agg({"OilVol": "sum", "GasVol": "sum"}).reset_index()
+    )
     merged = monthly.merge(
         deck_df[["MONTH_DATE", "OIL", "GAS"]],
         left_on="PRODUCINGMONTH",
         right_on="MONTH_DATE",
         how="left",
     )
+    merged[["OilVol", "GasVol", "OIL", "GAS"]] = merged[
+        ["OilVol", "GasVol", "OIL", "GAS"]
+    ].fillna(0)
     merged["OilRevenue"] = merged["OilVol"] * merged["OIL"]
     merged["GasRevenue"] = merged["GasVol"] * merged["GAS"]
     merged["NetCashFlow"] = merged["OilRevenue"] + merged["GasRevenue"]
     merged = merged.sort_values("PRODUCINGMONTH").reset_index(drop=True)
-    merged["CumRevenue"] = (merged["OilRevenue"] + merged["GasRevenue"]).cumsum()
-    merged["CumNCF"] = merged["NetCashFlow"].cumsum()
+    merged[["OilRevenue", "GasRevenue", "NetCashFlow"]] = merged[
+        ["OilRevenue", "GasRevenue", "NetCashFlow"]
+    ].fillna(0)
+    merged["CumRevenue"] = (
+        merged["OilRevenue"] + merged["GasRevenue"]
+    ).cumsum().fillna(0)
+    merged["CumNCF"] = merged["NetCashFlow"].cumsum().fillna(0)
     merged["month_index"] = merged.index
 
     def npv(rate):
@@ -426,8 +442,8 @@ def economics_data(request):
 
     cum = {
         "dates": merged["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d").tolist(),
-        "cum_revenue": merged["CumRevenue"].tolist(),
-        "cum_ncf": merged["CumNCF"].tolist(),
+        "cum_revenue": merged["CumRevenue"].fillna(0).tolist(),
+        "cum_ncf": merged["CumNCF"].fillna(0).tolist(),
     }
 
     today = pd.Timestamp.today().normalize().replace(day=1)
@@ -436,7 +452,7 @@ def economics_data(request):
     window_df = merged[(merged["PRODUCINGMONTH"] >= start) & (merged["PRODUCINGMONTH"] <= end)]
     window = {
         "dates": window_df["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d").tolist(),
-        "ncf": window_df["NetCashFlow"].tolist(),
+        "ncf": window_df["NetCashFlow"].fillna(0).tolist(),
         "today": today.strftime("%Y-%m-%d"),
     }
 
