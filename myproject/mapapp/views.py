@@ -418,6 +418,10 @@ def economics_data(request):
     monthly = (
         fc.groupby("PRODUCINGMONTH").agg({"OilVol": "sum", "GasVol": "sum"}).reset_index()
     )
+    # Forecast data often uses the first day of the month while price decks
+    # are keyed by the last day. Shifting to month-end ensures the merge below
+    # finds matching rows instead of leaving the economic charts empty.
+    monthly["PRODUCINGMONTH"] = monthly["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
     merged = monthly.merge(
         deck_df[["MONTH_DATE", "OIL", "GAS"]],
         left_on="PRODUCINGMONTH",
