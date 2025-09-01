@@ -1,17 +1,13 @@
 const yearInput = document.getElementById('year');
     const yearVal = document.getElementById('year-val');
-    const statusDiv = document.getElementById('status');
-    const userWellsCount = document.getElementById('user-wells-count');
+    // Status bar and user well count removed from the interface
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
     const MAPBOX_STYLE = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
 
     function updateStatus(message, isError = false, isSuccess = false) {
-      statusDiv.textContent = message;
-      statusDiv.className = 'status';
-      if (isError) statusDiv.classList.add('error');
-      if (isSuccess) statusDiv.classList.add('success');
+      console.log(message);
     }
 
     // Global variables to store all data
@@ -338,9 +334,6 @@ const yearInput = document.getElementById('year');
         const generalData = filterDataByYear(allWellData, year);
         const userData = filterDataByYear(userWellData, year);
 
-        // Update user wells count display
-        userWellsCount.textContent = `Your Wells: ${userData.lat.length}`;
-        
         // Analyze nearby wells and create charts - use unfiltered user wells for centroid
         const nearbyAnalysis20 = analyzeNearbyWells(generalData, userWellData, year, 20);
         const nearbyAnalysis10 = analyzeNearbyWells(generalData, userWellData, year, 10);
