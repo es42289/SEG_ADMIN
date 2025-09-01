@@ -20,3 +20,4 @@ media/
 # DB (dev only)
 db.sqlite3
 .data/
+dev/
