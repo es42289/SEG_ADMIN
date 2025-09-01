@@ -333,7 +333,12 @@ def get_blended_price_deck(active_name, price_decks):
     combined["MONTH_DATE"] = pd.to_datetime(combined["MONTH_DATE"])
     combined = combined.drop_duplicates("MONTH_DATE").sort_values("MONTH_DATE")
     combined = combined.set_index("MONTH_DATE")
-    all_months = pd.date_range(combined.index.min(), pd.Timestamp("2075-01-01"), freq="MS")
+    # Price deck data is stored with end-of-month dates. Reindex using month-end
+    # frequency so existing rows line up instead of being dropped by month-start
+    # misalignment which left the chart with no data.
+    all_months = pd.date_range(
+        combined.index.min(), pd.Timestamp("2075-01-01"), freq="ME"
+    )
     combined = combined.reindex(all_months)
     combined[["OIL", "GAS"]] = combined[["OIL", "GAS"]].apply(pd.to_numeric, errors="coerce")
     combined[["OIL", "GAS"]] = combined[["OIL", "GAS"]].interpolate()
