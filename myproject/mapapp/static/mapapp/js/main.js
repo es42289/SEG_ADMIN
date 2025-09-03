@@ -257,7 +257,8 @@ const yearInput = document.getElementById('year');
 
       const filteredIndices = [];
       for (let i = 0; i < data.year.length; i++) {
-        if (data.year[i] <= year) {
+        const wellYear = parseInt(data.year[i], 10);
+        if (!isNaN(wellYear) && wellYear <= year) {
           filteredIndices.push(i);
         }
       }
