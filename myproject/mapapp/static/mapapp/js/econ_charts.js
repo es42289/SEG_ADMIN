@@ -69,14 +69,15 @@
   }
 
   function renderWindow(w){
+    const dates = w.dates.map(d=>new Date(d));
     const yMax = Math.max(0, ...w.ncf);
-    const today = w.today;
+    const today = new Date(w.today);
     const prevCenter = new Date(today);
     prevCenter.setMonth(prevCenter.getMonth() - 1);
     const nextCenter = new Date(today);
     nextCenter.setMonth(nextCenter.getMonth() + 1);
 
-    const fig = [{x:w.dates,y:w.ncf,type:'bar',marker:{color:'#A4CA98'},name:'Net Cash Flow'}];
+    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#A4CA98'},name:'Net Cash Flow'}];
     const layout = {
       title:'Net Cash Flow: 2 Months Backward & 2 Months Forward',
       template:'plotly_white',
@@ -108,7 +109,7 @@
           align:'center'
         },
         {
-          x:prevCenter.toISOString().split('T')[0],
+          x:prevCenter,
           y:yMax*1.05,
           text:'Last 2 Months',
           showarrow:false,
@@ -116,7 +117,7 @@
           xanchor:'center'
         },
         {
-          x:nextCenter.toISOString().split('T')[0],
+          x:nextCenter,
           y:yMax*1.05,
           text:'Next 2 Months',
           showarrow:false,

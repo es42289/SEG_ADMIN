@@ -455,7 +455,7 @@ def economics_data(request):
         "cum_ncf": merged["CumNCF"].fillna(0).tolist(),
     }
 
-    today = pd.Timestamp.today().normalize().replace(day=1)
+    today = pd.Timestamp.today().normalize() + pd.offsets.MonthEnd(0)
 
     # Window covering two months before and after today
     window_start = today - pd.DateOffset(months=2)
