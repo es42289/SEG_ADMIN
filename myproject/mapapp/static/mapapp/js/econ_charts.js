@@ -69,8 +69,63 @@
   }
 
   function renderWindow(w){
-    const fig = [{x:w.dates,y:w.ncf,type:'bar',marker:{color:'#A4CA98'}}];
-    const layout = {title:'Net Cash Flow: 12 Months Backward & 24 Months Forward',xaxis:{tickangle:-45}};
+    const dates = w.dates.map(d=>new Date(d));
+    const yMax = Math.max(0, ...w.ncf);
+    const today = new Date(w.today);
+    const ltmCenter = new Date(today);
+    ltmCenter.setMonth(ltmCenter.getMonth() - 6);
+    const ntmCenter = new Date(today);
+    ntmCenter.setMonth(ntmCenter.getMonth() + 12);
+
+    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#A4CA98'},name:'Net Cash Flow'}];
+    const layout = {
+      title:'Net Cash Flow: 12 Months Backward & 24 Months Forward',
+      template:'plotly_white',
+      height:600,
+      xaxis:{
+        tickangle:-45,
+        tickformat:'%b %Y',
+        dtick:'M1',
+        tickmode:'linear',
+        title:'Date'
+      },
+      yaxis:{title:'Net Cash Flow'},
+      shapes:[{
+        type:'line',
+        x0:today,x1:today,yref:'paper',y0:0,y1:1,
+        line:{color:'red',dash:'dash'}
+      }],
+      annotations:[
+        {
+          x:today,
+          y:yMax,
+          text:'<b>Today</b>',
+          showarrow:true,
+          arrowhead:0,
+          arrowsize:1,
+          arrowwidth:2,
+          ax:-40,ay:-40,
+          font:{color:'red',size:12},
+          align:'center'
+        },
+        {
+          x:ltmCenter,
+          y:yMax*1.05,
+          text:'LTM',
+          showarrow:false,
+          font:{size:14},
+          xanchor:'center'
+        },
+        {
+          x:ntmCenter,
+          y:yMax*1.05,
+          text:'Next 24 Months',
+          showarrow:false,
+          font:{size:14},
+          xanchor:'center'
+        }
+      ]
+    };
     Plotly.newPlot('cashflowWindowChart',fig,layout,{responsive:true});
   }
 
