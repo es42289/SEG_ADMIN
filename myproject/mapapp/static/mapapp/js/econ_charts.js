@@ -130,9 +130,57 @@
   }
 
   function renderSummary(s){
-    const labels = s.map(v=>v.label);
-    const vals = s.map(v=>v.value);
-    Plotly.newPlot('cashflowSummaryChart',[{type:'bar',x:labels,y:vals,marker:{color:'#737F6F'}}],{title:'Cumulative Net Cash Flow Summary'},{responsive:true});
+    const labels = s.map(v => v.label || v.CF_YR);
+    const vals = s.map(v => v.value ?? v.CNCF);
+
+    const ltmIdx = labels.indexOf('LTM');
+    const ntmIdx = labels.indexOf('NTM');
+
+    const ordered = [];
+    if (ltmIdx !== -1) ordered.push({label: 'LTM', value: vals[ltmIdx]});
+    if (ntmIdx !== -1) ordered.push({label: 'NTM', value: vals[ntmIdx]});
+    const years = labels
+      .map((label, i) => ({label, value: vals[i]}))
+      .filter((_, i) => i !== ltmIdx && i !== ntmIdx)
+      .sort((a, b) => parseInt(a.label) - parseInt(b.label));
+    ordered.push(...years);
+
+    const ordLabels = ordered.map(o => o.label);
+    const ordVals = ordered.map(o => o.value);
+
+    const colors = ordLabels.map(l => {
+      if (l === 'LTM') return '#A4CA98';
+      if (l === 'NTM') return '#F4D65A';
+      return '#737F6F';
+    });
+
+    function formatCurrency(value){
+      const absVal = Math.abs(value);
+      if (absVal >= 1_000_000) return `$${(value/1_000_000).toFixed(1)}M`;
+      if (absVal >= 1_000) return `$${(value/1_000).toFixed(1)}k`;
+      return `$${value.toFixed(0)}`;
+    }
+
+    const trace = {
+      type: 'bar',
+      x: ordLabels,
+      y: ordVals,
+      marker: {color: colors},
+      text: ordVals.map(formatCurrency),
+      textposition: 'outside',
+      textfont: {size: 18, color: 'black'}
+    };
+
+    const layout = {
+      title: 'Cumulative Net Cash Flow Summary',
+      yaxis: {title: 'CNCF ($)'},
+      xaxis: {title: 'Period', type: 'category'},
+      uniformtext: {minsize: 8, mode: 'hide'},
+      template: 'plotly_white',
+      height: 600
+    };
+
+    Plotly.newPlot('cashflowSummaryChart', [trace], layout, {responsive: true});
   }
 
   if(document.readyState !== 'loading') loadPriceDeckOptions();
