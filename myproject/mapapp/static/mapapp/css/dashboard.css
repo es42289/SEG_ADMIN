@@ -49,3 +49,15 @@ body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background:
     .metric { display: flex; justify-content: space-between; margin: 0.5rem 0; }
     .metric-label { color: #888; }
     .metric-value { color: #fff; font-weight: bold; }
+
+    #userWellsTable {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #userWellsTable th, #userWellsTable td {
+      padding: .5rem;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    #userWellsTable th {
+      text-align: left;
+    }
