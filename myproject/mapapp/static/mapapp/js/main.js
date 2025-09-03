@@ -239,6 +239,8 @@ const yearInput = document.getElementById('year');
         }
         
         console.log(`Received ${data.lat.length} user wells`);
+        // Populate initial table with current slider year
+        renderUserWellsTable(filterDataByYear(data, parseInt(yearInput.value, 10)));
         return data;
         
       } catch (error) {
