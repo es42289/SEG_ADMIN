@@ -456,14 +456,22 @@ def economics_data(request):
     }
 
     today = pd.Timestamp.today().normalize().replace(day=1)
-    start = today - pd.DateOffset(months=12)
-    end = today + pd.DateOffset(months=24)
-    window_df = merged[(merged["PRODUCINGMONTH"] >= start) & (merged["PRODUCINGMONTH"] <= end)]
+
+    # Window covering two months before and after today
+    window_start = today - pd.DateOffset(months=2)
+    window_end = today + pd.DateOffset(months=2)
+    window_df = merged[
+        (merged["PRODUCINGMONTH"] >= window_start)
+        & (merged["PRODUCINGMONTH"] <= window_end)
+    ]
     window = {
         "dates": window_df["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d").tolist(),
         "ncf": window_df["NetCashFlow"].fillna(0).tolist(),
         "today": today.strftime("%Y-%m-%d"),
     }
+
+    # Starting point for LTM summaries
+    ltm_start = today - pd.DateOffset(months=12)
 
     def period_sum(start, end):
         mask = (merged["PRODUCINGMONTH"] >= start) & (merged["PRODUCINGMONTH"] <= end)
@@ -473,7 +481,7 @@ def economics_data(request):
         return float(sub["CumNCF"].iloc[-1] - sub["CumNCF"].iloc[0])
 
     summary = []
-    summary.append({"label": "LTM", "value": period_sum(start, today)})
+    summary.append({"label": "LTM", "value": period_sum(ltm_start, today)})
     summary.append({"label": "NTM", "value": period_sum(today, today + pd.DateOffset(months=12))})
     year = today.year
     for yr in range(year, year + 6):
