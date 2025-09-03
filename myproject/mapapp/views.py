@@ -457,9 +457,9 @@ def economics_data(request):
 
     today = pd.Timestamp.today().normalize() + pd.offsets.MonthEnd(0)
 
-    # Window covering two months before and after today
-    window_start = today - pd.DateOffset(months=2)
-    window_end = today + pd.DateOffset(months=2)
+    # Window covering 12 months backward and 24 months forward
+    window_start = today - pd.DateOffset(months=12)
+    window_end = today + pd.DateOffset(months=24)
     window_df = merged[
         (merged["PRODUCINGMONTH"] >= window_start)
         & (merged["PRODUCINGMONTH"] <= window_end)
