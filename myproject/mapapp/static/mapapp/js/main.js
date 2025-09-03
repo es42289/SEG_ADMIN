@@ -235,27 +235,30 @@ const yearInput = document.getElementById('year');
         
         if (!data.lat || data.lat.length === 0) {
           console.log('No user wells found');
-          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [] };
+          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
         }
         
         console.log(`Received ${data.lat.length} user wells`);
+        userWellsCount.textContent = `Your Wells: ${data.lat.length}`;
+        renderUserWellsTable(data);
         return data;
         
       } catch (error) {
         console.error('User wells fetch error:', error);
-        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [] };
+        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
       }
     }
 
     // Filter data by year (frontend filtering) - show wells completed <= year
     function filterDataByYear(data, year) {
       if (!data || !data.year) {
-        return { lat: [], lon: [], text: [], years: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [] };
+        return { lat: [], lon: [], text: [], years: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
       }
 
       const filteredIndices = [];
       for (let i = 0; i < data.year.length; i++) {
-        if (data.year[i] <= year) {
+        const wellYear = parseInt(data.year[i], 10);
+        if (!isNaN(wellYear) && wellYear <= year) {
           filteredIndices.push(i);
         }
       }
@@ -321,6 +324,44 @@ const yearInput = document.getElementById('year');
       return { lineLats, lineLons, lineColors };
     }
 
+    function renderUserWellsTable(data) {
+      const table = document.getElementById('userWellsTable');
+      if (!table) return;
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+
+      if (!data || !data.api_uwi || data.api_uwi.length === 0) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 4;
+        cell.textContent = 'No wells found';
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        return;
+      }
+
+      const years = data.years || data.year || [];
+      const lastProd = data.last_producing || [];
+
+      for (let i = 0; i < data.api_uwi.length; i++) {
+        const row = document.createElement('tr');
+        const cells = [
+          data.api_uwi[i] || '',
+          years[i] || '',
+          lastProd[i] || '',
+          data.owner_interest[i] != null ? data.owner_interest[i] : ''
+        ];
+        cells.forEach(txt => {
+          const td = document.createElement('td');
+          td.textContent = txt;
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      }
+    }
+
     // Main draw function with frontend filtering
     async function drawWithFilteredData(year) {
       yearVal.textContent = year;
@@ -338,8 +379,7 @@ const yearInput = document.getElementById('year');
         const generalData = filterDataByYear(allWellData, year);
         const userData = filterDataByYear(userWellData, year);
 
-        // Update user wells count display
-        userWellsCount.textContent = `Your Wells: ${userData.lat.length}`;
+        // Table displays all user wells; no need to update here
         
         // Analyze nearby wells and create charts - use unfiltered user wells for centroid
         const nearbyAnalysis20 = analyzeNearbyWells(generalData, userWellData, year, 20);
