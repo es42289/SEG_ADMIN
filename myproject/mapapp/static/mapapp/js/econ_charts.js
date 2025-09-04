@@ -48,10 +48,24 @@
 
   async function loadEconomics(deck){
     const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
-    window.npvData = data.npv;
-    window.cumData = data.cum;
+    cacheNPV(data.npv);
+    cacheCum(data.cum);
     renderWindow(data.window);
     renderSummary(data.summary);
+  }
+
+  function cacheNPV(npv){
+    const rates = npv.map(r=>r.rate);
+    const vals = npv.map(r=>r.npv);
+    window.npvData = {rates, vals};
+  }
+
+  function cacheCum(c){
+    window.cumData = {
+      dates: c.dates,
+      cum_revenue: c.cum_revenue,
+      cum_ncf: c.cum_ncf
+    };
   }
 
   function renderWindow(w){
