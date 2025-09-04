@@ -43,7 +43,7 @@ body {
       background: rgba(0, 0, 0, 0.7);
       border-radius: 8px;
       padding: 10px;
-      z-index: 1000;
+      z-index: 500;
       width: 220px;
       pointer-events: none;
     }
