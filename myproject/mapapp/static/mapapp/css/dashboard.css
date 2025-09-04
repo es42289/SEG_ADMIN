@@ -1,4 +1,25 @@
 body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; background: #0b0b0c; color: #eaeaea; }
+
+.login-bar {
+  background: #333;
+  padding: 10px;
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+}
+
+.login-bar img {
+  height: 40px;
+  margin-right: 10px;
+}
+
+.login-bar a {
+  color: #ff6b35;
+  margin-left: 20px;
+}
     #main-container { display: flex; gap: 1rem; height: 85vh; margin-top: 1rem; }
     #map-container { flex: 2; position: relative; }
     #chart-container { flex: 1; background: #1a1a1a; border-radius: 12px; padding: 1rem; }

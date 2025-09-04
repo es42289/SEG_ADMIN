@@ -48,24 +48,24 @@
 
   async function loadEconomics(deck){
     const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
-    cacheNPV(data.npv);
-    cacheCum(data.cum);
+    renderNPV(data.npv);
+    renderCum(data.cum);
     renderWindow(data.window);
     renderSummary(data.summary);
   }
 
-  function cacheNPV(npv){
+  function renderNPV(npv){
     const rates = npv.map(r=>r.rate);
     const vals = npv.map(r=>r.npv);
-    window.npvData = {rates, vals};
+    Plotly.newPlot('npvChart',[{type:'bar',x:rates,y:vals,marker:{color:'#737F6F'}}],{title:'NPV'});
   }
 
-  function cacheCum(c){
-    window.cumData = {
-      dates: c.dates,
-      cum_revenue: c.cum_revenue,
-      cum_ncf: c.cum_ncf
-    };
+  function renderCum(c){
+    const fig = [
+      {x:c.dates,y:c.cum_revenue,mode:'lines',name:'Cum Revenue',line:{color:'#1e8f4e'}},
+      {x:c.dates,y:c.cum_ncf,mode:'lines',name:'Cum NCF',line:{color:'#d62728'}}
+    ];
+    Plotly.newPlot('cumCashChart',fig,{title:'Cumulative Cash and Revenue'}, {responsive:true});
   }
 
   function renderWindow(w){
