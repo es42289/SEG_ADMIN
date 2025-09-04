@@ -1,20 +1,21 @@
 body {
   font-family: system-ui, sans-serif;
   margin: 0;
-  padding: 1rem;
-  padding-top: 50px;
   background: #0b0b0c;
   color: #eaeaea;
+}
+
+.page-content {
+  padding: 1rem;
 }
 
 .login-bar {
   background: #333;
   padding: 10px;
   color: white;
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
+  width: 100%;
   z-index: 1000;
   display: flex;
   align-items: center;
