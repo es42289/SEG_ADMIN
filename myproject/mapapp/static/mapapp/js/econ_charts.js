@@ -48,8 +48,10 @@
 
   async function loadEconomics(deck){
     const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
-    renderNPV(data.npv);
-    renderCum(data.cum);
+    const hasNPV = document.getElementById('npvChart');
+    const hasCum = document.getElementById('cumCashChart');
+    if (hasNPV) renderNPV(data.npv);
+    if (hasCum) renderCum(data.cum);
     renderWindow(data.window);
     renderSummary(data.summary);
   }
