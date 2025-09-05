@@ -50,32 +50,43 @@
   }
 
   async function loadEconomics(deck){
-    const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
     const npvEl = document.getElementById('npvChart');
     const cumEl = document.getElementById('cumCashChart');
     const windowEl = document.getElementById('cashflowWindowChart');
     const summaryEl = document.getElementById('cashflowSummaryChart');
-    if (npvEl) renderNPV(npvEl, data.npv);
-    if (cumEl) renderCum(cumEl, data.cum);
-    if (windowEl) renderWindow(windowEl, data.window);
-    if (summaryEl) renderSummary(summaryEl, data.summary);
+    if(!npvEl && !cumEl && !windowEl && !summaryEl) return;
+    const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
+    if (npvEl && data.npv) renderNPV(npvEl, data.npv);
+    if (cumEl && data.cum) renderCum(cumEl, data.cum);
+    if (windowEl && data.window) renderWindow(windowEl, data.window);
+    if (summaryEl && data.summary) renderSummary(summaryEl, data.summary);
+  }
+
+  function resolveEl(el){
+    return typeof el === 'string' ? document.getElementById(el) : el;
   }
 
   function renderNPV(el, npv){
+    const target = resolveEl(el);
+    if(!target) return;
     const rates = npv.map(r=>r.rate);
     const vals = npv.map(r=>r.npv);
-    Plotly.newPlot(el,[{type:'bar',x:rates,y:vals,marker:{color:'#737F6F'}}],{title:'NPV'});
+    Plotly.newPlot(target,[{type:'bar',x:rates,y:vals,marker:{color:'#737F6F'}}],{title:'NPV'});
   }
 
   function renderCum(el, c){
+    const target = resolveEl(el);
+    if(!target) return;
     const fig = [
       {x:c.dates,y:c.cum_revenue,mode:'lines',name:'Cum Revenue',line:{color:'#1e8f4e'}},
       {x:c.dates,y:c.cum_ncf,mode:'lines',name:'Cum NCF',line:{color:'#d62728'}}
     ];
-    Plotly.newPlot(el,fig,{title:'Cumulative Cash and Revenue'}, {responsive:true});
+    Plotly.newPlot(target,fig,{title:'Cumulative Cash and Revenue'}, {responsive:true});
   }
 
   function renderWindow(el, w){
+    const target = resolveEl(el);
+    if(!target) return;
     const dates = w.dates.map(d=>new Date(d));
     const yMax = Math.max(0, ...w.ncf);
     const today = new Date(w.today);
@@ -133,10 +144,12 @@
         }
       ]
     };
-    Plotly.newPlot(el,fig,layout,{responsive:true});
+    Plotly.newPlot(target,fig,layout,{responsive:true});
   }
 
   function renderSummary(el, s){
+    const target = resolveEl(el);
+    if(!target) return;
     const labels = s.map(v => v.label || v.CF_YR);
     const vals = s.map(v => v.value ?? v.CNCF);
 
@@ -187,7 +200,7 @@
       height: 600
     };
 
-    Plotly.newPlot(el, [trace], layout, {responsive: true});
+    Plotly.newPlot(target, [trace], layout, {responsive: true});
   }
 
   if(document.readyState !== 'loading') loadPriceDeckOptions();
