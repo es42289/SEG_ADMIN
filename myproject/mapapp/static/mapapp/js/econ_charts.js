@@ -6,8 +6,9 @@
   }
 
   async function loadPriceDeckOptions(){
-    const data = await fetchJSON('/price-decks/');
     const sel = document.getElementById('priceDeckSelect');
+    if (!sel) return;
+    const data = await fetchJSON('/price-decks/');
     data.options.forEach(o=>{
       const opt = document.createElement('option');
       opt.value = o;
@@ -32,6 +33,8 @@
   }
 
   function renderPriceDeck(rows){
+    const chartEl = document.getElementById('priceDeckChart');
+    if (!chartEl) return;
     const dates = rows.map(r=>r.MONTH_DATE);
     const toPos = v=>{
       const num = Number(v);
@@ -43,34 +46,36 @@
       {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'}},
       {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}}
     ];
-    Plotly.newPlot('priceDeckChart',fig,{yaxis:{type:'log'},title:'Price Deck'}, {responsive:true});
+    Plotly.newPlot(chartEl,fig,{yaxis:{type:'log'},title:'Price Deck'}, {responsive:true});
   }
 
   async function loadEconomics(deck){
     const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
-    const hasNPV = document.getElementById('npvChart');
-    const hasCum = document.getElementById('cumCashChart');
-    if (hasNPV) renderNPV(data.npv);
-    if (hasCum) renderCum(data.cum);
-    renderWindow(data.window);
-    renderSummary(data.summary);
+    const npvEl = document.getElementById('npvChart');
+    const cumEl = document.getElementById('cumCashChart');
+    const windowEl = document.getElementById('cashflowWindowChart');
+    const summaryEl = document.getElementById('cashflowSummaryChart');
+    if (npvEl) renderNPV(npvEl, data.npv);
+    if (cumEl) renderCum(cumEl, data.cum);
+    if (windowEl) renderWindow(windowEl, data.window);
+    if (summaryEl) renderSummary(summaryEl, data.summary);
   }
 
-  function renderNPV(npv){
+  function renderNPV(el, npv){
     const rates = npv.map(r=>r.rate);
     const vals = npv.map(r=>r.npv);
-    Plotly.newPlot('npvChart',[{type:'bar',x:rates,y:vals,marker:{color:'#737F6F'}}],{title:'NPV'});
+    Plotly.newPlot(el,[{type:'bar',x:rates,y:vals,marker:{color:'#737F6F'}}],{title:'NPV'});
   }
 
-  function renderCum(c){
+  function renderCum(el, c){
     const fig = [
       {x:c.dates,y:c.cum_revenue,mode:'lines',name:'Cum Revenue',line:{color:'#1e8f4e'}},
       {x:c.dates,y:c.cum_ncf,mode:'lines',name:'Cum NCF',line:{color:'#d62728'}}
     ];
-    Plotly.newPlot('cumCashChart',fig,{title:'Cumulative Cash and Revenue'}, {responsive:true});
+    Plotly.newPlot(el,fig,{title:'Cumulative Cash and Revenue'}, {responsive:true});
   }
 
-  function renderWindow(w){
+  function renderWindow(el, w){
     const dates = w.dates.map(d=>new Date(d));
     const yMax = Math.max(0, ...w.ncf);
     const today = new Date(w.today);
@@ -128,10 +133,10 @@
         }
       ]
     };
-    Plotly.newPlot('cashflowWindowChart',fig,layout,{responsive:true});
+    Plotly.newPlot(el,fig,layout,{responsive:true});
   }
 
-  function renderSummary(s){
+  function renderSummary(el, s){
     const labels = s.map(v => v.label || v.CF_YR);
     const vals = s.map(v => v.value ?? v.CNCF);
 
@@ -182,7 +187,7 @@
       height: 600
     };
 
-    Plotly.newPlot('cashflowSummaryChart', [trace], layout, {responsive: true});
+    Plotly.newPlot(el, [trace], layout, {responsive: true});
   }
 
   if(document.readyState !== 'loading') loadPriceDeckOptions();
