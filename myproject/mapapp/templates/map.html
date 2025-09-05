@@ -71,7 +71,10 @@
   <div style="display:flex; gap:1rem; margin-top:1rem;">
     <div id="cashflowWindowChart" style="width:60%; height:400px;"></div>
     <div style="width:40%;">
-      <select id="priceDeckSelect" style="margin-bottom:0.5rem; width:100%;"></select>
+      <div style="display:flex; align-items:center; margin-bottom:0.5rem;">
+        <label for="priceDeckSelect" style="margin-right:0.5rem; white-space:nowrap;">Choose Price Deck</label>
+        <select id="priceDeckSelect" style="flex:1;"></select>
+      </div>
       <div id="priceDeckChart" style="width:100%; height:400px;"></div>
     </div>
   </div>
