@@ -8,6 +8,7 @@ const yearInput = document.getElementById('year');
     const MAPBOX_STYLE = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
 
     function updateStatus(message, isError = false, isSuccess = false) {
+      if (!statusDiv) return;
       statusDiv.textContent = message;
       statusDiv.className = 'status';
       if (isError) statusDiv.classList.add('error');
@@ -213,7 +214,6 @@ const yearInput = document.getElementById('year');
           data.lon_bh = data.lat.map(() => null);
         }
         
-        updateStatus(`✓ Loaded ${data.lat.length} total wells from Snowflake`, false, true);
         console.log(`Received ${data.lat.length} total wells from Snowflake`);
         return data;
         
