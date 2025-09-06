@@ -213,7 +213,6 @@ const yearInput = document.getElementById('year');
           data.lon_bh = data.lat.map(() => null);
         }
         
-        updateStatus(`✓ Loaded ${data.lat.length} total wells from Snowflake`, false, true);
         console.log(`Received ${data.lat.length} total wells from Snowflake`);
         return data;
         
