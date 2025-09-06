@@ -99,7 +99,7 @@
     const layout = {
       title:'Net Cash Flow: 12 Months Backward & 24 Months Forward',
       template:'plotly_white',
-      height:600,
+      height:500,
       xaxis:{
         tickangle:-45,
         tickformat:'%b %Y',
