@@ -80,7 +80,6 @@ const yearInput = document.getElementById('year');
       if (!rows.length) return;
 
       const monthly = {};
-      let latest = null;
 
       function monthKey(d) {
         const dt = new Date(d);
@@ -94,9 +93,15 @@ const yearInput = document.getElementById('year');
         if (!monthly[mk]) monthly[mk] = { oil: 0, gas: 0 };
         monthly[mk].oil += Number(r.LIQUIDSPROD_BBL || r.OIL_BBL || r.oil_bbl || 0);
         monthly[mk].gas += Number(r.GASPROD_MCF || r.GAS_MCF || r.gas_mcf || 0);
-        if (!latest || mk > latest) latest = mk;
       }
 
+      // Determine the most recent month with non-zero production
+      const months = Object.keys(monthly).sort();
+      let latest = null;
+      for (const mk of months) {
+        const bucket = monthly[mk];
+        if (bucket.oil > 0 || bucket.gas > 0) latest = mk;
+      }
       if (latest) {
         const data = monthly[latest];
         lastOil.textContent = `Last Oil, BBL: ${Math.round(data.oil).toLocaleString()}`;
