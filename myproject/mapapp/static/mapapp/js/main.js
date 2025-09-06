@@ -8,6 +8,7 @@ const yearInput = document.getElementById('year');
     const MAPBOX_STYLE = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
 
     function updateStatus(message, isError = false, isSuccess = false) {
+      if (!statusDiv) return;
       statusDiv.textContent = message;
       statusDiv.className = 'status';
       if (isError) statusDiv.classList.add('error');
