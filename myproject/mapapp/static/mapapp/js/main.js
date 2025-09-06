@@ -2,6 +2,8 @@ const yearInput = document.getElementById('year');
     const yearVal = document.getElementById('year-val');
     const statusDiv = document.getElementById('status');
     const userWellsCount = document.getElementById('user-wells-count');
+    const lastOil = document.getElementById('last-oil');
+    const lastGas = document.getElementById('last-gas');
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
@@ -70,6 +72,36 @@ const yearInput = document.getElementById('year');
       })();
 
       return productionLoadPromise;
+    }
+
+    function updateLastProductionMetrics(prodMap) {
+      if (!lastOil || !lastGas) return;
+      const rows = Object.values(prodMap || {}).flat();
+      if (!rows.length) return;
+
+      const monthly = {};
+      let latest = null;
+
+      function monthKey(d) {
+        const dt = new Date(d);
+        if (isNaN(dt)) return null;
+        return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+      }
+
+      for (const r of rows) {
+        const mk = monthKey(r.PRODUCINGMONTH || r.ProducingMonth || r.PRODUCTIONMONTH || r.MONTH || r.month);
+        if (!mk) continue;
+        if (!monthly[mk]) monthly[mk] = { oil: 0, gas: 0 };
+        monthly[mk].oil += Number(r.LIQUIDSPROD_BBL || r.OIL_BBL || r.oil_bbl || 0);
+        monthly[mk].gas += Number(r.GASPROD_MCF || r.GAS_MCF || r.gas_mcf || 0);
+        if (!latest || mk > latest) latest = mk;
+      }
+
+      if (latest) {
+        const data = monthly[latest];
+        lastOil.textContent = `Last Oil, BBL: ${Math.round(data.oil).toLocaleString()}`;
+        lastGas.textContent = `Last Gas, MCF: ${Math.round(data.gas).toLocaleString()}`;
+      }
     }
 
     // Calculate distance between two lat/lon points in miles
@@ -652,4 +684,4 @@ const yearInput = document.getElementById('year');
     drawWithFilteredData(parseInt(yearInput.value, 10));
     
     // Fire-and-forget: fetch production for user wells once
-    loadUserProductionOnce();
+    loadUserProductionOnce().then(updateLastProductionMetrics);

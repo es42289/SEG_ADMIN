@@ -48,6 +48,13 @@ body {
   width: 100%;
   text-align: center;
   z-index: 999;
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+}
+
+.well-count-box span {
+  white-space: nowrap;
 }
 
     #main-container { display: flex; gap: 1rem; height: 85vh; margin-top: 0; }
