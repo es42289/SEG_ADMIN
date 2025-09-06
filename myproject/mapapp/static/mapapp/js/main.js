@@ -239,7 +239,7 @@ const yearInput = document.getElementById('year');
         }
         
         console.log(`Received ${data.lat.length} user wells`);
-        userWellsCount.textContent = `Your Wells: ${data.lat.length}`;
+        userWellsCount.textContent = `Well Count: ${data.lat.length}`;
         renderUserWellsTable(data);
         return data;
         
