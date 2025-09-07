@@ -103,7 +103,7 @@
       xaxis:{
         tickangle:-45,
         tickformat:'%b %Y',
-        dtick:'M1',
+        dtick:'M4',
         tickmode:'linear',
         title:'Date'
       },
