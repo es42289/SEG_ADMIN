@@ -226,8 +226,8 @@
           xanchor: 'right',
           yanchor: 'top',
           orientation: 'v',
-          bgcolor: 'rgba(26,26,26,0.6)', // optional: improves readability on dark bg
-          bordercolor: 'rgba(255,255,255,0.2)',
+          bgcolor: '#faefdc',
+          bordercolor: '#1f293a',
           borderwidth: 1,
           font: { size: 12 }  // optional: tweak as you like
         },
