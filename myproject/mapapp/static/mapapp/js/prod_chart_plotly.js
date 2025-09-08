@@ -241,7 +241,7 @@
           automargin: true       // avoid clipping when rotated
         },
         yaxis: { title: 'MCF or BBL per Month', type: 'log', range: [Math.log10(agg.yMin), Math.log10(agg.yMax)], gridcolor: '#1f293a1f' },
-        yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: '#1f293a1f' },
+        yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: '#1f293a02' },
         paper_bgcolor: '#faefdc',
         plot_bgcolor: '#faefdc',
         font: { color: '#1f293a' },
