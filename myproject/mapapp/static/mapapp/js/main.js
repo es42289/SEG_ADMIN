@@ -7,6 +7,8 @@ const yearInput = document.getElementById('year');
     const lastGas = document.getElementById('last-gas');
     const lastYearOil = document.getElementById('last-year-oil');
     const lastYearGas = document.getElementById('last-year-gas');
+    const nextYearOil = document.getElementById('next-year-oil');
+    const nextYearGas = document.getElementById('next-year-gas');
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
@@ -78,7 +80,7 @@ const yearInput = document.getElementById('year');
     }
 
     function updateLastProductionMetrics(prodMap) {
-      if (!lastOil || !lastGas || !lastYearOil || !lastYearGas) return;
+      if (!lastOil || !lastGas || !lastYearOil || !lastYearGas || !nextYearOil || !nextYearGas) return;
       const rows = Object.values(prodMap || {}).flat();
       if (!rows.length) return;
 
@@ -93,9 +95,11 @@ const yearInput = document.getElementById('year');
       for (const r of rows) {
         const mk = monthKey(r.PRODUCINGMONTH || r.ProducingMonth || r.PRODUCTIONMONTH || r.MONTH || r.month);
         if (!mk) continue;
-        if (!monthly[mk]) monthly[mk] = { oil: 0, gas: 0 };
+        if (!monthly[mk]) monthly[mk] = { oil: 0, gas: 0, oilFc: 0, gasFc: 0 };
         monthly[mk].oil += Number(r.LIQUIDSPROD_BBL || r.OIL_BBL || r.oil_bbl || 0);
         monthly[mk].gas += Number(r.GASPROD_MCF || r.GAS_MCF || r.gas_mcf || 0);
+        monthly[mk].oilFc += Number(r.OilFcst_BBL || r.OILFCST_BBL || r.oilfcst_bbl || 0);
+        monthly[mk].gasFc += Number(r.GasFcst_MCF || r.GASFCST_MCF || r.gasfcst_mcf || 0);
       }
 
       // Determine the most recent month with non-zero production
@@ -120,6 +124,21 @@ const yearInput = document.getElementById('year');
         }
         lastYearOil.textContent = `Last 12 Months Oil, BBL: ${Math.round(sumOil).toLocaleString()}`;
         lastYearGas.textContent = `Last 12 Months Gas, MCF: ${Math.round(sumGas).toLocaleString()}`;
+
+        const now = new Date();
+        const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+        let sumOilFc = 0;
+        let sumGasFc = 0;
+        for (let i = 0; i < 12; i++) {
+          const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1));
+          const mk = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+          if (monthly[mk]) {
+            sumOilFc += monthly[mk].oilFc || 0;
+            sumGasFc += monthly[mk].gasFc || 0;
+          }
+        }
+        nextYearOil.textContent = `Next 12 Months Oil, BBL: ${Math.round(sumOilFc).toLocaleString()}`;
+        nextYearGas.textContent = `Next 12 Months Gas, MCF: ${Math.round(sumGasFc).toLocaleString()}`;
       }
     }
 
