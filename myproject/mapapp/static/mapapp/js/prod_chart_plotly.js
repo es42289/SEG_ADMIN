@@ -226,8 +226,8 @@
           xanchor: 'right',
           yanchor: 'top',
           orientation: 'v',
-          bgcolor: 'rgba(26,26,26,0.6)', // optional: improves readability on dark bg
-          bordercolor: 'rgba(255,255,255,0.2)',
+          bgcolor: '#faefdc',
+          bordercolor: '#1f293aff',
           borderwidth: 1,
           font: { size: 12 }  // optional: tweak as you like
         },
@@ -240,8 +240,8 @@
           tickangle: -45,         // rotate labels 45° (use -45 for down-right)
           automargin: true       // avoid clipping when rotated
         },
-        yaxis: { title: 'MCF or BBL per Month', type: 'log', range: [Math.log10(agg.yMin), Math.log10(agg.yMax)], gridcolor: '#333' },
-        yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: 'rgba(0,0,0,0)' },
+        yaxis: { title: 'MCF or BBL per Month', type: 'log', range: [Math.log10(agg.yMin), Math.log10(agg.yMax)], gridcolor: '#1f293a1f' },
+        yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: '#1f293a1f' },
         paper_bgcolor: '#faefdc',
         plot_bgcolor: '#faefdc',
         font: { color: '#1f293a' },
