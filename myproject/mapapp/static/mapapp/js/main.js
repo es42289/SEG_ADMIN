@@ -385,30 +385,22 @@ const yearInput = document.getElementById('year');
     }
 
     // Create line data for well trajectories
-    function createLineData(data, colors, year) {
+    function createLineData(data) {
       const lineLats = [];
       const lineLons = [];
-      const lineColors = [];
-      
+
       for (let i = 0; i < data.lat.length; i++) {
         if (data.lat_bh[i] && data.lon_bh[i]) {
-          // Use dark grey with low opacity for all well sticks
-          const wellColor = 'rgba(64, 64, 64, 0.15)'; // Dark grey, mostly transparent
-          
           lineLats.push(data.lat[i]);
           lineLons.push(data.lon[i]);
           lineLats.push(data.lat_bh[i]);
           lineLons.push(data.lon_bh[i]);
           lineLats.push(null);
           lineLons.push(null);
-          
-          lineColors.push(wellColor);
-          lineColors.push(wellColor);
-          lineColors.push(wellColor);
         }
       }
-      
-      return { lineLats, lineLons, lineColors };
+
+      return { lineLats, lineLons };
     }
 
     function renderUserWellsTable(data) {
@@ -488,12 +480,9 @@ const yearInput = document.getElementById('year');
         // Calculate colors for general wells
         const generalColors = calculateColors(generalData.years, year);
         
-        // Create line data for general wells
-        const generalLines = createLineData(generalData, generalColors, year);
-        
-        // Create line data for user wells (red trajectories)
-        const userLines = createLineData(userData, [], year);
-        const userLineColors = userLines.lineColors.map(() => 'rgba(64, 64, 64, 0.25)');
+        // Create line data for well trajectories
+        const generalLines = createLineData(generalData);
+        const userLines = createLineData(userData);
 
         // First time: create the map
         if (!document.getElementById('map').data) {
@@ -507,7 +496,7 @@ const yearInput = document.getElementById('year');
               lon: generalLines.lineLons,
               mode: 'lines',
               line: {
-                color: generalLines.lineColors,
+                color: 'rgba(128, 128, 128, 0.4)',
                 width: 1
               },
               hoverinfo: 'skip',
@@ -515,7 +504,7 @@ const yearInput = document.getElementById('year');
               showlegend: false
             });
           }
-          
+
           // Add user well trajectory lines
           if (userLines.lineLats.length > 0) {
             traces.push({
@@ -524,7 +513,7 @@ const yearInput = document.getElementById('year');
               lon: userLines.lineLons,
               mode: 'lines',
               line: {
-                color: userLineColors,
+                color: 'rgba(128, 128, 128, 0.6)',
                 width: 2
               },
               hoverinfo: 'skip',
@@ -695,11 +684,41 @@ const yearInput = document.getElementById('year');
           const originalTraceCount = document.getElementById('map').data.length - 2; // Subtract both circles
           
           const updateData = {
-            lat: [generalLines.lineLats, userLines.lineLats, nearbyAnalysis20.centroid ? [nearbyAnalysis20.centroid.lat] : [], generalData.lat, userData.lat],
-            lon: [generalLines.lineLons, userLines.lineLons, nearbyAnalysis20.centroid ? [nearbyAnalysis20.centroid.lon] : [], generalData.lon, userData.lon],
-            text: [[], [], nearbyAnalysis20.centroid ? ['Centroid of Your Wells'] : [], generalData.text, userData.text],
-            'line.color': [generalLines.lineColors, userLineColors, [], [], []],
-            'marker.color': [[], [], nearbyAnalysis20.centroid ? ['orange'] : [], generalColors, userData.lat.length > 0 ? new Array(userData.lat.length).fill('red') : []]
+            lat: [
+              generalLines.lineLats,
+              userLines.lineLats,
+              nearbyAnalysis20.centroid ? [nearbyAnalysis20.centroid.lat] : [],
+              generalData.lat,
+              userData.lat
+            ],
+            lon: [
+              generalLines.lineLons,
+              userLines.lineLons,
+              nearbyAnalysis20.centroid ? [nearbyAnalysis20.centroid.lon] : [],
+              generalData.lon,
+              userData.lon
+            ],
+            text: [
+              [],
+              [],
+              nearbyAnalysis20.centroid ? ['Centroid of Your Wells'] : [],
+              generalData.text,
+              userData.text
+            ],
+            'line.color': [
+              'rgba(128, 128, 128, 0.4)',
+              'rgba(128, 128, 128, 0.6)',
+              null,
+              null,
+              null
+            ],
+            'marker.color': [
+              null,
+              null,
+              nearbyAnalysis20.centroid ? ['orange'] : [],
+              generalColors,
+              userData.lat.length > 0 ? new Array(userData.lat.length).fill('red') : []
+            ]
           };
           
           // Update only the original traces (0 through originalTraceCount-1), skip the circle
