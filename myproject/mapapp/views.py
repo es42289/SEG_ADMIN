@@ -12,6 +12,7 @@ from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 import pandas as pd
 import numpy as np
+from functools import lru_cache
 
 def get_snowflake_connection():
     key_path = os.getenv("SNOWFLAKE_KEY_PATH") or os.getenv("SF_PRIVATE_KEY_PATH")
@@ -154,60 +155,92 @@ def get_user_owner_name(user_email):
             pass
         conn.close()
 
-def _snowflake_user_wells(owner_name):
-    """Get rich data for user's specific wells from multiple tables"""
+
+@lru_cache(maxsize=1)
+def get_all_wells_with_owners():
+    """Fetch all wells with owner information and cache the result."""
     conn = get_snowflake_connection()
-    
     try:
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT DISTINCT
-                w.LATITUDE AS LAT,
-                w.LONGITUDE AS LON,
-                w.LATITUDE_BH AS LAT_BH,
-                w.LONGITUDE_BH AS LON_BH,
-                w.COMPLETIONDATE,
-                DATE_PART(year, w.COMPLETIONDATE) AS COMPLETION_YEAR,
-                w.API_UWI,
-                w.LASTPRODUCINGMONTH,
-                a."Owner_Decimal_Interest",
-                a."Owner"
-            FROM WELLS.MINERALS.RAW_WELL_DATA w
-            JOIN WELLS.MINERALS.DI_TX_MINERAL_APPRAISALS_2023_EXPLODED a 
-                ON REPLACE(w.API_UWI, '-', '') = a.API_10
-            WHERE w.COMPLETIONDATE IS NOT NULL
-              AND w.LATITUDE IS NOT NULL
-              AND w.LONGITUDE IS NOT NULL
-              AND a."Owner" = %s
-            ORDER BY w.COMPLETIONDATE
-            """,
-            (owner_name,),
+            SELECT
+                LATITUDE,
+                LONGITUDE,
+                LATITUDE_BH,
+                LONGITUDE_BH,
+                COMPLETIONDATE,
+                DATE_PART(year, COMPLETIONDATE) AS COMPLETION_YEAR,
+                API_UWI,
+                LASTPRODUCINGMONTH,
+                OWNER_LIST,
+                OWNER_INTEREST_LIST
+            FROM WELLS.MINERALS.RAW_WELL_DATA_WITH_OWNERS
+            WHERE COMPLETIONDATE IS NOT NULL
+              AND LATITUDE IS NOT NULL
+              AND LONGITUDE IS NOT NULL
+            """
         )
         rows = cur.fetchall()
-
-        out = []
-        for lat, lon, lat_bh, lon_bh, cdate, cyear, api_uwi, last_prod, interest, owner in rows:
-            label = f"Well: {api_uwi}\nOwner: {owner}\nInterest: {interest}%\nCompletion: {cdate}"
-            out.append({
-                "lat": float(lat),
-                "lon": float(lon),
-                "lat_bh": float(lat_bh) if lat_bh else None,
-                "lon_bh": float(lon_bh) if lon_bh else None,
-                "label": label,
-                "year": int(cyear) if cyear is not None else 2024,
-                "api_uwi": api_uwi,
-                "last_producing": last_prod,
-                "owner_interest": float(interest) if interest else 0,
-                "owner_name": owner
-            })
-        return out
+        cols = [c[0] for c in cur.description]
+        df = pd.DataFrame(rows, columns=cols)
+        df["API_NODASH"] = df["API_UWI"].str.replace('-', '', regex=False)
+        return df
     finally:
         try:
             cur.close()
         except Exception:
             pass
         conn.close()
+
+
+def _snowflake_user_wells(owner_name):
+    """Get rich data for user's specific wells from cached data."""
+    all_wells = get_all_wells_with_owners()
+
+    # Filter wells where the owner appears in the pipe-delimited OWNER_LIST
+    mask = all_wells["OWNER_LIST"].fillna("").apply(
+        lambda owners_csv: any(
+            owner_name.lower() == o.strip().lower() for o in owners_csv.split("|") if o
+        )
+    )
+    df = all_wells.loc[mask].copy()
+
+    def interest_for_row(row):
+        owners = [o.strip() for o in str(row.get("OWNER_LIST", "")).split("|")]
+        interests = [i.strip() for i in str(row.get("OWNER_INTEREST_LIST", "")).split("|")]
+        for o, i in zip(owners, interests):
+            if o.lower() == owner_name.lower():
+                try:
+                    return float(i)
+                except Exception:
+                    return 0.0
+        return 0.0
+
+    out = []
+    for _, row in df.iterrows():
+        interest = interest_for_row(row)
+        cdate = row["COMPLETIONDATE"]
+        label = (
+            f"Well: {row['API_UWI']}\n"
+            f"Owner: {owner_name}\n"
+            f"Interest: {interest}%\n"
+            f"Completion: {cdate}"
+        )
+        out.append({
+            "lat": float(row["LATITUDE"]),
+            "lon": float(row["LONGITUDE"]),
+            "lat_bh": float(row["LATITUDE_BH"]) if pd.notnull(row["LATITUDE_BH"]) else None,
+            "lon_bh": float(row["LONGITUDE_BH"]) if pd.notnull(row["LONGITUDE_BH"]) else None,
+            "label": label,
+            "year": int(row["COMPLETION_YEAR"]) if pd.notnull(row["COMPLETION_YEAR"]) else 2024,
+            "api_uwi": row["API_UWI"],
+            "last_producing": row["LASTPRODUCINGMONTH"],
+            "owner_interest": interest,
+            "owner_name": owner_name,
+        })
+
+    return out
 
 def user_wells_data(request):
     """Returns JSON for user's specific wells with rich data."""
