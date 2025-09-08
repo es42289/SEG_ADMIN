@@ -2,8 +2,11 @@ const yearInput = document.getElementById('year');
     const yearVal = document.getElementById('year-val');
     const statusDiv = document.getElementById('status');
     const userWellsCount = document.getElementById('user-wells-count');
+    const avgWellAge = document.getElementById('avg-well-age');
     const lastOil = document.getElementById('last-oil');
     const lastGas = document.getElementById('last-gas');
+    const lastYearOil = document.getElementById('last-year-oil');
+    const lastYearGas = document.getElementById('last-year-gas');
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
@@ -75,7 +78,7 @@ const yearInput = document.getElementById('year');
     }
 
     function updateLastProductionMetrics(prodMap) {
-      if (!lastOil || !lastGas) return;
+      if (!lastOil || !lastGas || !lastYearOil || !lastYearGas) return;
       const rows = Object.values(prodMap || {}).flat();
       if (!rows.length) return;
 
@@ -106,6 +109,17 @@ const yearInput = document.getElementById('year');
         const data = monthly[latest];
         lastOil.textContent = `Last Oil, BBL: ${Math.round(data.oil).toLocaleString()}`;
         lastGas.textContent = `Last Gas, MCF: ${Math.round(data.gas).toLocaleString()}`;
+
+        const endIndex = months.indexOf(latest);
+        const last12 = months.slice(Math.max(0, endIndex - 11), endIndex + 1);
+        let sumOil = 0;
+        let sumGas = 0;
+        for (const mk of last12) {
+          sumOil += monthly[mk].oil;
+          sumGas += monthly[mk].gas;
+        }
+        lastYearOil.textContent = `Last 12 Months Oil, BBL: ${Math.round(sumOil).toLocaleString()}`;
+        lastYearGas.textContent = `Last 12 Months Gas, MCF: ${Math.round(sumGas).toLocaleString()}`;
       }
     }
 
@@ -272,11 +286,28 @@ const yearInput = document.getElementById('year');
         
         if (!data.lat || data.lat.length === 0) {
           console.log('No user wells found');
+          if (avgWellAge) avgWellAge.textContent = 'Avg. Well Age (Yrs): 0';
           return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
         }
-        
+
         console.log(`Received ${data.lat.length} user wells`);
         userWellsCount.textContent = `Well Count: ${data.lat.length}`;
+
+        if (avgWellAge && data.year && data.last_producing) {
+          const currentYear = new Date().getUTCFullYear();
+          const ages = [];
+          for (let i = 0; i < data.year.length; i++) {
+            const compYear = parseInt(data.year[i], 10);
+            if (isNaN(compYear)) continue;
+            const last = data.last_producing[i];
+            let endYear = last ? new Date(last).getUTCFullYear() : currentYear;
+            if (isNaN(endYear)) endYear = currentYear;
+            ages.push(endYear - compYear + 1);
+          }
+          const avg = ages.length ? (ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+          avgWellAge.textContent = `Avg. Well Age (Yrs): ${avg.toFixed(1)}`;
+        }
+
         renderUserWellsTable(data);
         return data;
         

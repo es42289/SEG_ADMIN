@@ -62,6 +62,12 @@ body {
   gap: 2rem;
 }
 
+.well-count-box .stat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 .well-count-box span {
   font-size: 18px;
   font-weight: bold;
