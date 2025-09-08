@@ -1,7 +1,15 @@
+@font-face {
+  font-family: "Aptos Narrow";
+  src: url("../fonts/AptosNarrow.woff2") format("woff2"),
+       url("../fonts/AptosNarrow.woff")  format("woff");
+  font-weight: 400;
+  font-style: normal;
+}
+
 body {
-  font-family: system-ui, sans-serif;
+  font-family: "Aptos Narrow", system-ui, sans-serif;
   margin: 0;
-  background: #0b0b0c;
+  background: #faefdc;
   color: #eaeaea;
 }
 
@@ -11,9 +19,9 @@ body {
 }
 
 .login-bar {
-  background: #333;
+  background: #faefdc;
   padding: 10px;
-  color: white;
+  color: #1e293a;
   position: fixed;
   top: 0;
   left: 0;
@@ -34,13 +42,14 @@ body {
 }
 
 .login-bar a {
-  color: #ff6b35;
+  font-size: 10px;
+  color: red;
   margin-left: 20px;
 }
 
 .well-count-box {
-  background: #444;
-  color: white;
+  background: #faefdc;
+  color: #1e293a;
   padding: 5px 10px;
   position: fixed;
   top: 70px;
@@ -54,7 +63,24 @@ body {
 }
 
 .well-count-box span {
+  font-size: 18px;
+  font-weight: bold;
   white-space: nowrap;
+}
+
+.well-count-box .stat-box {
+    display: inline-block;
+    padding: 8px 8px;
+    border-radius: 4px;
+    background: #156082;      /* example box color */
+    color: white;
+}
+
+input#year[type="range"] {
+  accent-color: #1f293b;     /* replace with your preferred color */
+  /* Optional vendor tweaks: 
+     ::-webkit-slider-thumb { background: #ff6b35; }
+     ::-webkit-slider-runnable-track { background: #333; } */
 }
 
     #main-container { display: flex; gap: 1rem; height: 85vh; margin-top: 0; }
@@ -99,13 +125,13 @@ body {
     #nearby-chart-10 { width: 100%; height: 200px; }
     input[type="range"] { width: 320px; }
     label { font-weight: 600; }
-    .badge { background:#1f2937; padding:.25rem .5rem; border-radius:.5rem; font-variant-numeric: tabular-nums; }
-    .status { background:#1f2937; padding:.5rem 1rem; border-radius:.5rem; margin-bottom:1rem; max-height: 40px; overflow: hidden; }
+    .badge { color:#faefdc; background:#156082; padding:.25rem .5rem; border-radius:.5rem; font-variant-numeric: tabular-nums; font-weight: bold;}
+    .status { background:#1f293b; padding:.5rem 1rem; border-radius:.5rem; margin-bottom:1rem; max-height: 40px; overflow: hidden; }
     .error { background:#dc2626; }
-    .success { background:#059669; }
+    .success { background:#cd8323; }
     .metric { display: flex; justify-content: space-between; margin: 0.5rem 0; }
-    .metric-label { color: #888; }
-    .metric-value { color: #fff; font-weight: bold; }
+    .metric-label { color: #1f293b; }
+    .metric-value { color: #1f293b; font-weight: bold; }
 
     #userWellsTable {
       width: 100%;

@@ -204,8 +204,8 @@ const yearInput = document.getElementById('year');
           text: `Wells within ${radiusMiles} Miles by Age`,
           font: { color: '#eaeaea', size: 16 }
         },
-        paper_bgcolor: '#1a1a1a',
-        plot_bgcolor: '#2a2a2a',
+        paper_bgcolor: '#156082',
+        plot_bgcolor: '#156082',
         font: { color: '#eaeaea' },
         xaxis: {
           title: 'Well Age',
@@ -538,8 +538,8 @@ const yearInput = document.getElementById('year');
           }
 
           const layout = {
-            paper_bgcolor: '#0b0b0c',
-            plot_bgcolor: '#0b0b0c',
+            paper_bgcolor: '#156082',
+            plot_bgcolor: '#156082',
             font: { color: '#eaeaea' },
             mapbox: {
               accesstoken: MAPBOX_TOKEN,
@@ -550,7 +550,7 @@ const yearInput = document.getElementById('year');
               zoom: nearbyAnalysis20.centroid ? 8 : 6
             },
             margin: { t: 40, r: 10, b: 10, l: 10 },
-            height: window.innerHeight * 0.8,
+            height: window.innerHeight * 0.85,
             title: {
               text: `Oil Development Proximity Map - Year ${year}`,
               font: { color: '#eaeaea' }

@@ -18,16 +18,17 @@
   </div>
 </div>
   <div id="metrics-bar" class="well-count-box">
-    <span id="user-wells-count">Well Count: 0</span>
-    <span id="last-oil">Last Oil, BBL: 0</span>
-    <span id="last-gas">Last Gas, MCF: 0</span>
-    <span id="temp">More KPIs coming...</span>
+    <span id="user-wells-count" class="stat-box">Well Count: 0</span>
+    <span id="last-oil" class="stat-box">Last Oil, BBL: 0</span>
+    <span id="last-gas" class="stat-box">Last Gas, MCF: 0</span>
+    <span id="temp" class="stat-box">More KPIs coming...</span>
   </div>
   <div class="page-content">
-  <section id="map-analysis" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;">
-  <h3 style="margin:0 0 .5rem 0;">Map</h3>
+  <section id="map-analysis" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
+  <h3 style="color: #faefdc; margin:0 0 .5rem 0;">Map</h3>
+  <!-- #faefdc#cd8323 -->
   <div id="controls">
-  <label for="year">Year:</label>
+  <label for="year">Change year to see development history:</label>
   <input id="year" max="2025" min="1950" step="1" type="range" value="2024"/>
   <span class="badge" id="year-val">2024</span>
   </div>
@@ -56,10 +57,10 @@
   </div>
   <div id="chart-container" style="width: 100%; height: 555px;">
   <!-- Switched order: 10-Mile first, then 20-Mile -->
-  <h3 style="margin-top: 0; color: #3b82f6;">10-Mile Analysis</h3>
+  <h3 style="margin-top: 0; color: #faefdc;">10-Mile Analysis</h3>
   <div id="nearby-chart-10" style="width: 100%; height: 225px;"></div>
   <div style="margin-top: 1rem;">
-  <h3 style="margin-top: 0; color: #ff6b35;">20-Mile Analysis</h3>
+  <h3 style="margin-top: 0; color: #faefdc;">20-Mile Analysis</h3>
   </div>
   <div id="nearby-chart" style="width: 100%; height: 225px;"></div>
   </div>
@@ -67,12 +68,12 @@
   </section>
   
   <!-- Production chart (Plotly target) -->
-<section id="prod-chart" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;"> 
+<section id="prod-chart" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;"> 
   <h3 style="margin:0 0 .5rem 0;">Production</h3>
   <div id="prodChart" style="width:100%; height:600px;"></div>
 </section>
 
-<section id="econ-charts" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;">
+<section id="econ-charts" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
   <h3 style="margin:0 0 .5rem 0;">Cash Flow Predictions</h3>
   <div style="display:flex; gap:1rem; margin-top:1rem;">
     <div id="cashflowWindowChart" style="width:60%; height:calc(500px + 1.5rem);"></div>
