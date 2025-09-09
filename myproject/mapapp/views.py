@@ -162,19 +162,11 @@ def get_all_wells_with_owners():
     conn = get_snowflake_connection()
     try:
         cur = conn.cursor()
+        # Select all columns so the query succeeds even if some optional
+        # fields (e.g. OWNER_INTEREST_LIST) are missing in the table.
         cur.execute(
             """
-            SELECT
-                LATITUDE,
-                LONGITUDE,
-                LATITUDE_BH,
-                LONGITUDE_BH,
-                COMPLETIONDATE,
-                DATE_PART(year, COMPLETIONDATE) AS COMPLETION_YEAR,
-                API_UWI,
-                LASTPRODUCINGMONTH,
-                OWNER_LIST,
-                OWNER_INTEREST_LIST
+            SELECT *
             FROM WELLS.MINERALS.RAW_WELL_DATA_WITH_OWNERS
             WHERE COMPLETIONDATE IS NOT NULL
               AND LATITUDE IS NOT NULL
@@ -184,7 +176,12 @@ def get_all_wells_with_owners():
         rows = cur.fetchall()
         cols = [c[0] for c in cur.description]
         df = pd.DataFrame(rows, columns=cols)
-        df["API_NODASH"] = df["API_UWI"].str.replace('-', '', regex=False)
+        # Derive completion year if not provided
+        if "COMPLETION_YEAR" not in df.columns and "COMPLETIONDATE" in df.columns:
+            df["COMPLETION_YEAR"] = pd.to_datetime(df["COMPLETIONDATE"]).dt.year
+        # Helper column for API without dashes
+        if "API_UWI" in df.columns:
+            df["API_NODASH"] = df["API_UWI"].str.replace('-', '', regex=False)
         return df
     finally:
         try:
