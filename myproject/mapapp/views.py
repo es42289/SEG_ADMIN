@@ -84,24 +84,33 @@ def _snowflake_points():
                 API_UWI,
                 LASTPRODUCINGMONTH
             FROM WELLS.MINERALS.RAW_WELL_DATA
-            WHERE COMPLETIONDATE IS NOT NULL
-            AND LATITUDE IS NOT NULL
-            AND LONGITUDE IS NOT NULL
-            -- AND api_uwi IN ('42-041-32667', '42-041-32540', '42-041-32602') 
+            WHERE LATITUDE IS NOT NULL
+              AND LONGITUDE IS NOT NULL
+            -- AND api_uwi IN ('42-041-32667', '42-041-32540', '42-041-32602')
             """
         )
         rows = cur.fetchall()
 
         out = []
         for lat, lon, lat_bh, lon_bh, cdate, cyear, api_uwi, last_prod in rows:
-            label = f"Completion: {cdate}" if cdate is not None else "Well"  # ADD THIS LINE
+            label = f"Completion: {cdate}" if cdate is not None else "Well"
+            if cyear is not None:
+                year_val = int(cyear)
+            elif last_prod:
+                try:
+                    year_val = pd.to_datetime(last_prod).year
+                except Exception:
+                    year_val = None
+            else:
+                year_val = None
+
             out.append({
-                "lat": float(lat), 
-                "lon": float(lon), 
+                "lat": float(lat),
+                "lon": float(lon),
                 "lat_bh": float(lat_bh) if lat_bh else None,
                 "lon_bh": float(lon_bh) if lon_bh else None,
-                "label": label,  # Now this works
-                "year": int(cyear),
+                "label": label,
+                "year": year_val,
                 "api_uwi": api_uwi,
                 "last_producing": last_prod
             })
@@ -168,8 +177,7 @@ def get_all_wells_with_owners():
             """
             SELECT *
             FROM WELLS.MINERALS.RAW_WELL_DATA_WITH_OWNERS
-            WHERE COMPLETIONDATE IS NOT NULL
-              AND LATITUDE IS NOT NULL
+            WHERE LATITUDE IS NOT NULL
               AND LONGITUDE IS NOT NULL
             """
         )
@@ -232,7 +240,13 @@ def _snowflake_user_wells(owner_name):
             "lat_bh": float(row["LATITUDE_BH"]) if pd.notnull(row["LATITUDE_BH"]) else None,
             "lon_bh": float(row["LONGITUDE_BH"]) if pd.notnull(row["LONGITUDE_BH"]) else None,
             "label": label,
-            "year": int(row["COMPLETION_YEAR"]) if pd.notnull(row["COMPLETION_YEAR"]) else 2024,
+            "year": (
+                int(row["COMPLETION_YEAR"]) if pd.notnull(row["COMPLETION_YEAR"])
+                else (
+                    pd.to_datetime(row["LASTPRODUCINGMONTH"]).year
+                    if pd.notnull(row["LASTPRODUCINGMONTH"]) else None
+                )
+            ),
             "api_uwi": row["API_UWI"],
             "last_producing": row["LASTPRODUCINGMONTH"],
             "owner_interest": interest,
