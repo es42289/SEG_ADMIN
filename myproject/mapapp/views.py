@@ -205,14 +205,16 @@ def _snowflake_user_wells(owner_name):
 
     def interest_for_row(row):
         owners = [o.strip() for o in str(row.get("OWNER_LIST", "")).split("|")]
-        interests = [i.strip() for i in str(row.get("OWNER_INTEREST_LIST", "")).split("|")]
+        interests_raw = str(row.get("NRI_LIST", row.get("OWNER_INTEREST_LIST", "")))
+        interests = [i.strip() for i in interests_raw.split("|")]
+        total = 0.0
         for o, i in zip(owners, interests):
             if o.lower() == owner_name.lower():
                 try:
-                    return float(i)
+                    total += float(i)
                 except Exception:
-                    return 0.0
-        return 0.0
+                    continue
+        return total
 
     out = []
     for _, row in df.iterrows():
@@ -445,25 +447,29 @@ def economics_data(request):
     fc["GasVol"] = (
         fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"]).fillna(0)
     )
-    monthly = (
-        fc.groupby("PRODUCINGMONTH").agg({"OilVol": "sum", "GasVol": "sum"}).reset_index()
-    )
+    interest_map = {w["api_uwi"]: w["owner_interest"] for w in wells}
+    fc["OwnerInterest"] = fc["API_UWI"].map(interest_map).fillna(0)
     # Forecast data often uses the first day of the month while price decks
     # are keyed by the last day. Shifting to month-end ensures the merge below
     # finds matching rows instead of leaving the economic charts empty.
-    monthly["PRODUCINGMONTH"] = monthly["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
-    merged = monthly.merge(
+    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
+    fc = fc.merge(
         deck_df[["MONTH_DATE", "OIL", "GAS"]],
         left_on="PRODUCINGMONTH",
         right_on="MONTH_DATE",
         how="left",
     )
-    merged[["OilVol", "GasVol", "OIL", "GAS"]] = merged[
-        ["OilVol", "GasVol", "OIL", "GAS"]
+    fc[["OilVol", "GasVol", "OIL", "GAS", "OwnerInterest"]] = fc[
+        ["OilVol", "GasVol", "OIL", "GAS", "OwnerInterest"]
     ].fillna(0)
-    merged["OilRevenue"] = merged["OilVol"] * merged["OIL"]
-    merged["GasRevenue"] = merged["GasVol"] * merged["GAS"]
-    merged["NetCashFlow"] = merged["OilRevenue"] + merged["GasRevenue"]
+    fc["OilRevenue"] = fc["OilVol"] * fc["OIL"] * fc["OwnerInterest"]
+    fc["GasRevenue"] = fc["GasVol"] * fc["GAS"] * fc["OwnerInterest"]
+    fc["NetCashFlow"] = fc["OilRevenue"] + fc["GasRevenue"]
+    merged = (
+        fc.groupby("PRODUCINGMONTH").agg(
+            {"OilRevenue": "sum", "GasRevenue": "sum", "NetCashFlow": "sum"}
+        ).reset_index()
+    )
     merged = merged.sort_values("PRODUCINGMONTH").reset_index(drop=True)
     merged[["OilRevenue", "GasRevenue", "NetCashFlow"]] = merged[
         ["OilRevenue", "GasRevenue", "NetCashFlow"]
