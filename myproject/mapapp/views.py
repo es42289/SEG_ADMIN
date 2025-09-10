@@ -308,11 +308,11 @@ def bulk_well_production(request):
     if not isinstance(apis, list) or not apis:
         return JsonResponse({"error": "Provide 'apis' as a non-empty list"}, status=400)
 
-    # Normalize & dedupe
+    # Normalize, strip dashes for DB lookup, and dedupe while preserving order
     apis = [str(a).strip() for a in apis if str(a).strip()]
-    # preserve order while deduping
     seen = set()
     apis = [a for a in apis if not (a in seen or seen.add(a))]
+    apis_clean = [a.replace("-", "") for a in apis]
 
     if len(apis) > 5000:
         return JsonResponse({"error": "Too many APIs; max 5000 per request"}, status=400)
@@ -324,13 +324,13 @@ def bulk_well_production(request):
         cols = None
 
         CHUNK = 1000  # Snowflake handles big IN lists, but chunk to be safe
-        for i in range(0, len(apis), CHUNK):
-            chunk = apis[i:i+CHUNK]
+        for i in range(0, len(apis_clean), CHUNK):
+            chunk = apis_clean[i:i+CHUNK]
             placeholders = ",".join(["%s"] * len(chunk))
             sql = f"""
                 SELECT *
                 FROM WELLS.MINERALS.FORECASTS
-                WHERE API_UWI IN ({placeholders})
+                WHERE REPLACE(API_UWI, '-', '') IN ({placeholders})
             """
             cur.execute(sql, chunk)
             part = cur.fetchall()
@@ -340,16 +340,18 @@ def bulk_well_production(request):
 
         data_rows = [dict(zip(cols, r)) for r in rows] if cols else []
 
-        # Group by API_UWI if present
+        # Group by normalized API to align with input values
         by_api = None
         if cols:
             api_col = next((c for c in cols if c.upper() == "API_UWI"), None)
             if api_col:
                 grouped = {}
                 for rec in data_rows:
-                    key = rec.get(api_col)
+                    key = str(rec.get(api_col, "")).replace("-", "")
                     grouped.setdefault(key, []).append(rec)
-                by_api = grouped
+                # Map sanitized keys back to original format when possible
+                key_map = {a.replace("-", ""): a for a in apis}
+                by_api = {key_map.get(k, k): v for k, v in grouped.items()}
 
         return JsonResponse({"count": len(data_rows), "rows": data_rows, "by_api": by_api})
     finally:
@@ -411,12 +413,14 @@ def price_decks(request):
 def fetch_forecasts_for_apis(apis):
     conn = get_snowflake_connection()
     cur = conn.cursor()
-    placeholders = ",".join(["%s"] * len(apis))
+    apis_clean = [a.replace("-", "") for a in apis]
+    placeholders = ",".join(["%s"] * len(apis_clean))
     sql = (
-        "SELECT * FROM WELLS.MINERALS.FORECASTS "
-        f"WHERE API_UWI IN ({placeholders})"
+        "SELECT *, REPLACE(API_UWI, '-', '') AS API_NODASH "
+        "FROM WELLS.MINERALS.FORECASTS "
+        f"WHERE REPLACE(API_UWI, '-', '') IN ({placeholders})"
     )
-    cur.execute(sql, apis)
+    cur.execute(sql, apis_clean)
     rows = cur.fetchall()
     cols = [c[0] for c in cur.description]
     conn.close()
@@ -441,6 +445,9 @@ def fetch_forecasts_for_apis(apis):
         if col not in df.columns:
             df[col] = pd.NA
 
+    if "API_NODASH" not in df.columns and "API_UWI" in df.columns:
+        df["API_NODASH"] = df["API_UWI"].str.replace('-', '', regex=False)
+
     return df
 
 
@@ -461,8 +468,8 @@ def economics_data(request):
     fc["GasVol"] = (
         fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"]).fillna(0)
     )
-    interest_map = {w["api_uwi"]: w["owner_interest"] for w in wells}
-    fc["OwnerInterest"] = fc["API_UWI"].map(interest_map).fillna(0)
+    interest_map = {w["api_uwi"].replace('-', ''): w["owner_interest"] for w in wells}
+    fc["OwnerInterest"] = fc["API_NODASH"].map(interest_map).fillna(0)
     # Forecast data often uses the first day of the month while price decks
     # are keyed by the last day. Shifting to month-end ensures the merge below
     # finds matching rows instead of leaving the economic charts empty.
