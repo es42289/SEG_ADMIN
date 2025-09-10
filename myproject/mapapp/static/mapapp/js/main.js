@@ -68,6 +68,9 @@ const yearInput = document.getElementById('year');
             rows_returned: prod ? prod.count : 0,
             apis_with_rows: Object.keys(window.productionByApi).length
           });
+          if (prod && prod.missing) {
+            console.warn('Wells with no production data:', prod.missing);
+          }
           return window.productionByApi;
         } catch (e) {
           console.error('loadUserProductionOnce error:', e);
