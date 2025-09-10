@@ -19,8 +19,10 @@ SQL used:
 ```sql
 SELECT LATITUDE AS LAT, LONGITUDE AS LON, COMPLETIONDATE
 FROM WELLS.MINERALS.RAW_WELL_DATA
-WHERE COMPLETIONDATE IS NOT NULL
-  AND DATE_PART(year, COMPLETIONDATE) <= :year
-  AND LATITUDE IS NOT NULL
+WHERE LATITUDE IS NOT NULL
   AND LONGITUDE IS NOT NULL;
 ```
+
+Forecast and economics endpoints normalize API numbers by stripping dashes
+before querying `WELLS.MINERALS.FORECASTS` so that wells are not dropped when
+the table stores undashed identifiers.

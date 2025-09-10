@@ -84,24 +84,33 @@ def _snowflake_points():
                 API_UWI,
                 LASTPRODUCINGMONTH
             FROM WELLS.MINERALS.RAW_WELL_DATA
-            WHERE COMPLETIONDATE IS NOT NULL
-            AND LATITUDE IS NOT NULL
-            AND LONGITUDE IS NOT NULL
-            -- AND api_uwi IN ('42-041-32667', '42-041-32540', '42-041-32602') 
+            WHERE LATITUDE IS NOT NULL
+              AND LONGITUDE IS NOT NULL
+            -- AND api_uwi IN ('42-041-32667', '42-041-32540', '42-041-32602')
             """
         )
         rows = cur.fetchall()
 
         out = []
         for lat, lon, lat_bh, lon_bh, cdate, cyear, api_uwi, last_prod in rows:
-            label = f"Completion: {cdate}" if cdate is not None else "Well"  # ADD THIS LINE
+            label = f"Completion: {cdate}" if cdate is not None else "Well"
+            if cyear is not None:
+                year_val = int(cyear)
+            elif last_prod:
+                try:
+                    year_val = pd.to_datetime(last_prod).year
+                except Exception:
+                    year_val = None
+            else:
+                year_val = None
+
             out.append({
-                "lat": float(lat), 
-                "lon": float(lon), 
+                "lat": float(lat),
+                "lon": float(lon),
                 "lat_bh": float(lat_bh) if lat_bh else None,
                 "lon_bh": float(lon_bh) if lon_bh else None,
-                "label": label,  # Now this works
-                "year": int(cyear),
+                "label": label,
+                "year": year_val,
                 "api_uwi": api_uwi,
                 "last_producing": last_prod
             })
@@ -168,8 +177,7 @@ def get_all_wells_with_owners():
             """
             SELECT *
             FROM WELLS.MINERALS.RAW_WELL_DATA_WITH_OWNERS
-            WHERE COMPLETIONDATE IS NOT NULL
-              AND LATITUDE IS NOT NULL
+            WHERE LATITUDE IS NOT NULL
               AND LONGITUDE IS NOT NULL
             """
         )
@@ -205,14 +213,16 @@ def _snowflake_user_wells(owner_name):
 
     def interest_for_row(row):
         owners = [o.strip() for o in str(row.get("OWNER_LIST", "")).split("|")]
-        interests = [i.strip() for i in str(row.get("OWNER_INTEREST_LIST", "")).split("|")]
+        interests_raw = str(row.get("NRI_LIST", row.get("OWNER_INTEREST_LIST", "")))
+        interests = [i.strip() for i in interests_raw.split("|")]
+        total = 0.0
         for o, i in zip(owners, interests):
             if o.lower() == owner_name.lower():
                 try:
-                    return float(i)
+                    total += float(i)
                 except Exception:
-                    return 0.0
-        return 0.0
+                    continue
+        return total
 
     out = []
     for _, row in df.iterrows():
@@ -230,7 +240,13 @@ def _snowflake_user_wells(owner_name):
             "lat_bh": float(row["LATITUDE_BH"]) if pd.notnull(row["LATITUDE_BH"]) else None,
             "lon_bh": float(row["LONGITUDE_BH"]) if pd.notnull(row["LONGITUDE_BH"]) else None,
             "label": label,
-            "year": int(row["COMPLETION_YEAR"]) if pd.notnull(row["COMPLETION_YEAR"]) else 2024,
+            "year": (
+                int(row["COMPLETION_YEAR"]) if pd.notnull(row["COMPLETION_YEAR"])
+                else (
+                    pd.to_datetime(row["LASTPRODUCINGMONTH"]).year
+                    if pd.notnull(row["LASTPRODUCINGMONTH"]) else None
+                )
+            ),
             "api_uwi": row["API_UWI"],
             "last_producing": row["LASTPRODUCINGMONTH"],
             "owner_interest": interest,
@@ -292,11 +308,11 @@ def bulk_well_production(request):
     if not isinstance(apis, list) or not apis:
         return JsonResponse({"error": "Provide 'apis' as a non-empty list"}, status=400)
 
-    # Normalize & dedupe
+    # Normalize, strip dashes for DB lookup, and dedupe while preserving order
     apis = [str(a).strip() for a in apis if str(a).strip()]
-    # preserve order while deduping
     seen = set()
     apis = [a for a in apis if not (a in seen or seen.add(a))]
+    apis_clean = [a.replace("-", "") for a in apis]
 
     if len(apis) > 5000:
         return JsonResponse({"error": "Too many APIs; max 5000 per request"}, status=400)
@@ -308,13 +324,13 @@ def bulk_well_production(request):
         cols = None
 
         CHUNK = 1000  # Snowflake handles big IN lists, but chunk to be safe
-        for i in range(0, len(apis), CHUNK):
-            chunk = apis[i:i+CHUNK]
+        for i in range(0, len(apis_clean), CHUNK):
+            chunk = apis_clean[i:i+CHUNK]
             placeholders = ",".join(["%s"] * len(chunk))
             sql = f"""
                 SELECT *
                 FROM WELLS.MINERALS.FORECASTS
-                WHERE API_UWI IN ({placeholders})
+                WHERE REPLACE(API_UWI, '-', '') IN ({placeholders})
             """
             cur.execute(sql, chunk)
             part = cur.fetchall()
@@ -324,16 +340,18 @@ def bulk_well_production(request):
 
         data_rows = [dict(zip(cols, r)) for r in rows] if cols else []
 
-        # Group by API_UWI if present
+        # Group by normalized API to align with input values
         by_api = None
         if cols:
             api_col = next((c for c in cols if c.upper() == "API_UWI"), None)
             if api_col:
                 grouped = {}
                 for rec in data_rows:
-                    key = rec.get(api_col)
+                    key = str(rec.get(api_col, "")).replace("-", "")
                     grouped.setdefault(key, []).append(rec)
-                by_api = grouped
+                # Map sanitized keys back to original format when possible
+                key_map = {a.replace("-", ""): a for a in apis}
+                by_api = {key_map.get(k, k): v for k, v in grouped.items()}
 
         return JsonResponse({"count": len(data_rows), "rows": data_rows, "by_api": by_api})
     finally:
@@ -395,12 +413,14 @@ def price_decks(request):
 def fetch_forecasts_for_apis(apis):
     conn = get_snowflake_connection()
     cur = conn.cursor()
-    placeholders = ",".join(["%s"] * len(apis))
+    apis_clean = [a.replace("-", "") for a in apis]
+    placeholders = ",".join(["%s"] * len(apis_clean))
     sql = (
-        "SELECT * FROM WELLS.MINERALS.FORECASTS "
-        f"WHERE API_UWI IN ({placeholders})"
+        "SELECT *, REPLACE(API_UWI, '-', '') AS API_NODASH "
+        "FROM WELLS.MINERALS.FORECASTS "
+        f"WHERE REPLACE(API_UWI, '-', '') IN ({placeholders})"
     )
-    cur.execute(sql, apis)
+    cur.execute(sql, apis_clean)
     rows = cur.fetchall()
     cols = [c[0] for c in cur.description]
     conn.close()
@@ -425,6 +445,9 @@ def fetch_forecasts_for_apis(apis):
         if col not in df.columns:
             df[col] = pd.NA
 
+    if "API_NODASH" not in df.columns and "API_UWI" in df.columns:
+        df["API_NODASH"] = df["API_UWI"].str.replace('-', '', regex=False)
+
     return df
 
 
@@ -445,25 +468,29 @@ def economics_data(request):
     fc["GasVol"] = (
         fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"]).fillna(0)
     )
-    monthly = (
-        fc.groupby("PRODUCINGMONTH").agg({"OilVol": "sum", "GasVol": "sum"}).reset_index()
-    )
+    interest_map = {w["api_uwi"].replace('-', ''): w["owner_interest"] for w in wells}
+    fc["OwnerInterest"] = fc["API_NODASH"].map(interest_map).fillna(0)
     # Forecast data often uses the first day of the month while price decks
     # are keyed by the last day. Shifting to month-end ensures the merge below
     # finds matching rows instead of leaving the economic charts empty.
-    monthly["PRODUCINGMONTH"] = monthly["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
-    merged = monthly.merge(
+    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
+    fc = fc.merge(
         deck_df[["MONTH_DATE", "OIL", "GAS"]],
         left_on="PRODUCINGMONTH",
         right_on="MONTH_DATE",
         how="left",
     )
-    merged[["OilVol", "GasVol", "OIL", "GAS"]] = merged[
-        ["OilVol", "GasVol", "OIL", "GAS"]
+    fc[["OilVol", "GasVol", "OIL", "GAS", "OwnerInterest"]] = fc[
+        ["OilVol", "GasVol", "OIL", "GAS", "OwnerInterest"]
     ].fillna(0)
-    merged["OilRevenue"] = merged["OilVol"] * merged["OIL"]
-    merged["GasRevenue"] = merged["GasVol"] * merged["GAS"]
-    merged["NetCashFlow"] = merged["OilRevenue"] + merged["GasRevenue"]
+    fc["OilRevenue"] = fc["OilVol"] * fc["OIL"] * fc["OwnerInterest"]
+    fc["GasRevenue"] = fc["GasVol"] * fc["GAS"] * fc["OwnerInterest"]
+    fc["NetCashFlow"] = fc["OilRevenue"] + fc["GasRevenue"]
+    merged = (
+        fc.groupby("PRODUCINGMONTH").agg(
+            {"OilRevenue": "sum", "GasRevenue": "sum", "NetCashFlow": "sum"}
+        ).reset_index()
+    )
     merged = merged.sort_values("PRODUCINGMONTH").reset_index(drop=True)
     merged[["OilRevenue", "GasRevenue", "NetCashFlow"]] = merged[
         ["OilRevenue", "GasRevenue", "NetCashFlow"]
