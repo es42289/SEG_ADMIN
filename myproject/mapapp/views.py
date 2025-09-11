@@ -646,7 +646,11 @@ def economics_data(request):
         "cum_ncf": merged["CumNCF"].fillna(0).tolist(),
     }
 
-    today = pd.Timestamp.today().normalize() + pd.offsets.MonthEnd(0)
+    last_month = merged["PRODUCINGMONTH"].max()
+    if pd.isna(last_month):
+        today = pd.Timestamp.today().normalize() + pd.offsets.MonthEnd(0)
+    else:
+        today = last_month
 
     # Window covering 12 months backward and 24 months forward
     window_start = today - pd.DateOffset(months=12)

@@ -90,6 +90,11 @@ body {
   color: white;
 }
 
+#summaryStats .stat-box {
+  background: #156082;
+  color: white;
+}
+
 input#year[type="range"] {
   accent-color: #1f293b;     /* replace with your preferred color */
   /* Optional vendor tweaks: 
