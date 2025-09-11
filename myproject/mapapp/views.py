@@ -210,6 +210,10 @@ def _snowflake_user_wells(owner_name):
         )
     )
     df = all_wells.loc[mask].copy()
+    # Snowflake can return duplicate rows for a well. Drop them so each well
+    # is only counted once in downstream tables and calculations.
+    if "API_UWI" in df.columns:
+        df = df.drop_duplicates(subset=["API_UWI"])
 
     def interest_for_row(row):
         owners = [o.strip() for o in str(row.get("OWNER_LIST", "")).split("|")]
@@ -470,7 +474,9 @@ def economics_data(request):
     user_email = request.session["user"].get("email", "")
     owner_name = get_user_owner_name(user_email)
     wells = _snowflake_user_wells(owner_name)
-    apis = [w["api_uwi"] for w in wells]
+    # Ensure each well is only processed once
+    wells_by_api = {w["api_uwi"]: w for w in wells}
+    apis = list(wells_by_api.keys())
     price_df = fetch_price_decks()
     deck_df = get_blended_price_deck(deck, price_df)
     fc = fetch_forecasts_for_apis(apis)
@@ -480,7 +486,9 @@ def economics_data(request):
     fc["GasVol"] = (
         fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"]).fillna(0)
     )
-    interest_map = {w["api_uwi"].replace('-', ''): w["owner_interest"] for w in wells}
+    interest_map = {
+        api.replace('-', ''): data["owner_interest"] for api, data in wells_by_api.items()
+    }
     fc["OwnerInterest"] = fc["API_NODASH"].map(interest_map).fillna(0)
     # Forecast data often uses the first day of the month while price decks
     # are keyed by the last day. Shifting to month-end ensures the merge below
