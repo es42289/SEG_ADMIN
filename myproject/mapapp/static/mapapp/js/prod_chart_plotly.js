@@ -49,6 +49,9 @@
       });
       console.log('[prod-chart] /bulk-production/ status=%s', resp.status);
       const bj = await resp.json();
+      if (bj && bj.missing) {
+        console.warn('[prod-chart] wells with no production data:', bj.missing);
+      }
 
       if (bj && bj.by_api) {
         const k = Object.keys(bj.by_api).length;

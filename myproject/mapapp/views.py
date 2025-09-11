@@ -342,6 +342,7 @@ def bulk_well_production(request):
 
         # Group by normalized API to align with input values
         by_api = None
+        missing = None
         if cols:
             api_col = next((c for c in cols if c.upper() == "API_UWI"), None)
             if api_col:
@@ -352,8 +353,19 @@ def bulk_well_production(request):
                 # Map sanitized keys back to original format when possible
                 key_map = {a.replace("-", ""): a for a in apis}
                 by_api = {key_map.get(k, k): v for k, v in grouped.items()}
+                # Determine which requested APIs returned no rows
+                missing_norm = set(key_map.keys()) - set(grouped.keys())
+                if missing_norm:
+                    missing = {
+                        key_map.get(k, k): "No production data found" for k in missing_norm
+                    }
 
-        return JsonResponse({"count": len(data_rows), "rows": data_rows, "by_api": by_api})
+        return JsonResponse({
+            "count": len(data_rows),
+            "rows": data_rows,
+            "by_api": by_api,
+            "missing": missing,
+        })
     finally:
         try:
             cur.close()
