@@ -97,7 +97,26 @@
       <div id="priceDeckChart" style="width:100%; height:472px;"></div>
     </div>
   </div>
-  <div id="cashflowSummaryChart" style="width:100%; height:600px; margin-top:1rem;"></div>
+  <div style="display:flex; gap:1rem; margin-top:1rem;">
+    <div id="cashflowSummaryChart" style="width:60%; height:600px;"></div>
+    <div id="summaryStats" style="width:40%; background:#faefdc; color:#1e293a; padding:5px 10px; border-radius:4px;">
+      <h4 style="margin:0 0 .5rem 0;">Summary Statistics</h4>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem;">
+        <span id="stat-ltm-oil" class="stat-box">LTM Oil: 0</span>
+        <span id="stat-ltm-gas" class="stat-box">LTM Gas: 0</span>
+        <span id="stat-ltm-cf" class="stat-box">LTM Cashflow: $0</span>
+        <span id="stat-ntm-oil" class="stat-box">NTM Oil: 0</span>
+        <span id="stat-ntm-gas" class="stat-box">NTM Gas: 0</span>
+        <span id="stat-ntm-cf" class="stat-box">NTM Cashflow: $0</span>
+        <span id="stat-pv0" class="stat-box">PV0: $0</span>
+        <span id="stat-pv10" class="stat-box">PV10: $0</span>
+        <span id="stat-pv12" class="stat-box">PV12: $0</span>
+        <span id="stat-pv14" class="stat-box">PV14: $0</span>
+        <span id="stat-pv16" class="stat-box">PV16: $0</span>
+        <span id="stat-pv18" class="stat-box">PV18: $0</span>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section id="user-wells" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #2a2a2a; background:#1a1a1a;">

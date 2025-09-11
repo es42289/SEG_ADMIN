@@ -600,6 +600,8 @@ def economics_data(request):
                 "SevTax": "sum",
                 "AdValTax": "sum",
                 "NetCashFlow": "sum",
+                "OilVol": "sum",
+                "GasVol": "sum",
             }
         ).reset_index()
     )
@@ -616,6 +618,8 @@ def economics_data(request):
         "NetCashFlow",
     ]
     merged[money_cols] = merged[money_cols].fillna(0)
+    merged["OilVol"] = merged["OilVol"].fillna(0)
+    merged["GasVol"] = merged["GasVol"].fillna(0)
     merged["CumRevenue"] = merged["GrossRevenue"].cumsum().fillna(0)
     merged["CumNCF"] = merged["NetCashFlow"].cumsum().fillna(0)
     merged["month_index"] = merged.index
@@ -660,20 +664,51 @@ def economics_data(request):
     # Starting point for LTM summaries
     ltm_start = today - pd.DateOffset(months=12)
 
-    def period_sum(start, end):
+    def period_sum(col, start, end):
         mask = (merged["PRODUCINGMONTH"] >= start) & (merged["PRODUCINGMONTH"] <= end)
         sub = merged.loc[mask]
         if sub.empty:
             return 0
-        return float(sub["CumNCF"].iloc[-1] - sub["CumNCF"].iloc[0])
+        return float(sub[col].sum())
+
+    ntm_end = today + pd.DateOffset(months=12)
+    ltm_oil = period_sum("OilVol", ltm_start, today)
+    ltm_gas = period_sum("GasVol", ltm_start, today)
+    ltm_cf = period_sum("NetCashFlow", ltm_start, today)
+    ntm_oil = period_sum("OilVol", today, ntm_end)
+    ntm_gas = period_sum("GasVol", today, ntm_end)
+    ntm_cf = period_sum("NetCashFlow", today, ntm_end)
+
+    next_month = today + pd.DateOffset(months=1)
+    future = merged[merged["PRODUCINGMONTH"] >= next_month].copy()
+    if not future.empty:
+        future["months_from_start"] = (
+            future["PRODUCINGMONTH"].dt.to_period("M") - next_month.to_period("M")
+        ).apply(lambda r: r.n)
+    def pv(rate):
+        if future.empty:
+            return 0.0
+        disc = future["NetCashFlow"] / (1 + rate) ** (future["months_from_start"] / 12)
+        return float(disc.sum())
+    pvs = {f"pv{int(r*100)}": pv(r) for r in [0.0, 0.10, 0.12, 0.14, 0.16, 0.18]}
 
     summary = []
-    summary.append({"label": "LTM", "value": period_sum(ltm_start, today)})
-    summary.append({"label": "NTM", "value": period_sum(today, today + pd.DateOffset(months=12))})
+    summary.append({"label": "LTM", "value": ltm_cf})
+    summary.append({"label": "NTM", "value": ntm_cf})
     year = today.year
     for yr in range(year, year + 6):
         s = pd.Timestamp(f"{yr}-01-01")
         e = pd.Timestamp(f"{yr}-12-31")
-        summary.append({"label": str(yr), "value": period_sum(s, e)})
+        summary.append({"label": str(yr), "value": period_sum("NetCashFlow", s, e)})
 
-    return JsonResponse({"npv": npvs, "cum": cum, "window": window, "summary": summary})
+    stats = {
+        "ltm_oil": ltm_oil,
+        "ltm_gas": ltm_gas,
+        "ltm_cf": ltm_cf,
+        "ntm_oil": ntm_oil,
+        "ntm_gas": ntm_gas,
+        "ntm_cf": ntm_cf,
+        **pvs,
+    }
+
+    return JsonResponse({"npv": npvs, "cum": cum, "window": window, "summary": summary, "stats": stats})

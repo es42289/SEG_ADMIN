@@ -54,12 +54,14 @@
     const cumEl = document.getElementById('cumCashChart');
     const windowEl = document.getElementById('cashflowWindowChart');
     const summaryEl = document.getElementById('cashflowSummaryChart');
-    if(!npvEl && !cumEl && !windowEl && !summaryEl) return;
+    const statsEl = document.getElementById('summaryStats');
+    if(!npvEl && !cumEl && !windowEl && !summaryEl && !statsEl) return;
     const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
     if (npvEl && data.npv) renderNPV(npvEl, data.npv);
     if (cumEl && data.cum) renderCum(cumEl, data.cum);
     if (windowEl && data.window) renderWindow(windowEl, data.window);
     if (summaryEl && data.summary) renderSummary(summaryEl, data.summary);
+    if (statsEl && data.stats) renderStats(statsEl, data.stats);
   }
 
   function resolveEl(el){
@@ -201,6 +203,38 @@
     };
 
     Plotly.newPlot(target, [trace], layout, {responsive: true});
+  }
+
+  function renderStats(el, stats){
+    const target = resolveEl(el);
+    if(!target) return;
+
+    function formatNumber(v){
+      return Number(v).toLocaleString(undefined,{maximumFractionDigits:0});
+    }
+    function formatCurrency(v){
+      return '$' + Number(v).toLocaleString(undefined,{maximumFractionDigits:0});
+    }
+
+    const mapping = {
+      'stat-ltm-oil': `LTM Oil: ${formatNumber(stats.ltm_oil)} BBL`,
+      'stat-ltm-gas': `LTM Gas: ${formatNumber(stats.ltm_gas)} MCF`,
+      'stat-ltm-cf': `LTM Cashflow: ${formatCurrency(stats.ltm_cf)}`,
+      'stat-ntm-oil': `NTM Oil: ${formatNumber(stats.ntm_oil)} BBL`,
+      'stat-ntm-gas': `NTM Gas: ${formatNumber(stats.ntm_gas)} MCF`,
+      'stat-ntm-cf': `NTM Cashflow: ${formatCurrency(stats.ntm_cf)}`,
+      'stat-pv0': `PV0: ${formatCurrency(stats.pv0)}`,
+      'stat-pv10': `PV10: ${formatCurrency(stats.pv10)}`,
+      'stat-pv12': `PV12: ${formatCurrency(stats.pv12)}`,
+      'stat-pv14': `PV14: ${formatCurrency(stats.pv14)}`,
+      'stat-pv16': `PV16: ${formatCurrency(stats.pv16)}`,
+      'stat-pv18': `PV18: ${formatCurrency(stats.pv18)}`
+    };
+
+    Object.entries(mapping).forEach(([id, text]) => {
+      const el = document.getElementById(id);
+      if(el) el.textContent = text;
+    });
   }
 
   if(document.readyState !== 'loading') loadPriceDeckOptions();

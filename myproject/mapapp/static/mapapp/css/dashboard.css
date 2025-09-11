@@ -82,6 +82,14 @@ body {
     color: white;
 }
 
+.stat-box {
+  display: inline-block;
+  padding: 8px 8px;
+  border-radius: 4px;
+  background: #156082;
+  color: white;
+}
+
 input#year[type="range"] {
   accent-color: #1f293b;     /* replace with your preferred color */
   /* Optional vendor tweaks: 
