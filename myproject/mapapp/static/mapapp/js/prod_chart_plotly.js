@@ -132,11 +132,11 @@
     const gas = keys.map((k) => monthly.get(k).gas || null);
     const oilFc = keys.map((k) => {
       const v = monthly.get(k).oilFc;
-      return (v === 0 ? 0 : v) ?? null;
+      return v > 0 ? v : null;
     });
     const gasFc = keys.map((k) => {
       const v = monthly.get(k).gasFc;
-      return (v === 0 ? 0 : v) ?? null;
+      return v > 0 ? v : null;
     });
     const wc = keys.map((k) => monthly.get(k).apis.size);
 
