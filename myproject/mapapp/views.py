@@ -647,10 +647,12 @@ def economics_data(request):
     }
 
     last_month = merged["PRODUCINGMONTH"].max()
+    current_month = pd.Timestamp.today().normalize() + pd.offsets.MonthEnd(0)
     if pd.isna(last_month):
-        today = pd.Timestamp.today().normalize() + pd.offsets.MonthEnd(0)
+        today = current_month
     else:
-        today = last_month
+        # Ensure we don't treat far-future forecast dates as "today"
+        today = min(last_month, current_month)
 
     # Window covering 12 months backward and 24 months forward
     window_start = today - pd.DateOffset(months=12)
