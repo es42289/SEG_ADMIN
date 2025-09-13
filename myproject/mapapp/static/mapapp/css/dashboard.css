@@ -153,8 +153,9 @@ input#year[type="range"] {
     .metric-value { color: #1f293b; font-weight: bold; }
 
     #userWellsTable {
-      width: 100%;
+      width: max-content;
       border-collapse: collapse;
+      white-space: nowrap;
     }
     #userWellsTable th, #userWellsTable td {
       padding: .5rem;

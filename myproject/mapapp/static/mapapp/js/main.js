@@ -417,23 +417,38 @@ const yearInput = document.getElementById('year');
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 4;
+        cell.colSpan = 22;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
         return;
       }
 
-      const years = data.years || data.year || [];
-      const lastProd = data.last_producing || [];
-
       for (let i = 0; i < data.api_uwi.length; i++) {
         const row = document.createElement('tr');
         const cells = [
           data.api_uwi[i] || '',
-          years[i] || '',
-          lastProd[i] || '',
-          data.owner_interest[i] != null ? data.owner_interest[i] : ''
+          data.name && data.name[i] ? data.name[i] : '',
+          data.operator && data.operator[i] ? data.operator[i] : '',
+          data.trajectory && data.trajectory[i] ? data.trajectory[i] : '',
+          data.permit_date && data.permit_date[i] ? data.permit_date[i] : '',
+          data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '',
+          data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : '',
+          data.gross_oil_eur && data.gross_oil_eur[i] != null ? data.gross_oil_eur[i] : '',
+          data.gross_gas_eur && data.gross_gas_eur[i] != null ? data.gross_gas_eur[i] : '',
+          data.net_oil_eur && data.net_oil_eur[i] != null ? data.net_oil_eur[i] : '',
+          data.net_gas_eur && data.net_gas_eur[i] != null ? data.net_gas_eur[i] : '',
+          data.net_ngl_eur && data.net_ngl_eur[i] != null ? data.net_ngl_eur[i] : '',
+          data.remaining_net_oil && data.remaining_net_oil[i] != null ? data.remaining_net_oil[i] : '',
+          data.remaining_net_gas && data.remaining_net_gas[i] != null ? data.remaining_net_gas[i] : '',
+          data.remaining_net_ngl && data.remaining_net_ngl[i] != null ? data.remaining_net_ngl[i] : '',
+          data.pv0 && data.pv0[i] != null ? data.pv0[i] : '',
+          data.pv10 && data.pv10[i] != null ? data.pv10[i] : '',
+          data.pv12 && data.pv12[i] != null ? data.pv12[i] : '',
+          data.pv14 && data.pv14[i] != null ? data.pv14[i] : '',
+          data.pv16 && data.pv16[i] != null ? data.pv16[i] : '',
+          data.pv18 && data.pv18[i] != null ? data.pv18[i] : '',
+          data.pv20 && data.pv20[i] != null ? data.pv20[i] : ''
         ];
         cells.forEach(txt => {
           const td = document.createElement('td');
