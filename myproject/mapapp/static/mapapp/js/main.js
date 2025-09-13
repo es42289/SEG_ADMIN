@@ -63,6 +63,10 @@ const yearInput = document.getElementById('year');
           let prod;
           try { prod = JSON.parse(bodyText); } catch { prod = null; }
           window.productionByApi = (prod && prod.by_api) ? prod.by_api : {};
+          if (userWellData) {
+            computeProductionStats(userWellData, window.productionByApi);
+            renderUserWellsTable(userWellData);
+          }
           console.log('bulk-production (user only, ONCE):', {
             apis_sent: apis.length,
             rows_returned: prod ? prod.count : 0,
@@ -142,6 +146,32 @@ const yearInput = document.getElementById('year');
         }
         nextYearOil.textContent = `Next 12 Months Oil, BBL: ${Math.round(sumOilFc).toLocaleString()}`;
         nextYearGas.textContent = `Next 12 Months Gas, MCF: ${Math.round(sumGasFc).toLocaleString()}`;
+      }
+    }
+
+    function computeProductionStats(data, prodMap) {
+      if (!data || !data.api_uwi) return;
+      data.first_prod_date = [];
+      data.gross_oil_eur = [];
+      data.gross_gas_eur = [];
+      for (const api of data.api_uwi) {
+        const rows = (prodMap && prodMap[api]) ? prodMap[api] : [];
+        let first = null;
+        let oilSum = 0;
+        let gasSum = 0;
+        for (const r of rows) {
+          const d = r.PRODUCINGMONTH || r.ProducingMonth || r.PRODUCTIONMONTH || r.MONTH || r.month;
+          const oil = Number(r.LIQUIDSPROD_BBL || r.OIL_BBL || r.oil_bbl || 0);
+          const gas = Number(r.GASPROD_MCF || r.GAS_MCF || r.gas_mcf || 0);
+          const oilFc = Number(r.OilFcst_BBL || r.OILFCST_BBL || r.oilfcst_bbl || 0);
+          const gasFc = Number(r.GasFcst_MCF || r.GASFCST_MCF || r.gasfcst_mcf || 0);
+          if (!first && (oil > 0 || gas > 0)) first = d;
+          oilSum += oil + oilFc;
+          gasSum += gas + gasFc;
+        }
+        data.first_prod_date.push(first ? new Date(first).toISOString().split('T')[0] : '');
+        data.gross_oil_eur.push(oilSum ? Math.round(oilSum) : '');
+        data.gross_gas_eur.push(gasSum ? Math.round(gasSum) : '');
       }
     }
 

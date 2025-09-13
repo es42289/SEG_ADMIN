@@ -269,7 +269,7 @@ def _snowflake_user_wells(owner_name):
             ),
             "api_uwi": row["API_UWI"],
             "name": row.get("WELL_NAME") or row.get("WELLNAME"),
-            "operator": row.get("OPERATOR"),
+            "operator": row.get("ENVOPERATOR"),
             "trajectory": trajectory,
             "permit_date": row.get("PERMITAPPROVEDDATE"),
             "first_prod_date": first_prod,
