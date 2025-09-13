@@ -242,6 +242,10 @@ def _snowflake_user_wells(owner_name):
         traj_raw = str(row.get("TRAJECTORY", ""))
         trajectory = "Horizontal" if traj_raw.strip().upper().startswith("H") else "Vertical"
 
+        first_dates = [row.get("FIRSTPRODMONTHOIL"), row.get("FIRSTPRODMONTHGAS")]
+        first_dates = [pd.to_datetime(d) for d in first_dates if pd.notnull(d)]
+        first_prod = min(first_dates).date().isoformat() if first_dates else None
+
         last_dates = [
             row.get("LASTPRODUCINGMONTHOIL"),
             row.get("LASTPRODUCINGMONTHGAS"),
@@ -268,10 +272,10 @@ def _snowflake_user_wells(owner_name):
             "operator": row.get("ENVOPERATOR"),
             "trajectory": trajectory,
             "permit_date": row.get("PERMITAPPROVEDDATE"),
-            "first_prod_date": None,
+            "first_prod_date": first_prod,
             "last_prod_date": last_prod,
-            "gross_oil_eur": None,
-            "gross_gas_eur": None,
+            "gross_oil_eur": row.get("GROSS_OIL_EUR"),
+            "gross_gas_eur": row.get("GROSS_GAS_EUR"),
             "net_oil_eur": row.get("NET_OIL_EUR"),
             "net_gas_eur": row.get("NET_GAS_EUR"),
             "net_ngl_eur": row.get("NET_NGL_EUR"),
