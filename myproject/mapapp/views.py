@@ -238,6 +238,22 @@ def _snowflake_user_wells(owner_name):
             f"Interest: {interest}%\n"
             f"Completion: {cdate}"
         )
+
+        traj_raw = str(row.get("TRAJECTORY", ""))
+        trajectory = "Horizontal" if traj_raw.strip().upper().startswith("H") else "Vertical"
+
+        first_dates = [row.get("FIRSTPRODMONTHOIL"), row.get("FIRSTPRODMONTHGAS")]
+        first_dates = [pd.to_datetime(d) for d in first_dates if pd.notnull(d)]
+        first_prod = min(first_dates).date().isoformat() if first_dates else None
+
+        last_dates = [
+            row.get("LASTPRODUCINGMONTHOIL"),
+            row.get("LASTPRODUCINGMONTHGAS"),
+            row.get("LASTPRODUCINGMONTH"),
+        ]
+        last_dates = [pd.to_datetime(d) for d in last_dates if pd.notnull(d)]
+        last_prod = max(last_dates).date().isoformat() if last_dates else None
+
         out.append({
             "lat": float(row["LATITUDE"]),
             "lon": float(row["LONGITUDE"]),
@@ -252,7 +268,28 @@ def _snowflake_user_wells(owner_name):
                 )
             ),
             "api_uwi": row["API_UWI"],
-            "last_producing": row["LASTPRODUCINGMONTH"],
+            "name": row.get("WELL_NAME") or row.get("WELLNAME"),
+            "operator": row.get("OPERATOR"),
+            "trajectory": trajectory,
+            "permit_date": row.get("PERMITAPPROVEDDATE"),
+            "first_prod_date": first_prod,
+            "last_prod_date": last_prod,
+            "gross_oil_eur": row.get("GROSS_OIL_EUR"),
+            "gross_gas_eur": row.get("GROSS_GAS_EUR"),
+            "net_oil_eur": row.get("NET_OIL_EUR"),
+            "net_gas_eur": row.get("NET_GAS_EUR"),
+            "net_ngl_eur": row.get("NET_NGL_EUR"),
+            "remaining_net_oil": row.get("REMAINING_NET_OIL"),
+            "remaining_net_gas": row.get("REMAINING_NET_GAS"),
+            "remaining_net_ngl": row.get("REMAINING_NET_NGL"),
+            "pv0": row.get("PV0"),
+            "pv10": row.get("PV10"),
+            "pv12": row.get("PV12"),
+            "pv14": row.get("PV14"),
+            "pv16": row.get("PV16"),
+            "pv18": row.get("PV18"),
+            "pv20": row.get("PV20"),
+            "last_producing": last_prod,
             "owner_interest": interest,
             "owner_name": owner_name,
         })
@@ -271,8 +308,15 @@ def user_wells_data(request):
     if not owner_name:
         # User has no wells assigned
         return JsonResponse({
-            "lat": [], "lon": [], "text": [], "year": [], 
-            "api_uwi": [], "lat_bh": [], "lon_bh": [], 
+            "lat": [], "lon": [], "text": [], "year": [],
+            "api_uwi": [], "name": [], "operator": [], "trajectory": [],
+            "permit_date": [], "first_prod_date": [], "last_prod_date": [],
+            "gross_oil_eur": [], "gross_gas_eur": [], "net_oil_eur": [],
+            "net_gas_eur": [], "net_ngl_eur": [], "remaining_net_oil": [],
+            "remaining_net_gas": [], "remaining_net_ngl": [],
+            "pv0": [], "pv10": [], "pv12": [], "pv14": [], "pv16": [],
+            "pv18": [], "pv20": [],
+            "lat_bh": [], "lon_bh": [],
             "last_producing": [], "owner_interest": [], "owner_name": []
         })
     
@@ -284,6 +328,27 @@ def user_wells_data(request):
         "text": [r["label"] for r in rows],
         "year": [r["year"] for r in rows],
         "api_uwi": [r["api_uwi"] for r in rows],
+        "name": [r["name"] for r in rows],
+        "operator": [r["operator"] for r in rows],
+        "trajectory": [r["trajectory"] for r in rows],
+        "permit_date": [r["permit_date"] for r in rows],
+        "first_prod_date": [r["first_prod_date"] for r in rows],
+        "last_prod_date": [r["last_prod_date"] for r in rows],
+        "gross_oil_eur": [r["gross_oil_eur"] for r in rows],
+        "gross_gas_eur": [r["gross_gas_eur"] for r in rows],
+        "net_oil_eur": [r["net_oil_eur"] for r in rows],
+        "net_gas_eur": [r["net_gas_eur"] for r in rows],
+        "net_ngl_eur": [r["net_ngl_eur"] for r in rows],
+        "remaining_net_oil": [r["remaining_net_oil"] for r in rows],
+        "remaining_net_gas": [r["remaining_net_gas"] for r in rows],
+        "remaining_net_ngl": [r["remaining_net_ngl"] for r in rows],
+        "pv0": [r["pv0"] for r in rows],
+        "pv10": [r["pv10"] for r in rows],
+        "pv12": [r["pv12"] for r in rows],
+        "pv14": [r["pv14"] for r in rows],
+        "pv16": [r["pv16"] for r in rows],
+        "pv18": [r["pv18"] for r in rows],
+        "pv20": [r["pv20"] for r in rows],
         "lat_bh": [r["lat_bh"] for r in rows],
         "lon_bh": [r["lon_bh"] for r in rows],
         "last_producing": [r["last_producing"] for r in rows],
