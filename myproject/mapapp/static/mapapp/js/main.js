@@ -63,6 +63,10 @@ const yearInput = document.getElementById('year');
           let prod;
           try { prod = JSON.parse(bodyText); } catch { prod = null; }
           window.productionByApi = (prod && prod.by_api) ? prod.by_api : {};
+          if (userWellData) {
+            computeProductionStats(userWellData, window.productionByApi);
+            renderUserWellsTable(userWellData);
+          }
           console.log('bulk-production (user only, ONCE):', {
             apis_sent: apis.length,
             rows_returned: prod ? prod.count : 0,
@@ -142,6 +146,32 @@ const yearInput = document.getElementById('year');
         }
         nextYearOil.textContent = `Next 12 Months Oil, BBL: ${Math.round(sumOilFc).toLocaleString()}`;
         nextYearGas.textContent = `Next 12 Months Gas, MCF: ${Math.round(sumGasFc).toLocaleString()}`;
+      }
+    }
+
+    function computeProductionStats(data, prodMap) {
+      if (!data || !data.api_uwi) return;
+      data.first_prod_date = [];
+      data.gross_oil_eur = [];
+      data.gross_gas_eur = [];
+      for (const api of data.api_uwi) {
+        const rows = (prodMap && prodMap[api]) ? prodMap[api] : [];
+        let first = null;
+        let oilSum = 0;
+        let gasSum = 0;
+        for (const r of rows) {
+          const d = r.PRODUCINGMONTH || r.ProducingMonth || r.PRODUCTIONMONTH || r.MONTH || r.month;
+          const oil = Number(r.LIQUIDSPROD_BBL || r.OIL_BBL || r.oil_bbl || 0);
+          const gas = Number(r.GASPROD_MCF || r.GAS_MCF || r.gas_mcf || 0);
+          const oilFc = Number(r.OilFcst_BBL || r.OILFCST_BBL || r.oilfcst_bbl || 0);
+          const gasFc = Number(r.GasFcst_MCF || r.GASFCST_MCF || r.gasfcst_mcf || 0);
+          if (!first && (oil > 0 || gas > 0)) first = d;
+          oilSum += oil + oilFc;
+          gasSum += gas + gasFc;
+        }
+        data.first_prod_date.push(first ? new Date(first).toISOString().split('T')[0] : '');
+        data.gross_oil_eur.push(oilSum ? Math.round(oilSum) : '');
+        data.gross_gas_eur.push(gasSum ? Math.round(gasSum) : '');
       }
     }
 
@@ -417,23 +447,38 @@ const yearInput = document.getElementById('year');
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 4;
+        cell.colSpan = 22;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
         return;
       }
 
-      const years = data.years || data.year || [];
-      const lastProd = data.last_producing || [];
-
       for (let i = 0; i < data.api_uwi.length; i++) {
         const row = document.createElement('tr');
         const cells = [
           data.api_uwi[i] || '',
-          years[i] || '',
-          lastProd[i] || '',
-          data.owner_interest[i] != null ? data.owner_interest[i] : ''
+          data.name && data.name[i] ? data.name[i] : '',
+          data.operator && data.operator[i] ? data.operator[i] : '',
+          data.trajectory && data.trajectory[i] ? data.trajectory[i] : '',
+          data.permit_date && data.permit_date[i] ? data.permit_date[i] : '',
+          data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '',
+          data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : '',
+          data.gross_oil_eur && data.gross_oil_eur[i] != null ? data.gross_oil_eur[i] : '',
+          data.gross_gas_eur && data.gross_gas_eur[i] != null ? data.gross_gas_eur[i] : '',
+          data.net_oil_eur && data.net_oil_eur[i] != null ? data.net_oil_eur[i] : '',
+          data.net_gas_eur && data.net_gas_eur[i] != null ? data.net_gas_eur[i] : '',
+          data.net_ngl_eur && data.net_ngl_eur[i] != null ? data.net_ngl_eur[i] : '',
+          data.remaining_net_oil && data.remaining_net_oil[i] != null ? data.remaining_net_oil[i] : '',
+          data.remaining_net_gas && data.remaining_net_gas[i] != null ? data.remaining_net_gas[i] : '',
+          data.remaining_net_ngl && data.remaining_net_ngl[i] != null ? data.remaining_net_ngl[i] : '',
+          data.pv0 && data.pv0[i] != null ? data.pv0[i] : '',
+          data.pv10 && data.pv10[i] != null ? data.pv10[i] : '',
+          data.pv12 && data.pv12[i] != null ? data.pv12[i] : '',
+          data.pv14 && data.pv14[i] != null ? data.pv14[i] : '',
+          data.pv16 && data.pv16[i] != null ? data.pv16[i] : '',
+          data.pv18 && data.pv18[i] != null ? data.pv18[i] : '',
+          data.pv20 && data.pv20[i] != null ? data.pv20[i] : ''
         ];
         cells.forEach(txt => {
           const td = document.createElement('td');
