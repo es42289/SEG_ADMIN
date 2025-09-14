@@ -12,7 +12,9 @@ const yearInput = document.getElementById('year');
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
-    const MAPBOX_STYLE = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
+    const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
+    const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
+    let currentMapStyle = MAPBOX_STYLE_TERRAIN;
 
     function updateStatus(message, isError = false, isSuccess = false) {
       if (!statusDiv) return;
@@ -25,6 +27,8 @@ const yearInput = document.getElementById('year');
     // Global variables to store all data
     let allWellData = null;
     let userWellData = null;
+    let userWellsMapLineTraceIndices = [];
+    let mainUserLineTraceIndex = null;
 
     // ===== One-time loader for user production (fetches once, caches forever) =====
     window.productionByApi = window.productionByApi || {};
@@ -339,7 +343,7 @@ const yearInput = document.getElementById('year');
         if (!data.lat || data.lat.length === 0) {
           console.log('No user wells found');
           if (avgWellAge) avgWellAge.textContent = 'Avg. Well Age (Yrs): 0';
-          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
+          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [], completion_date: [] };
         }
 
         console.log(`Received ${data.lat.length} user wells`);
@@ -361,11 +365,12 @@ const yearInput = document.getElementById('year');
         }
 
         renderUserWellsTable(data);
+        renderUserWellsMap(data);
         return data;
         
       } catch (error) {
         console.error('User wells fetch error:', error);
-        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
+        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [], completion_date: [] };
       }
     }
 
@@ -393,7 +398,8 @@ const yearInput = document.getElementById('year');
         owner_interest: filteredIndices.map(i => data.owner_interest ? data.owner_interest[i] : null),
         owner_name: filteredIndices.map(i => data.owner_name ? data.owner_name[i] : null),
         last_producing: filteredIndices.map(i => data.last_producing ? data.last_producing[i] : null),
-        api_uwi: filteredIndices.map(i => data.api_uwi ? data.api_uwi[i] : null)
+        api_uwi: filteredIndices.map(i => data.api_uwi ? data.api_uwi[i] : null),
+        completion_date: filteredIndices.map(i => data.completion_date ? data.completion_date[i] : null)
       };
     }
 
@@ -489,6 +495,128 @@ const yearInput = document.getElementById('year');
       }
     }
 
+    function renderUserWellsMap(data) {
+      const mapDivId = 'userWellsMap';
+      const mapDiv = document.getElementById(mapDivId);
+      if (!mapDiv || !data || !data.lat || data.lat.length === 0) return;
+
+      const hoverText = data.api_uwi.map((api, i) => {
+        const name = data.name && data.name[i] ? data.name[i] : '';
+        const fp = data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '';
+        const comp = data.completion_date && data.completion_date[i] ? data.completion_date[i] : '';
+        return `API: ${api}<br>Name: ${name}<br>First Prod: ${fp}<br>Completion: ${comp}`;
+      });
+
+      const traces = [];
+      const lineTraceIndices = {};
+      const traceToWellIndex = {};
+      const baseLineColor = currentMapStyle === MAPBOX_STYLE_SATELLITE ? 'red' : 'rgba(128, 128, 128, 0.6)';
+      for (let i = 0; i < data.lat.length; i++) {
+        if (data.lat_bh[i] && data.lon_bh[i]) {
+          const traceIndex = traces.length;
+          lineTraceIndices[i] = traceIndex;
+          traceToWellIndex[traceIndex] = i;
+          traces.push({
+            type: 'scattermapbox',
+            lat: [data.lat[i], data.lat_bh[i]],
+            lon: [data.lon[i], data.lon_bh[i]],
+            mode: 'lines',
+            line: { color: baseLineColor, width: 2 },
+            text: [hoverText[i], hoverText[i]],
+            hoverinfo: 'text',
+            showlegend: false
+          });
+        }
+      }
+
+      const colors = data.lat.map(() => 'red');
+      traces.push({
+        type: 'scattermapbox',
+        lat: data.lat,
+        lon: data.lon,
+        text: hoverText,
+        mode: 'markers',
+        marker: {
+          size: 10,
+          color: colors,
+          line: { color: 'white', width: 1 }
+        },
+        hoverinfo: 'text',
+        name: 'User Wells'
+      });
+
+      const center = calculateCentroid(data.lat, data.lon) || { lat: 31.0, lon: -99.0 };
+      let zoom = 10;
+      if (data.lat.length > 1) {
+        const latMin = Math.min(...data.lat);
+        const latMax = Math.max(...data.lat);
+        const lonMin = Math.min(...data.lon);
+        const lonMax = Math.max(...data.lon);
+        const maxDiff = Math.max(latMax - latMin, lonMax - lonMin);
+        if (maxDiff > 4) zoom = 6;
+        else if (maxDiff > 2) zoom = 7;
+        else if (maxDiff > 1) zoom = 8;
+        else if (maxDiff > 0.5) zoom = 9;
+        else if (maxDiff > 0.25) zoom = 10;
+        else if (maxDiff > 0.1) zoom = 11;
+        else zoom = 12;
+      }
+
+      const layout = {
+        paper_bgcolor: '#156082',
+        plot_bgcolor: '#156082',
+        font: { color: '#eaeaea' },
+        mapbox: {
+          accesstoken: MAPBOX_TOKEN,
+          style: currentMapStyle,
+          center: center,
+          zoom: zoom
+        },
+        margin: { t: 40, r: 10, b: 10, l: 10 },
+        height: 400,
+        title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
+        showlegend: false
+      };
+
+      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: true });
+      userWellsMapLineTraceIndices = Object.values(lineTraceIndices);
+
+      const markerTraceIndex = traces.length - 1;
+      mapDiv.on('plotly_hover', e => {
+        const traceIndex = e.points[0].curveNumber;
+        let idx;
+        if (traceIndex === markerTraceIndex) {
+          idx = e.points[0].pointIndex;
+        } else if (traceToWellIndex[traceIndex] !== undefined) {
+          idx = traceToWellIndex[traceIndex];
+        } else {
+          return;
+        }
+        colors[idx] = 'green';
+        Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
+        if (lineTraceIndices[idx] !== undefined) {
+          Plotly.restyle(mapDivId, { 'line.color': 'green' }, [lineTraceIndices[idx]]);
+        }
+      });
+      mapDiv.on('plotly_unhover', e => {
+        const traceIndex = e.points[0].curveNumber;
+        let idx;
+        if (traceIndex === markerTraceIndex) {
+          idx = e.points[0].pointIndex;
+        } else if (traceToWellIndex[traceIndex] !== undefined) {
+          idx = traceToWellIndex[traceIndex];
+        } else {
+          return;
+        }
+        colors[idx] = 'red';
+        Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
+        if (lineTraceIndices[idx] !== undefined) {
+          const baseColor = currentMapStyle === MAPBOX_STYLE_SATELLITE ? 'red' : 'rgba(128, 128, 128, 0.6)';
+          Plotly.restyle(mapDivId, { 'line.color': baseColor }, [lineTraceIndices[idx]]);
+        }
+      });
+    }
+
     // Main draw function with frontend filtering
     async function drawWithFilteredData(year) {
       yearVal.textContent = year;
@@ -555,19 +683,23 @@ const yearInput = document.getElementById('year');
 
           // Add user well trajectory lines
           if (userLines.lineLats.length > 0) {
+            const userLineColor = currentMapStyle === MAPBOX_STYLE_SATELLITE ? 'red' : 'rgba(128, 128, 128, 0.6)';
+            mainUserLineTraceIndex = traces.length;
             traces.push({
               type: 'scattermapbox',
               lat: userLines.lineLats,
               lon: userLines.lineLons,
               mode: 'lines',
               line: {
-                color: 'rgba(128, 128, 128, 0.6)',
+                color: userLineColor,
                 width: 2
               },
               hoverinfo: 'skip',
               name: 'Your Well Trajectories',
               showlegend: false
             });
+          } else {
+            mainUserLineTraceIndex = null;
           }
           
           // Add centroid marker if user has wells
@@ -630,7 +762,7 @@ const yearInput = document.getElementById('year');
             font: { color: '#eaeaea' },
             mapbox: {
               accesstoken: MAPBOX_TOKEN,
-              style: MAPBOX_STYLE,
+              style: currentMapStyle,
               center: nearbyAnalysis20.centroid ? 
                 { lat: nearbyAnalysis20.centroid.lat, lon: nearbyAnalysis20.centroid.lon } :
                 { lat: 31.0, lon: -99.0 },
@@ -731,6 +863,7 @@ const yearInput = document.getElementById('year');
           // Get the number of traces that existed before we added the circles
           const originalTraceCount = document.getElementById('map').data.length - 2; // Subtract both circles
           
+          const userLineColor = currentMapStyle === MAPBOX_STYLE_SATELLITE ? 'red' : 'rgba(128, 128, 128, 0.6)';
           const updateData = {
             lat: [
               generalLines.lineLats,
@@ -755,7 +888,7 @@ const yearInput = document.getElementById('year');
             ],
             'line.color': [
               'rgba(128, 128, 128, 0.4)',
-              'rgba(128, 128, 128, 0.6)',
+              userLineColor,
               null,
               null,
               null
@@ -807,3 +940,40 @@ const yearInput = document.getElementById('year');
     
     // Fire-and-forget: fetch production for user wells once
     loadUserProductionOnce().then(updateLastProductionMetrics);
+
+    const mapStyleToggleBtn = document.getElementById('mapStyleToggle');
+    if (mapStyleToggleBtn) {
+      mapStyleToggleBtn.addEventListener('click', () => {
+        currentMapStyle = currentMapStyle === MAPBOX_STYLE_TERRAIN ? MAPBOX_STYLE_SATELLITE : MAPBOX_STYLE_TERRAIN;
+        mapStyleToggleBtn.textContent = currentMapStyle === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
+        const newLineColor = currentMapStyle === MAPBOX_STYLE_SATELLITE ? 'red' : 'rgba(128, 128, 128, 0.6)';
+
+        const userWellsMapDiv = document.getElementById('userWellsMap');
+        if (userWellsMapDiv && userWellsMapDiv.data) {
+          const uwCenter = userWellsMapDiv.layout && userWellsMapDiv.layout.mapbox && userWellsMapDiv.layout.mapbox.center;
+          const uwZoom = userWellsMapDiv.layout && userWellsMapDiv.layout.mapbox && userWellsMapDiv.layout.mapbox.zoom;
+          Plotly.relayout(userWellsMapDiv, {
+            'mapbox.style': currentMapStyle,
+            'mapbox.center': uwCenter,
+            'mapbox.zoom': uwZoom
+          });
+          if (userWellsMapLineTraceIndices.length) {
+            Plotly.restyle(userWellsMapDiv, { 'line.color': newLineColor }, userWellsMapLineTraceIndices);
+          }
+        }
+
+        const mainMapDiv = document.getElementById('map');
+        if (mainMapDiv && mainMapDiv.data) {
+          const mainCenter = mainMapDiv.layout && mainMapDiv.layout.mapbox && mainMapDiv.layout.mapbox.center;
+          const mainZoom = mainMapDiv.layout && mainMapDiv.layout.mapbox && mainMapDiv.layout.mapbox.zoom;
+          Plotly.relayout(mainMapDiv, {
+            'mapbox.style': currentMapStyle,
+            'mapbox.center': mainCenter,
+            'mapbox.zoom': mainZoom
+          });
+          if (mainUserLineTraceIndex !== null) {
+            Plotly.restyle(mainMapDiv, { 'line.color': newLineColor }, [mainUserLineTraceIndex]);
+          }
+        }
+      });
+    }

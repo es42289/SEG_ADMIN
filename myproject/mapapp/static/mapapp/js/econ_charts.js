@@ -217,23 +217,22 @@
     }
 
     const mapping = {
-      'stat-ltm-oil': `LTM Oil: ${formatNumber(stats.ltm_oil)} BBL`,
-      'stat-ltm-gas': `LTM Gas: ${formatNumber(stats.ltm_gas)} MCF`,
-      'stat-ltm-cf': `LTM Cashflow: ${formatCurrency(stats.ltm_cf)}`,
-      'stat-ntm-oil': `NTM Oil: ${formatNumber(stats.ntm_oil)} BBL`,
-      'stat-ntm-gas': `NTM Gas: ${formatNumber(stats.ntm_gas)} MCF`,
-      'stat-ntm-cf': `NTM Cashflow: ${formatCurrency(stats.ntm_cf)}`,
-      'stat-pv0': `PV0: ${formatCurrency(stats.pv0)}`,
-      'stat-pv10': `PV10: ${formatCurrency(stats.pv10)}`,
-      'stat-pv12': `PV12: ${formatCurrency(stats.pv12)}`,
-      'stat-pv14': `PV14: ${formatCurrency(stats.pv14)}`,
-      'stat-pv16': `PV16: ${formatCurrency(stats.pv16)}`,
-      'stat-pv18': `PV18: ${formatCurrency(stats.pv18)}`
+      'stat-ltm-oil': `LTM Oil: <br>${formatNumber(stats.ltm_oil)} BBL`,
+      'stat-ltm-gas': `LTM Gas: <br>${formatNumber(stats.ltm_gas)} MCF`,
+      'stat-ltm-cf': `LTM Cashflow: <br>${formatCurrency(stats.ltm_cf)}`,
+      'stat-ntm-oil': `NTM Oil: <br>${formatNumber(stats.ntm_oil)} BBL`,
+      'stat-ntm-gas': `NTM Gas: <br>${formatNumber(stats.ntm_gas)} MCF`,
+      'stat-ntm-cf': `NTM Cashflow: <br>${formatCurrency(stats.ntm_cf)}`,
+      'stat-pv0': `PV0: <br>${formatCurrency(stats.pv0)}`,
+      'stat-pv10': `PV10: <br>${formatCurrency(stats.pv10)}`,
+      'stat-pv12': `PV12: <br>${formatCurrency(stats.pv12)}`,
+      'stat-pv14': `PV14: <br>${formatCurrency(stats.pv14)}`,
+      'stat-pv16': `PV16: <br>${formatCurrency(stats.pv16)}`,
+      'stat-pv18': `PV18: <br>${formatCurrency(stats.pv18)}`
     };
 
-    Object.entries(mapping).forEach(([id, text]) => {
-      const el = document.getElementById(id);
-      if(el) el.textContent = text;
+    Object.entries(mapping).forEach(([id, html]) => {
+      document.getElementById(id).innerHTML = html;
     });
   }
 

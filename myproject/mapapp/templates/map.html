@@ -36,9 +36,18 @@
     </div>
   </div>
   <div class="page-content">
-  
+
+  <!-- User Wells Map -->
+  <section id="user-wells-map" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
+    <div style="display:flex; align-items:center; justify-content:center; position:relative; margin-bottom:0.5rem;">
+      <h3 style="margin:0; text-align:center;">User Wells Map</h3>
+      <button id="mapStyleToggle" style="position:absolute; right:0; background:#cd8323; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Satellite View</button>
+    </div>
+    <div id="userWellsMap" style="width:100%; height:400px;"></div>
+  </section>
+
   <!-- Production chart (Plotly target) -->
-<section id="prod-chart" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;"> 
+<section id="prod-chart" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
   <h3 style="margin:0 0 .5rem 0; text-align:center;">Production History & Forecasts</h3>
   <div id="prodChart" style="width:100%; height:600px;"></div>
 </section>
@@ -57,8 +66,8 @@
   </div>
   <div style="display:flex; gap:1rem; margin-top:1rem;">
     <div id="cashflowSummaryChart" style="width:60%; height:600px;"></div>
-    <div id="summaryStats" style="width:40%; background:#faefdc; padding:5px 10px; border-radius:4px;">
-      <h4 style="margin:0 0 .5rem 0; color:#1e293a;">Summary Statistics</h4>
+    <div id="summaryStats" style="width:40%; background:#156082; padding:5px 10px; border-radius:4px;">
+      <h4 style="margin:0 0 .5rem 0; color:#fff;">Summary Statistics</h4>
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem;">
         <span id="stat-ltm-oil" class="stat-box">LTM Oil: 0</span>
         <span id="stat-ltm-gas" class="stat-box">LTM Gas: 0</span>
