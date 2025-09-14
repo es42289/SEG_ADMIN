@@ -536,7 +536,7 @@ const yearInput = document.getElementById('year');
         marker: {
           size: 10,
           color: colors,
-          line: { color: 'white', width: 1 }
+          line: { color: 'black', width: 1 }
         },
         hoverinfo: 'text',
         name: 'User Wells'
@@ -719,10 +719,10 @@ const yearInput = document.getElementById('year');
             lon: generalData.lon, 
             text: generalData.text,
             mode: 'markers', 
-            marker: { 
+            marker: {
               size: 6,
               color: generalColors,
-              line: { color: 'white', width: 1 }
+              line: { color: 'black', width: 1 }
             },
             name: 'All Wells',
             showlegend: true
@@ -736,10 +736,10 @@ const yearInput = document.getElementById('year');
               lon: userData.lon, 
               text: userData.text,
               mode: 'markers', 
-              marker: { 
+              marker: {
                 size: 10,
                 color: 'red',
-                line: { color: 'white', width: 2 },
+                line: { color: 'black', width: 1 },
                 symbol: 'circle'
               },
               name: 'Your Wells',
