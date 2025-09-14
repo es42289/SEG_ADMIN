@@ -339,7 +339,7 @@ const yearInput = document.getElementById('year');
         if (!data.lat || data.lat.length === 0) {
           console.log('No user wells found');
           if (avgWellAge) avgWellAge.textContent = 'Avg. Well Age (Yrs): 0';
-          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
+          return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [], completion_date: [] };
         }
 
         console.log(`Received ${data.lat.length} user wells`);
@@ -366,7 +366,7 @@ const yearInput = document.getElementById('year');
         
       } catch (error) {
         console.error('User wells fetch error:', error);
-        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [] };
+        return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [], completion_date: [] };
       }
     }
 
@@ -394,7 +394,8 @@ const yearInput = document.getElementById('year');
         owner_interest: filteredIndices.map(i => data.owner_interest ? data.owner_interest[i] : null),
         owner_name: filteredIndices.map(i => data.owner_name ? data.owner_name[i] : null),
         last_producing: filteredIndices.map(i => data.last_producing ? data.last_producing[i] : null),
-        api_uwi: filteredIndices.map(i => data.api_uwi ? data.api_uwi[i] : null)
+        api_uwi: filteredIndices.map(i => data.api_uwi ? data.api_uwi[i] : null),
+        completion_date: filteredIndices.map(i => data.completion_date ? data.completion_date[i] : null)
       };
     }
 
@@ -498,7 +499,38 @@ const yearInput = document.getElementById('year');
       const hoverText = data.api_uwi.map((api, i) => {
         const name = data.name && data.name[i] ? data.name[i] : '';
         const fp = data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '';
-        return `API: ${api}<br>Name: ${name}<br>First Prod: ${fp}`;
+        const comp = data.completion_date && data.completion_date[i] ? data.completion_date[i] : '';
+        return `API: ${api}<br>Name: ${name}<br>First Prod: ${fp}<br>Completion: ${comp}`;
+      });
+
+      const lineData = createLineData(data);
+      const traces = [];
+      if (lineData.lineLats.length > 0) {
+        traces.push({
+          type: 'scattermapbox',
+          lat: lineData.lineLats,
+          lon: lineData.lineLons,
+          mode: 'lines',
+          line: { color: 'rgba(128, 128, 128, 0.6)', width: 2 },
+          hoverinfo: 'skip',
+          showlegend: false
+        });
+      }
+
+      const colors = data.lat.map(() => 'red');
+      traces.push({
+        type: 'scattermapbox',
+        lat: data.lat,
+        lon: data.lon,
+        text: hoverText,
+        mode: 'markers',
+        marker: {
+          size: 10,
+          color: colors,
+          line: { color: 'white', width: 1 }
+        },
+        hoverinfo: 'text',
+        name: 'User Wells'
       });
 
       const center = calculateCentroid(data.lat, data.lon) || { lat: 31.0, lon: -99.0 };
@@ -518,21 +550,6 @@ const yearInput = document.getElementById('year');
         else zoom = 12;
       }
 
-      const trace = {
-        type: 'scattermapbox',
-        lat: data.lat,
-        lon: data.lon,
-        text: hoverText,
-        mode: 'markers',
-        marker: {
-          size: 10,
-          color: 'red',
-          line: { color: 'white', width: 1 }
-        },
-        hoverinfo: 'text',
-        name: 'User Wells'
-      };
-
       const layout = {
         paper_bgcolor: '#156082',
         plot_bgcolor: '#156082',
@@ -549,7 +566,19 @@ const yearInput = document.getElementById('year');
         showlegend: false
       };
 
-      Plotly.newPlot(mapDivId, [trace], layout, { scrollZoom: true });
+      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: true });
+
+      const markerTraceIndex = traces.length - 1;
+      mapDiv.on('plotly_hover', e => {
+        const idx = e.points[0].pointIndex;
+        colors[idx] = 'green';
+        Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
+      });
+      mapDiv.on('plotly_unhover', e => {
+        const idx = e.points[0].pointIndex;
+        colors[idx] = 'red';
+        Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
+      });
     }
 
     // Main draw function with frontend filtering
