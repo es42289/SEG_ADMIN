@@ -571,11 +571,11 @@ const yearInput = document.getElementById('year');
         },
         margin: { t: 40, r: 10, b: 10, l: 10 },
         height: 400,
-        title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
+        // title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
         showlegend: false
       };
 
-      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: true });
+      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false });
 
       const markerTraceIndex = traces.length - 1;
       mapDiv.on('plotly_hover', e => {
