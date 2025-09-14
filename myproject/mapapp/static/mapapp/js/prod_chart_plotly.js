@@ -229,7 +229,7 @@
           xanchor: 'right',
           yanchor: 'top',
           orientation: 'v',
-          bgcolor: '#fff',
+          bgcolor: '#faefdc',
           bordercolor: '#1f293aff',
           borderwidth: 1,
           font: { size: 12 }  // optional: tweak as you like
@@ -245,8 +245,8 @@
         },
         yaxis: { title: 'MCF or BBL per Month', type: 'log', range: [Math.log10(agg.yMin), Math.log10(agg.yMax)], gridcolor: '#1f293a1f' },
         yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: '#1f293a02' },
-        paper_bgcolor: '#fff',
-        plot_bgcolor: '#fff',
+        paper_bgcolor: '#faefdc',
+        plot_bgcolor: '#faefdc',
         font: { color: '#1f293a' },
       };
 
