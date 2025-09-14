@@ -947,16 +947,32 @@ const yearInput = document.getElementById('year');
         currentMapStyle = currentMapStyle === MAPBOX_STYLE_TERRAIN ? MAPBOX_STYLE_SATELLITE : MAPBOX_STYLE_TERRAIN;
         mapStyleToggleBtn.textContent = currentMapStyle === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
         const newLineColor = currentMapStyle === MAPBOX_STYLE_SATELLITE ? 'red' : 'rgba(128, 128, 128, 0.6)';
-        if (document.getElementById('userWellsMap') && document.getElementById('userWellsMap').data) {
-          Plotly.relayout('userWellsMap', { 'mapbox.style': currentMapStyle });
+
+        const userWellsMapDiv = document.getElementById('userWellsMap');
+        if (userWellsMapDiv && userWellsMapDiv.data) {
+          const uwCenter = userWellsMapDiv.layout && userWellsMapDiv.layout.mapbox && userWellsMapDiv.layout.mapbox.center;
+          const uwZoom = userWellsMapDiv.layout && userWellsMapDiv.layout.mapbox && userWellsMapDiv.layout.mapbox.zoom;
+          Plotly.relayout(userWellsMapDiv, {
+            'mapbox.style': currentMapStyle,
+            'mapbox.center': uwCenter,
+            'mapbox.zoom': uwZoom
+          });
           if (userWellsMapLineTraceIndices.length) {
-            Plotly.restyle('userWellsMap', { 'line.color': newLineColor }, userWellsMapLineTraceIndices);
+            Plotly.restyle(userWellsMapDiv, { 'line.color': newLineColor }, userWellsMapLineTraceIndices);
           }
         }
-        if (document.getElementById('map') && document.getElementById('map').data) {
-          Plotly.relayout('map', { 'mapbox.style': currentMapStyle });
+
+        const mainMapDiv = document.getElementById('map');
+        if (mainMapDiv && mainMapDiv.data) {
+          const mainCenter = mainMapDiv.layout && mainMapDiv.layout.mapbox && mainMapDiv.layout.mapbox.center;
+          const mainZoom = mainMapDiv.layout && mainMapDiv.layout.mapbox && mainMapDiv.layout.mapbox.zoom;
+          Plotly.relayout(mainMapDiv, {
+            'mapbox.style': currentMapStyle,
+            'mapbox.center': mainCenter,
+            'mapbox.zoom': mainZoom
+          });
           if (mainUserLineTraceIndex !== null) {
-            Plotly.restyle('map', { 'line.color': newLineColor }, [mainUserLineTraceIndex]);
+            Plotly.restyle(mainMapDiv, { 'line.color': newLineColor }, [mainUserLineTraceIndex]);
           }
         }
       });
