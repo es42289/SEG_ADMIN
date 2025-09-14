@@ -503,18 +503,21 @@ const yearInput = document.getElementById('year');
         return `API: ${api}<br>Name: ${name}<br>First Prod: ${fp}<br>Completion: ${comp}`;
       });
 
-      const lineData = createLineData(data);
       const traces = [];
-      if (lineData.lineLats.length > 0) {
-        traces.push({
-          type: 'scattermapbox',
-          lat: lineData.lineLats,
-          lon: lineData.lineLons,
-          mode: 'lines',
-          line: { color: 'rgba(128, 128, 128, 0.6)', width: 2 },
-          hoverinfo: 'skip',
-          showlegend: false
-        });
+      const lineTraceIndices = {};
+      for (let i = 0; i < data.lat.length; i++) {
+        if (data.lat_bh[i] && data.lon_bh[i]) {
+          lineTraceIndices[i] = traces.length;
+          traces.push({
+            type: 'scattermapbox',
+            lat: [data.lat[i], data.lat_bh[i]],
+            lon: [data.lon[i], data.lon_bh[i]],
+            mode: 'lines',
+            line: { color: 'rgba(128, 128, 128, 0.6)', width: 2 },
+            hoverinfo: 'skip',
+            showlegend: false
+          });
+        }
       }
 
       const colors = data.lat.map(() => 'red');
@@ -573,11 +576,17 @@ const yearInput = document.getElementById('year');
         const idx = e.points[0].pointIndex;
         colors[idx] = 'green';
         Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
+        if (lineTraceIndices[idx] !== undefined) {
+          Plotly.restyle(mapDivId, { 'line.color': 'green' }, [lineTraceIndices[idx]]);
+        }
       });
       mapDiv.on('plotly_unhover', e => {
         const idx = e.points[0].pointIndex;
         colors[idx] = 'red';
         Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
+        if (lineTraceIndices[idx] !== undefined) {
+          Plotly.restyle(mapDivId, { 'line.color': 'rgba(128, 128, 128, 0.6)' }, [lineTraceIndices[idx]]);
+        }
       });
     }
 
