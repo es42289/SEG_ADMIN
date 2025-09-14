@@ -12,7 +12,9 @@ const yearInput = document.getElementById('year');
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
-    const MAPBOX_STYLE = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
+    const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
+    const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
+    let currentMapStyle = MAPBOX_STYLE_TERRAIN;
 
     function updateStatus(message, isError = false, isSuccess = false) {
       if (!statusDiv) return;
@@ -563,7 +565,7 @@ const yearInput = document.getElementById('year');
         font: { color: '#eaeaea' },
         mapbox: {
           accesstoken: MAPBOX_TOKEN,
-          style: MAPBOX_STYLE,
+          style: currentMapStyle,
           center: center,
           zoom: zoom
         },
@@ -751,7 +753,7 @@ const yearInput = document.getElementById('year');
             font: { color: '#eaeaea' },
             mapbox: {
               accesstoken: MAPBOX_TOKEN,
-              style: MAPBOX_STYLE,
+              style: currentMapStyle,
               center: nearbyAnalysis20.centroid ? 
                 { lat: nearbyAnalysis20.centroid.lat, lon: nearbyAnalysis20.centroid.lon } :
                 { lat: 31.0, lon: -99.0 },
@@ -928,3 +930,17 @@ const yearInput = document.getElementById('year');
     
     // Fire-and-forget: fetch production for user wells once
     loadUserProductionOnce().then(updateLastProductionMetrics);
+
+    const mapStyleToggleBtn = document.getElementById('mapStyleToggle');
+    if (mapStyleToggleBtn) {
+      mapStyleToggleBtn.addEventListener('click', () => {
+        currentMapStyle = currentMapStyle === MAPBOX_STYLE_TERRAIN ? MAPBOX_STYLE_SATELLITE : MAPBOX_STYLE_TERRAIN;
+        mapStyleToggleBtn.textContent = currentMapStyle === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
+        if (document.getElementById('userWellsMap') && document.getElementById('userWellsMap').data) {
+          Plotly.relayout('userWellsMap', { 'mapbox.style': currentMapStyle });
+        }
+        if (document.getElementById('map') && document.getElementById('map').data) {
+          Plotly.relayout('map', { 'mapbox.style': currentMapStyle });
+        }
+      });
+    }
