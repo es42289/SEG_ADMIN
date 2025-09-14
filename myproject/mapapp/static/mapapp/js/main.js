@@ -361,6 +361,7 @@ const yearInput = document.getElementById('year');
         }
 
         renderUserWellsTable(data);
+        renderUserWellsMap(data);
         return data;
         
       } catch (error) {
@@ -487,6 +488,68 @@ const yearInput = document.getElementById('year');
         });
         tbody.appendChild(row);
       }
+    }
+
+    function renderUserWellsMap(data) {
+      const mapDivId = 'userWellsMap';
+      const mapDiv = document.getElementById(mapDivId);
+      if (!mapDiv || !data || !data.lat || data.lat.length === 0) return;
+
+      const hoverText = data.api_uwi.map((api, i) => {
+        const name = data.name && data.name[i] ? data.name[i] : '';
+        const fp = data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '';
+        return `API: ${api}<br>Name: ${name}<br>First Prod: ${fp}`;
+      });
+
+      const center = calculateCentroid(data.lat, data.lon) || { lat: 31.0, lon: -99.0 };
+      let zoom = 10;
+      if (data.lat.length > 1) {
+        const latMin = Math.min(...data.lat);
+        const latMax = Math.max(...data.lat);
+        const lonMin = Math.min(...data.lon);
+        const lonMax = Math.max(...data.lon);
+        const maxDiff = Math.max(latMax - latMin, lonMax - lonMin);
+        if (maxDiff > 4) zoom = 6;
+        else if (maxDiff > 2) zoom = 7;
+        else if (maxDiff > 1) zoom = 8;
+        else if (maxDiff > 0.5) zoom = 9;
+        else if (maxDiff > 0.25) zoom = 10;
+        else if (maxDiff > 0.1) zoom = 11;
+        else zoom = 12;
+      }
+
+      const trace = {
+        type: 'scattermapbox',
+        lat: data.lat,
+        lon: data.lon,
+        text: hoverText,
+        mode: 'markers',
+        marker: {
+          size: 10,
+          color: 'red',
+          line: { color: 'white', width: 1 }
+        },
+        hoverinfo: 'text',
+        name: 'User Wells'
+      };
+
+      const layout = {
+        paper_bgcolor: '#156082',
+        plot_bgcolor: '#156082',
+        font: { color: '#eaeaea' },
+        mapbox: {
+          accesstoken: MAPBOX_TOKEN,
+          style: MAPBOX_STYLE,
+          center: center,
+          zoom: zoom
+        },
+        margin: { t: 40, r: 10, b: 10, l: 10 },
+        height: 400,
+        title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
+        showlegend: false
+      };
+
+      Plotly.newPlot(mapDivId, [trace], layout, { scrollZoom: true });
     }
 
     // Main draw function with frontend filtering
