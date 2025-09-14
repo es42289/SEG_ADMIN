@@ -505,16 +505,20 @@ const yearInput = document.getElementById('year');
 
       const traces = [];
       const lineTraceIndices = {};
+      const traceToWellIndex = {};
       for (let i = 0; i < data.lat.length; i++) {
         if (data.lat_bh[i] && data.lon_bh[i]) {
-          lineTraceIndices[i] = traces.length;
+          const traceIndex = traces.length;
+          lineTraceIndices[i] = traceIndex;
+          traceToWellIndex[traceIndex] = i;
           traces.push({
             type: 'scattermapbox',
             lat: [data.lat[i], data.lat_bh[i]],
             lon: [data.lon[i], data.lon_bh[i]],
             mode: 'lines',
             line: { color: 'rgba(128, 128, 128, 0.6)', width: 2 },
-            hoverinfo: 'skip',
+            text: [hoverText[i], hoverText[i]],
+            hoverinfo: 'text',
             showlegend: false
           });
         }
@@ -573,7 +577,15 @@ const yearInput = document.getElementById('year');
 
       const markerTraceIndex = traces.length - 1;
       mapDiv.on('plotly_hover', e => {
-        const idx = e.points[0].pointIndex;
+        const traceIndex = e.points[0].curveNumber;
+        let idx;
+        if (traceIndex === markerTraceIndex) {
+          idx = e.points[0].pointIndex;
+        } else if (traceToWellIndex[traceIndex] !== undefined) {
+          idx = traceToWellIndex[traceIndex];
+        } else {
+          return;
+        }
         colors[idx] = 'green';
         Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
         if (lineTraceIndices[idx] !== undefined) {
@@ -581,7 +593,15 @@ const yearInput = document.getElementById('year');
         }
       });
       mapDiv.on('plotly_unhover', e => {
-        const idx = e.points[0].pointIndex;
+        const traceIndex = e.points[0].curveNumber;
+        let idx;
+        if (traceIndex === markerTraceIndex) {
+          idx = e.points[0].pointIndex;
+        } else if (traceToWellIndex[traceIndex] !== undefined) {
+          idx = traceToWellIndex[traceIndex];
+        } else {
+          return;
+        }
         colors[idx] = 'red';
         Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
         if (lineTraceIndices[idx] !== undefined) {
