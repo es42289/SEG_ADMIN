@@ -46,7 +46,11 @@
       {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'}},
       {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}}
     ];
-    Plotly.newPlot(chartEl,fig,{yaxis:{type:'log'},title:'Price Deck'}, {responsive:true});
+    Plotly.newPlot(chartEl,fig,{showlegend: false,
+                                            yaxis:{type:'log', title:'Gas Price / Oil Price, $'},
+                                            title:'Price Deck',
+                                            margin:{ l: 40, r: 5, t: 40, b: 40 }},
+                                            {responsive:true});
   }
 
   async function loadEconomics(deck){
