@@ -165,3 +165,6 @@ input#year[type="range"] {
     #userWellsTable th {
       text-align: left;
     }
+    #userWellsTable tbody tr:hover {
+      background: #156082;
+    }
