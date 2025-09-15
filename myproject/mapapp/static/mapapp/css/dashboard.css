@@ -160,11 +160,12 @@ input#year[type="range"] {
     }
     #userWellsTable th, #userWellsTable td {
       padding: .5rem;
-      border-bottom: 1px solid #2a2a2a;
+      border-bottom: 1px solid white;
     }
     #userWellsTable th {
       text-align: left;
     }
     #userWellsTable tbody tr:hover {
-      background: #156082;
+      background: white;
+      color: black;
     }

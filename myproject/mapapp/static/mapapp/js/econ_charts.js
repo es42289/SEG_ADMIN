@@ -97,7 +97,7 @@
     const ntmCenter = new Date(today);
     ntmCenter.setMonth(ntmCenter.getMonth() + 12);
 
-    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#A4CA98'},name:'Net Cash Flow'}];
+    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#156082'},name:'Net Cash Flow'}];
     const layout = {
       title:'Net Cash Flow: 12 Months Backward & 24 Months Forward',
       template:'plotly_white',
@@ -171,9 +171,9 @@
     const ordVals = ordered.map(o => o.value);
 
     const colors = ordLabels.map(l => {
-      if (l === 'LTM') return '#A4CA98';
-      if (l === 'NTM') return '#F4D65A';
-      return '#737F6F';
+      if (l === 'LTM') return '#156082';
+      if (l === 'NTM') return '#156082';
+      return '#156082';
     });
 
     function formatCurrency(value){
