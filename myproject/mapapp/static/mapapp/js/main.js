@@ -518,7 +518,7 @@ const yearInput = document.getElementById('year');
             lat: [data.lat[i], data.lat_bh[i]],
             lon: [data.lon[i], data.lon_bh[i]],
             mode: 'lines',
-            line: { color: 'rgba(128, 128, 128, 0.6)', width: 2 },
+            line: { color: 'red', width: 2 },
             text: [hoverText[i], hoverText[i]],
             hoverinfo: 'text',
             showlegend: false
@@ -571,7 +571,7 @@ const yearInput = document.getElementById('year');
         },
         margin: { t: 40, r: 10, b: 10, l: 10 },
         height: 400,
-        title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
+        // title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
         showlegend: false
       };
 
@@ -607,7 +607,7 @@ const yearInput = document.getElementById('year');
         colors[idx] = 'red';
         Plotly.restyle(mapDivId, { 'marker.color': [colors] }, [markerTraceIndex]);
         if (lineTraceIndices[idx] !== undefined) {
-          Plotly.restyle(mapDivId, { 'line.color': 'rgba(128, 128, 128, 0.6)' }, [lineTraceIndices[idx]]);
+          Plotly.restyle(mapDivId, { 'line.color': 'red' }, [lineTraceIndices[idx]]);
         }
       });
     }
