@@ -105,7 +105,7 @@
     const layout = {
       title:'Net Cash Flow: 12 Months Backward & 24 Months Forward',
       template:'plotly_white',
-      height:500,
+      height:400,
       xaxis:{
         tickangle:-45,
         tickformat:'%b %Y',
@@ -203,7 +203,7 @@
       xaxis: {title: 'Period', type: 'category'},
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
-      height: 600
+      height: 400
     };
 
     Plotly.newPlot(target, [trace], layout, {responsive: true});
