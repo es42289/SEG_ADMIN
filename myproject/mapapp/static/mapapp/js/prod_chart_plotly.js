@@ -164,7 +164,7 @@
       console.warn('[prod-chart] #prodChart not found; creating one at end of <body>');
       el = document.createElement('div');
       el.id = 'prodChart';
-      el.style.height = '360px';
+      el.style.height = '300px';
       document.body.appendChild(el);
       return el;
     }
@@ -172,11 +172,11 @@
       console.warn('[prod-chart] found <canvas id="prodChart">; replacing with <div> for Plotly');
       const d = document.createElement('div');
       d.id = 'prodChart';
-      d.style.height = (el.height ? el.height : 360) + 'px';
+      d.style.height = (el.height ? el.height : 300) + 'px';
       el.replaceWith(d);
       return d;
     }
-    if (!el.style.height) el.style.height = '360px';
+    if (!el.style.height) el.style.height = '300px';
     console.log('[prod-chart] container ready: #%s (%s)', el.id, el.tagName);
     return el;
   }
@@ -220,7 +220,7 @@
       ];
 
       const layout = {
-        height: (el && (el.clientHeight || parseInt(getComputedStyle(el).height))) || 720,
+        height: (el && (el.clientHeight || parseInt(getComputedStyle(el).height))) || 300,
         margin: { l: 50, r: 60, t: 10, b: 60 }, // extra bottom margin for angled labels
         showlegend: true,
         legend: {
