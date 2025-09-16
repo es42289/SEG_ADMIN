@@ -18,6 +18,18 @@ body {
   margin-top: 120px;
 }
 
+.chart-map-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: stretch;
+}
+
+.chart-map-grid > section {
+  min-width: 0;
+}
+
 .login-bar {
   background: #faefdc;
   padding: 10px;
