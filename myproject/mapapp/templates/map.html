@@ -37,20 +37,22 @@
   </div>
   <div class="page-content">
 
-  <!-- User Wells Map -->
-  <section id="user-wells-map" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-    <div style="display:flex; align-items:center; justify-content:center; position:relative; margin-bottom:0.5rem;">
-      <h3 style="margin:0; text-align:center;">User Wells Map</h3>
-      <button id="mapStyleToggle" style="position:absolute; right:0; background:white; color:#156082; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Satellite View</button>
-    </div>
-    <div id="userWellsMap" style="width:100%; height:400px;"></div>
-  </section>
+  <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-top:1rem; align-items:stretch;">
+    <!-- Production chart (Plotly target) -->
+    <section id="prod-chart" style="flex:1 1 60%; min-width:300px; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
+      <h3 style="margin:0 0 .5rem 0; text-align:center;">Production History & Forecasts</h3>
+      <div id="prodChart" style="width:100%; height:600px;"></div>
+    </section>
 
-  <!-- Production chart (Plotly target) -->
-<section id="prod-chart" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-  <h3 style="margin:0 0 .5rem 0; text-align:center;">Production History & Forecasts</h3>
-  <div id="prodChart" style="width:100%; height:600px;"></div>
-</section>
+    <!-- User Wells Map -->
+    <section id="user-wells-map" style="flex:1 1 40%; min-width:300px; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
+      <div style="display:flex; align-items:center; justify-content:center; position:relative; margin-bottom:0.5rem;">
+        <h3 style="margin:0; text-align:center;">User Wells Map</h3>
+        <button id="mapStyleToggle" style="position:absolute; right:0; background:white; color:#156082; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Satellite View</button>
+      </div>
+      <div id="userWellsMap" style="width:100%; height:400px;"></div>
+    </section>
+  </div>
 
 <section id="econ-charts" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
   <h3 style="margin:0 0 .5rem 0; text-align:center;">Cash Flow Projections</h3>
