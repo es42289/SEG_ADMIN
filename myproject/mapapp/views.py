@@ -735,7 +735,9 @@ def economics_data(request):
     }
 
     # Starting point for LTM summaries
-    ltm_start = today - pd.DateOffset(months=12)
+    # Using an 11-month offset keeps the range inclusive of "today" while
+    # capturing exactly twelve trailing months of production data.
+    ltm_start = today - pd.DateOffset(months=11)
 
     def period_sum(col, start, end):
         mask = (merged["PRODUCINGMONTH"] >= start) & (merged["PRODUCINGMONTH"] <= end)
