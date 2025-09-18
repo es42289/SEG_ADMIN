@@ -9,8 +9,8 @@
 body {
   font-family: "Aptos Narrow", system-ui, sans-serif;
   margin: 0;
-  background: #faefdc;
-  color: #eaeaea;
+  background: white;
+  color: white;
 }
 
 .page-content {
@@ -77,7 +77,7 @@ body {
 }
 
 .well-count-box {
-  background: #faefdc;
+  background: white;
   color: #1e293a;
   padding: 5px 10px;
   position: fixed;
@@ -121,8 +121,8 @@ body {
 }
 
 #summaryStats .stat-box {
-  background: #156082;
-  color: white;
+  background: white;
+  color: #156082;
 }
 
 input#year[type="range"] {
