@@ -669,6 +669,8 @@ def economics_data(request):
                 "NetCashFlow": "sum",
                 "OilVol": "sum",
                 "GasVol": "sum",
+                "OilVolWI": "sum",
+                "GasVolWI": "sum",
             }
         ).reset_index()
     )
@@ -687,6 +689,8 @@ def economics_data(request):
     merged[money_cols] = merged[money_cols].fillna(0)
     merged["OilVol"] = merged["OilVol"].fillna(0)
     merged["GasVol"] = merged["GasVol"].fillna(0)
+    merged["OilVolWI"] = merged["OilVolWI"].fillna(0)
+    merged["GasVolWI"] = merged["GasVolWI"].fillna(0)
     merged["CumRevenue"] = merged["GrossRevenue"].cumsum().fillna(0)
     merged["CumNCF"] = merged["NetCashFlow"].cumsum().fillna(0)
     merged["month_index"] = merged.index
@@ -747,11 +751,11 @@ def economics_data(request):
         return float(sub[col].sum())
 
     ntm_end = today + pd.DateOffset(months=12)
-    ltm_oil = period_sum("OilVol", ltm_start, today)
-    ltm_gas = period_sum("GasVol", ltm_start, today)
+    ltm_oil = period_sum("OilVolWI", ltm_start, today)
+    ltm_gas = period_sum("GasVolWI", ltm_start, today)
     ltm_cf = period_sum("NetCashFlow", ltm_start, today)
-    ntm_oil = period_sum("OilVol", today, ntm_end)
-    ntm_gas = period_sum("GasVol", today, ntm_end)
+    ntm_oil = period_sum("OilVolWI", today, ntm_end)
+    ntm_gas = period_sum("GasVolWI", today, ntm_end)
     ntm_cf = period_sum("NetCashFlow", today, ntm_end)
 
     next_month = today + pd.DateOffset(months=1)
