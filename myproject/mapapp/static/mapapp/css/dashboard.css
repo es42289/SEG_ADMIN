@@ -83,7 +83,7 @@ body {
   z-index: 999;
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: center;
   gap: 2rem;
   flex-wrap: wrap;
   box-sizing: border-box;
@@ -104,13 +104,14 @@ body {
   flex: 0 0 auto;
   padding-right: 1rem;
   border-right: 1px solid rgba(21, 96, 130, 0.3);
+  max-height: 84px;
 }
 
 .well-count-logo img {
-  height: 100%;
-  max-height: 100%;
-  width: auto;
   display: block;
+  height: 100%;
+  max-height: 84px;
+  width: auto;
   object-fit: contain;
 }
 
