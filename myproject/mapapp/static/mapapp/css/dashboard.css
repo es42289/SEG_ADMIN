@@ -149,6 +149,7 @@ body {
 #summaryStats .stat-box {
   background: white;
   color: #156082;
+  font-weight: 700;
 }
 
 input#year[type="range"] {
