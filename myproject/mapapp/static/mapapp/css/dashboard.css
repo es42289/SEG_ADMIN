@@ -47,17 +47,24 @@ body {
   height: 300px;
 }
 
-.login-bar {
-  background: #ffff;
-  padding: 10px;
-  color: #1e293a;
+.top-banner {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   z-index: 1000;
   display: flex;
+  flex-direction: column;
+  background: #ffff;
+}
+
+.login-bar {
+  background: #ffff;
+  padding: 10px 20px;
+  color: #1e293a;
+  display: flex;
   align-items: center;
+  box-sizing: border-box;
 }
 
 .login-content {
@@ -72,15 +79,11 @@ body {
 }
 
 .well-count-box {
-  background: white;
+  background: #ffff;
   color: #1e293a;
   padding: 10px 20px;
-  position: fixed;
-  top: 70px;
-  left: 0;
   width: 100%;
   text-align: left;
-  z-index: 999;
   display: flex;
   justify-content: flex-start;
   align-items: stretch;
@@ -103,7 +106,6 @@ body {
   justify-content: center;
   flex: 0 0 auto;
   padding-right: 1rem;
-  border-right: 1px solid rgba(21, 96, 130, 0.3);
   max-height: calc(84px * 1.1);
 }
 

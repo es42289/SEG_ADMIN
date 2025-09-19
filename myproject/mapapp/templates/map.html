@@ -6,16 +6,17 @@
 {% block content %}
 
 
-<div class="login-bar">
-  <div class="login-content">
-    {% if request.session.user %}
-      Logged in as: {{ request.session.user.name|default:request.session.user.email }}
-      <a href="/logout/">Logout</a>
-    {% else %}
-      <a href="/login/">Login</a>
-    {% endif %}
+<div class="top-banner">
+  <div class="login-bar">
+    <div class="login-content">
+      {% if request.session.user %}
+        Logged in as: {{ request.session.user.name|default:request.session.user.email }}
+        <a href="/logout/">Logout</a>
+      {% else %}
+        <a href="/login/">Login</a>
+      {% endif %}
+    </div>
   </div>
-</div>
   <div id="metrics-bar" class="well-count-box">
     <div class="well-count-logo">
       <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
@@ -39,6 +40,7 @@
       </div>
     </div>
   </div>
+</div>
   <div class="page-content">
 
   <div class="chart-map-grid">
