@@ -197,9 +197,19 @@
       textfont: {size: 18, color: 'black'}
     };
 
+    const positiveMax = Math.max(0, ...ordVals);
+    const negativeMin = Math.min(0, ...ordVals);
+    const span = positiveMax - negativeMin;
+    const padBase = span === 0 ? (positiveMax || Math.abs(negativeMin) || 1) : span;
+    const padding = padBase * 0.1;
+    const yRange = [
+      negativeMin === 0 ? 0 : negativeMin - padding,
+      positiveMax + padding
+    ];
+
     const layout = {
       title: 'Cumulative Net Cash Flow Summary',
-      yaxis: {title: 'CNCF ($)'},
+      yaxis: {title: 'CNCF ($)', range: yRange},
       xaxis: {title: 'Period', type: 'category'},
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
