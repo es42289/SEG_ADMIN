@@ -16,6 +16,19 @@
     return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-01`;
   }
 
+  function monthKeyToIndex(key) {
+    if (typeof key !== 'string' || key.length < 7) return null;
+    const year = Number(key.slice(0, 4));
+    const month = Number(key.slice(5, 7));
+    if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+    return year * 12 + (month - 1);
+  }
+
+  function currentMonthIndex() {
+    const now = new Date();
+    return now.getUTCFullYear() * 12 + now.getUTCMonth();
+  }
+
   function num(v) {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
@@ -103,12 +116,16 @@
       a.apis.add(String(api));
     }
 
-    const keys = Array.from(monthly.keys()).sort();
-    console.log('[prod-chart] months=%d, range=%s..%s', keys.length, keys[0], keys[keys.length - 1]);
+    const allKeys = Array.from(monthly.keys()).sort();
+    if (!allKeys.length) {
+      console.log('[prod-chart] months=0');
+      return { keys: [], oil: [], gas: [], oilFc: [], gasFc: [], wc: [], yMin: 1, yMax: 1 };
+    }
+    console.log('[prod-chart] months=%d, range=%s..%s', allKeys.length, allKeys[0], allKeys[allKeys.length - 1]);
 
     // Forecast backlog trim: keep forecast prior to latest prod only for last 6 prod months
     let latestProdKey = null;
-    for (const k of keys) {
+    for (const k of allKeys) {
       const a = monthly.get(k);
       if (a.oil > 0 || a.gas > 0) latestProdKey = k;
     }
@@ -119,7 +136,7 @@
         const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - i, 1));
         keep.add(`${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-01`);
       }
-      for (const k of keys) {
+      for (const k of allKeys) {
         if (k < latestProdKey && !keep.has(k)) {
           const a = monthly.get(k);
           a.oilFc = null;
@@ -127,6 +144,26 @@
         }
       }
     }
+
+    const currentIdx = currentMonthIndex();
+    const minIdx = currentIdx - 10 * 12;
+    const maxIdx = currentIdx + 15 * 12;
+    const keys = allKeys.filter((k) => {
+      const idx = monthKeyToIndex(k);
+      return idx !== null && idx >= minIdx && idx <= maxIdx;
+    });
+    if (!keys.length) {
+      console.log('[prod-chart] filtered months=0 (window %d..%d)', minIdx, maxIdx);
+      return { keys: [], oil: [], gas: [], oilFc: [], gasFc: [], wc: [], yMin: 1, yMax: 1 };
+    }
+    console.log(
+      '[prod-chart] filtered months=%d, range=%s..%s (window %d..%d)',
+      keys.length,
+      keys[0],
+      keys[keys.length - 1],
+      minIdx,
+      maxIdx
+    );
 
     const oil = keys.map((k) => monthly.get(k).oil || null);
     const gas = keys.map((k) => monthly.get(k).gas || null);
