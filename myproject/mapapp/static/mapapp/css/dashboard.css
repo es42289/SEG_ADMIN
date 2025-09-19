@@ -104,13 +104,13 @@ body {
   flex: 0 0 auto;
   padding-right: 1rem;
   border-right: 1px solid rgba(21, 96, 130, 0.3);
-  max-height: 84px;
+  max-height: calc(84px * 1.1);
 }
 
 .well-count-logo img {
   display: block;
   height: 100%;
-  max-height: 84px;
+  max-height: calc(84px * 1.1);
   width: auto;
   object-fit: contain;
 }
