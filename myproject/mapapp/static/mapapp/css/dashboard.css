@@ -82,8 +82,8 @@ body {
   text-align: left;
   z-index: 999;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: flex-start;
+  align-items: stretch;
   gap: 2rem;
   flex-wrap: wrap;
   box-sizing: border-box;
@@ -93,7 +93,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 2rem;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: stretch;
 }
 
