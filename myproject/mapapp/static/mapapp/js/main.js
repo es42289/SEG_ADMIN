@@ -243,7 +243,7 @@ const yearInput = document.getElementById('year');
     }
 
     // Create bar chart for nearby wells
-    function createNearbyWellsChart(ageCategories, centroid, radiusMiles = 20, chartId = 'nearby-chart', totalId = 'total-nearby', chartColor = 'red') {
+    function createNearbyWellsChart(ageCategories, centroid, radiusMiles = 20, chartId = 'nearby-chart', totalId = 'total-nearby', chartColor = 'white') {
       // Ensure all values are valid numbers (fix for null/undefined causing chart to break)
       const recentCount = ageCategories.recent || 0;
       const mediumCount = ageCategories.medium || 0;
@@ -257,13 +257,13 @@ const yearInput = document.getElementById('year');
           color: [chartColor, chartColor, chartColor],  // Use specified color for fill
           line: {
             color: ['#00ff00', '#000000', '#888888'],  // Green, black, grey borders
-            width: 3  // Thick borders
+            width: 5  // Thick borders
           }
         },
         text: [recentCount, mediumCount, oldCount],
         textposition: 'auto',
         textfont: {
-          color: '#ffffff'
+          color: '#000000ff'
         }
       }];
 
@@ -273,17 +273,17 @@ const yearInput = document.getElementById('year');
           font: { color: '#eaeaea', size: 16 }
         },
         paper_bgcolor: '#156082',
-        plot_bgcolor: '#156082',
+        plot_bgcolor: '#ffff',
         font: { color: '#eaeaea' },
         xaxis: {
           title: 'Well Age',
           color: '#eaeaea',
-          gridcolor: '#444'
+          gridcolor: '#66666668'
         },
         yaxis: {
           title: 'Number of Wells',
           color: '#eaeaea',
-          gridcolor: '#444'
+          gridcolor: '#66666668'
         },
         margin: { t: 50, r: 20, b: 60, l: 60 }
       };
@@ -643,8 +643,8 @@ const yearInput = document.getElementById('year');
         }
 
         // Call createNearbyWellsChart with swapped order - 10-mile first, then 20-mile
-        createNearbyWellsChart(nearbyAnalysis10.ageCategories, nearbyAnalysis10.centroid, 10, 'nearby-chart-10', 'total-nearby-10', 'blue');
-        createNearbyWellsChart(nearbyAnalysis20.ageCategories, nearbyAnalysis20.centroid, 20, 'nearby-chart', 'total-nearby', 'red');
+        createNearbyWellsChart(nearbyAnalysis10.ageCategories, nearbyAnalysis10.centroid, 10, 'nearby-chart-10', 'total-nearby-10', 'rgba(21, 96, 130, 0.6)');
+        createNearbyWellsChart(nearbyAnalysis20.ageCategories, nearbyAnalysis20.centroid, 20, 'nearby-chart', 'total-nearby', 'rgba(21, 96, 130, 0.3)');
 
         updateStatus(`✓ Showing ${generalData.lat.length} total wells (${userData.lat.length} yours) for year ${year}`, false, true);
 
@@ -708,7 +708,7 @@ const yearInput = document.getElementById('year');
               },
               text: ['Centroid of Your Wells'],
               name: 'Centroid',
-              showlegend: true
+              showlegend: false
             });
           }
           
@@ -818,9 +818,9 @@ const yearInput = document.getElementById('year');
                 lon: circlePoints.map(p => p.lon),
                 mode: 'lines',
                 fill: 'toself',
-                fillcolor: 'rgba(255, 0, 0, 0.1)',
+                fillcolor: 'rgba(21, 96, 130, 0.1)',
                 line: {
-                  color: 'rgba(255, 0, 0, 0.3)',
+                  color: 'rgba(21, 96, 130, 0.3)',
                   width: 2
                 },
                 hoverinfo: 'skip',
@@ -835,9 +835,9 @@ const yearInput = document.getElementById('year');
                 lon: circlePoints10.map(p => p.lon),
                 mode: 'lines',
                 fill: 'toself',
-                fillcolor: 'rgba(0, 0, 255, 0.1)',
+                fillcolor: 'rgba(21, 96, 130, 0.3)',
                 line: {
-                  color: 'rgba(0, 0, 255, 0.3)',
+                  color: 'rgba(21, 96, 130, 0.6)',
                   width: 2
                 },
                 hoverinfo: 'skip',

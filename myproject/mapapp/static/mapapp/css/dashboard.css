@@ -48,7 +48,7 @@ body {
 }
 
 .login-bar {
-  background: #faefdc;
+  background: #ffff;
   padding: 10px;
   color: #1e293a;
   position: fixed;
@@ -174,7 +174,7 @@ input#year[type="range"] {
     #nearby-chart-10 { width: 100%; height: 200px; }
     input[type="range"] { width: 320px; }
     label { font-weight: 600; }
-    .badge { color:#faefdc; background:#156082; padding:.25rem .5rem; border-radius:.5rem; font-variant-numeric: tabular-nums; font-weight: bold;}
+    .badge { color:#ffff; background:#156082; padding:.25rem .5rem; border-radius:.5rem; font-variant-numeric: tabular-nums; font-weight: bold;}
     .status { background:#1f293b; padding:.5rem 1rem; border-radius:.5rem; margin-bottom:1rem; max-height: 40px; overflow: hidden; }
     .error { background:#dc2626; }
     .success { background:#cd8323; }
