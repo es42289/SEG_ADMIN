@@ -6,35 +6,41 @@
 {% block content %}
 
 
-<div class="login-bar">
-  <div class="login-content">
-    <img src={% static 'mapapp/img/white_no_mane_logo.png' %} height="13" alt="Stable Energy Group logo">
-    {% if request.session.user %}
-      Logged in as: {{ request.session.user.name|default:request.session.user.email }}
-      <a href="/logout/">Logout</a>
-    {% else %}
-      <a href="/login/">Login</a>
-    {% endif %}
+<div class="top-banner">
+  <div class="login-bar">
+    <div class="login-content">
+      {% if request.session.user %}
+        Logged in as: {{ request.session.user.name|default:request.session.user.email }}
+        <a href="/logout/">Logout</a>
+      {% else %}
+        <a href="/login/">Login</a>
+      {% endif %}
+    </div>
+  </div>
+  <div id="metrics-bar" class="well-count-box">
+    <div class="well-count-logo">
+      <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
+    </div>
+    <div class="well-count-content">
+      <div class="stat-group">
+        <span id="user-wells-count" class="stat-box">Well Count: 0</span>
+        <span id="avg-well-age" class="stat-box">Avg. Well Age (Yrs): 0</span>
+      </div>
+      <div class="stat-group">
+        <span id="last-oil" class="stat-box">Last Oil, BBL: 0</span>
+        <span id="last-gas" class="stat-box">Last Gas, MCF: 0</span>
+      </div>
+      <div class="stat-group">
+        <span id="last-year-oil" class="stat-box">Last 12 Months Oil, BBL: 0</span>
+        <span id="last-year-gas" class="stat-box">Last 12 Months Gas, MCF: 0</span>
+      </div>
+      <div class="stat-group">
+        <span id="next-year-oil" class="stat-box">Next 12 Months Oil, BBL: 0</span>
+        <span id="next-year-gas" class="stat-box">Next 12 Months Gas, MCF: 0</span>
+      </div>
+    </div>
   </div>
 </div>
-  <div id="metrics-bar" class="well-count-box">
-    <div class="stat-group">
-      <span id="user-wells-count" class="stat-box">Well Count: 0</span>
-      <span id="avg-well-age" class="stat-box">Avg. Well Age (Yrs): 0</span>
-    </div>
-    <div class="stat-group">
-      <span id="last-oil" class="stat-box">Last Oil, BBL: 0</span>
-      <span id="last-gas" class="stat-box">Last Gas, MCF: 0</span>
-    </div>
-    <div class="stat-group">
-      <span id="last-year-oil" class="stat-box">Last 12 Months Oil, BBL: 0</span>
-      <span id="last-year-gas" class="stat-box">Last 12 Months Gas, MCF: 0</span>
-    </div>
-    <div class="stat-group">
-      <span id="next-year-oil" class="stat-box">Next 12 Months Oil, BBL: 0</span>
-      <span id="next-year-gas" class="stat-box">Next 12 Months Gas, MCF: 0</span>
-    </div>
-  </div>
   <div class="page-content">
 
   <div class="chart-map-grid">
