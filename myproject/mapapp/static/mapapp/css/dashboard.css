@@ -65,11 +65,6 @@ body {
   align-items: center;
 }
 
-.login-bar img {
-  height: 50px;
-  margin-right: 10px;
-}
-
 .login-bar a {
   font-size: 10px;
   color: red;
@@ -79,7 +74,7 @@ body {
 .well-count-box {
   background: white;
   color: #1e293a;
-  padding: 5px 10px;
+  padding: 10px 20px;
   position: fixed;
   top: 70px;
   left: 0;
@@ -88,7 +83,35 @@ body {
   z-index: 999;
   display: flex;
   justify-content: center;
+  align-items: stretch;
   gap: 2rem;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+
+.well-count-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.well-count-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding-right: 1rem;
+  border-right: 1px solid rgba(21, 96, 130, 0.3);
+}
+
+.well-count-logo img {
+  height: 100%;
+  max-height: 100%;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .well-count-box .stat-group {
