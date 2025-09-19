@@ -570,7 +570,7 @@ const yearInput = document.getElementById('year');
           zoom: zoom
         },
         margin: { t: 5, r: 10, b: 10, l: 10 },
-        height: 300,
+        height: 400,
         // title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
         showlegend: false
       };

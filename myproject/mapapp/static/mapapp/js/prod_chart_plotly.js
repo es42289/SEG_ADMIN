@@ -201,7 +201,7 @@
       console.warn('[prod-chart] #prodChart not found; creating one at end of <body>');
       el = document.createElement('div');
       el.id = 'prodChart';
-      el.style.height = '300px';
+      el.style.height = '400px';
       document.body.appendChild(el);
       return el;
     }
@@ -209,11 +209,11 @@
       console.warn('[prod-chart] found <canvas id="prodChart">; replacing with <div> for Plotly');
       const d = document.createElement('div');
       d.id = 'prodChart';
-      d.style.height = (el.height ? el.height : 300) + 'px';
+      d.style.height = (el.height ? el.height : 400) + 'px';
       el.replaceWith(d);
       return d;
     }
-    if (!el.style.height) el.style.height = '300px';
+    if (!el.style.height) el.style.height = '400px';
     console.log('[prod-chart] container ready: #%s (%s)', el.id, el.tagName);
     return el;
   }
