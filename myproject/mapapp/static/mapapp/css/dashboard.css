@@ -106,7 +106,7 @@ body {
   justify-content: center;
   flex: 0 0 auto;
   padding-right: 1rem;
-  max-height: calc(84px * 1.1);
+  max-height: calc(84px * 0.9);
 }
 
 .well-count-logo img {
