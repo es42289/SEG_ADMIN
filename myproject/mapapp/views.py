@@ -587,6 +587,13 @@ def economics_data(request):
         api.replace('-', ''): data["owner_interest"] for api, data in wells_by_api.items()
     }
     fc["OwnerInterest"] = fc["API_NODASH"].map(interest_map).fillna(0)
+
+    hist_oil = pd.to_numeric(fc.get("LIQUIDSPROD_BBL"), errors="coerce")
+    hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
+    fc["has_hist_volume"] = (
+        hist_oil.fillna(0).ne(0)
+        | hist_gas.fillna(0).ne(0)
+    )
     # Economic parameters – in a fuller application these would come from a
     # scenario table. Using defaults allows the economics to run even when
     # such configuration is absent.
@@ -788,22 +795,32 @@ def economics_data(request):
     pv_start = pd.Timestamp.today().normalize() + pd.offsets.MonthBegin(1)
     pv_end = pv_start + pd.DateOffset(years=15)
 
-    future = merged[
-        (merged["PRODUCINGMONTH"] >= pv_start)
-        & (merged["PRODUCINGMONTH"] < pv_end)
+    pv_cashflows = fc[
+        (~fc["has_hist_volume"])
+        & (fc["PRODUCINGMONTH"] >= pv_start)
+        & (fc["PRODUCINGMONTH"] < pv_end)
     ].copy()
-    if not future.empty:
-        future["months_from_start"] = (
-            future["PRODUCINGMONTH"].dt.to_period("M") - pv_start.to_period("M")
+
+    pv_monthly = (
+        pv_cashflows.groupby("PRODUCINGMONTH", as_index=False)["NetCashFlow"]
+        .sum()
+        .sort_values("PRODUCINGMONTH")
+        .reset_index(drop=True)
+    )
+    if not pv_monthly.empty:
+        pv_monthly["months_from_start"] = (
+            pv_monthly["PRODUCINGMONTH"].dt.to_period("M") - pv_start.to_period("M")
         ).apply(lambda r: r.n)
 
     pv_stats_rates = [0.0, 0.10, 0.12, 0.14, 0.16, 0.18]
     pv_table_rates = pv_stats_rates + [0.20]
 
     def pv(rate):
-        if future.empty:
+        if pv_monthly.empty:
             return 0.0
-        disc = future["NetCashFlow"] / (1 + rate) ** (future["months_from_start"] / 12)
+        disc = pv_monthly["NetCashFlow"] / (1 + rate) ** (
+            pv_monthly["months_from_start"] / 12
+        )
         return float(disc.sum())
 
     pvs = {f"pv{int(r*100)}": pv(r) for r in pv_stats_rates}
@@ -812,17 +829,21 @@ def economics_data(request):
         api: {f"pv{int(r*100)}": 0.0 for r in pv_table_rates}
         for api in wells_by_api.keys()
     }
-    fc_future = fc[
-        (fc["PRODUCINGMONTH"] >= pv_start)
-        & (fc["PRODUCINGMONTH"] < pv_end)
-    ].copy()
+    fc_future = pv_cashflows.copy()
     if not fc_future.empty:
-        fc_future["months_from_start"] = (
-            fc_future["PRODUCINGMONTH"].dt.to_period("M") - pv_start.to_period("M")
-        ).apply(lambda r: r.n)
         api_lookup = {api.replace('-', ''): api for api in wells_by_api.keys()}
         fc_future["api_key"] = fc_future["API_NODASH"].map(api_lookup)
         fc_future = fc_future[fc_future["api_key"].notna()]
+        if not fc_future.empty:
+            fc_future = (
+                fc_future.groupby(["api_key", "PRODUCINGMONTH"], as_index=False)["NetCashFlow"]
+                .sum()
+                .sort_values(["api_key", "PRODUCINGMONTH"])
+            )
+            fc_future["months_from_start"] = (
+                fc_future["PRODUCINGMONTH"].dt.to_period("M")
+                - pv_start.to_period("M")
+            ).apply(lambda r: r.n)
         for api_key, group in fc_future.groupby("api_key"):
             store = per_well_pv.get(api_key)
             if store is None:
