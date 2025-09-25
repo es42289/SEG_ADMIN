@@ -1,0 +1,30 @@
+{
+  "family": "seg-user-app",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::983102014556:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::983102014556:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "seg-user-app",
+      "image": "983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/seg-user-app",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}
