@@ -311,7 +311,6 @@ def _snowflake_user_wells(owner_name):
             "net_ngl_eur": row.get("NET_NGL_EUR"),
             "remaining_net_oil": row.get("REMAINING_NET_OIL"),
             "remaining_net_gas": row.get("REMAINING_NET_GAS"),
-            "remaining_net_ngl": row.get("REMAINING_NET_NGL"),
             "pv0": row.get("PV0"),
             "pv10": row.get("PV10"),
             "pv12": row.get("PV12"),
@@ -343,7 +342,7 @@ def user_wells_data(request):
             "permit_date": [], "first_prod_date": [], "last_prod_date": [], "completion_date": [],
             "gross_oil_eur": [], "gross_gas_eur": [], "net_oil_eur": [],
             "net_gas_eur": [], "net_ngl_eur": [], "remaining_net_oil": [],
-            "remaining_net_gas": [], "remaining_net_ngl": [],
+            "remaining_net_gas": [],
             "pv0": [], "pv10": [], "pv12": [], "pv14": [], "pv16": [],
             "pv18": [], "pv20": [],
             "lat_bh": [], "lon_bh": [],
@@ -372,7 +371,6 @@ def user_wells_data(request):
         "net_ngl_eur": [r["net_ngl_eur"] for r in rows],
         "remaining_net_oil": [r["remaining_net_oil"] for r in rows],
         "remaining_net_gas": [r["remaining_net_gas"] for r in rows],
-        "remaining_net_ngl": [r["remaining_net_ngl"] for r in rows],
         "pv0": [r["pv0"] for r in rows],
         "pv10": [r["pv10"] for r in rows],
         "pv12": [r["pv12"] for r in rows],
@@ -793,12 +791,38 @@ def economics_data(request):
         future["months_from_start"] = (
             future["PRODUCINGMONTH"].dt.to_period("M") - next_month.to_period("M")
         ).apply(lambda r: r.n)
+
+    pv_stats_rates = [0.0, 0.10, 0.12, 0.14, 0.16, 0.18]
+    pv_table_rates = pv_stats_rates + [0.20]
+
     def pv(rate):
         if future.empty:
             return 0.0
         disc = future["NetCashFlow"] / (1 + rate) ** (future["months_from_start"] / 12)
         return float(disc.sum())
-    pvs = {f"pv{int(r*100)}": pv(r) for r in [0.0, 0.10, 0.12, 0.14, 0.16, 0.18]}
+
+    pvs = {f"pv{int(r*100)}": pv(r) for r in pv_stats_rates}
+
+    per_well_pv = {
+        api: {f"pv{int(r*100)}": 0.0 for r in pv_table_rates}
+        for api in wells_by_api.keys()
+    }
+    fc_future = fc[fc["PRODUCINGMONTH"] >= next_month].copy()
+    if not fc_future.empty:
+        fc_future["months_from_start"] = (
+            fc_future["PRODUCINGMONTH"].dt.to_period("M") - next_month.to_period("M")
+        ).apply(lambda r: r.n)
+        api_lookup = {api.replace('-', ''): api for api in wells_by_api.keys()}
+        fc_future["api_key"] = fc_future["API_NODASH"].map(api_lookup)
+        fc_future = fc_future[fc_future["api_key"].notna()]
+        for api_key, group in fc_future.groupby("api_key"):
+            store = per_well_pv.get(api_key)
+            if store is None:
+                store = {f"pv{int(r*100)}": 0.0 for r in pv_table_rates}
+                per_well_pv[api_key] = store
+            for rate in pv_table_rates:
+                disc = group["NetCashFlow"] / (1 + rate) ** (group["months_from_start"] / 12)
+                store[f"pv{int(rate*100)}"] = float(disc.sum())
 
     summary = []
     summary.append({"label": "LTM", "value": ltm_cf})
@@ -819,4 +843,11 @@ def economics_data(request):
         **pvs,
     }
 
-    return JsonResponse({"npv": npvs, "cum": cum, "window": window, "summary": summary, "stats": stats})
+    return JsonResponse({
+        "npv": npvs,
+        "cum": cum,
+        "window": window,
+        "summary": summary,
+        "stats": stats,
+        "per_well_pv": per_well_pv,
+    })

@@ -554,6 +554,9 @@ const yearInput = document.getElementById('year');
       return { lineLats, lineLons };
     }
 
+    const PV_RATE_KEYS = ['pv0', 'pv10', 'pv12', 'pv14', 'pv16', 'pv18', 'pv20'];
+    window.wellPvCells = window.wellPvCells || {};
+
     function renderUserWellsTable(data) {
       const table = document.getElementById('userWellsTable');
       if (!table) return;
@@ -561,11 +564,12 @@ const yearInput = document.getElementById('year');
       if (!tbody) return;
 
       tbody.innerHTML = '';
+      window.wellPvCells = {};
 
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 22;
+        cell.colSpan = 21;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -589,38 +593,86 @@ const yearInput = document.getElementById('year');
 
       for (let i = 0; i < data.api_uwi.length; i++) {
         const row = document.createElement('tr');
-        const cells = [
-          data.api_uwi[i] || '',
-          data.name && data.name[i] ? data.name[i] : '',
-          data.operator && data.operator[i] ? data.operator[i] : '',
-          data.trajectory && data.trajectory[i] ? data.trajectory[i] : '',
-          data.owner_interest && data.owner_interest[i] != null ? formatInterest(data.owner_interest[i]) : '',
-          data.permit_date && data.permit_date[i] ? data.permit_date[i] : '',
-          data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '',
-          data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : '',
-          data.gross_oil_eur && data.gross_oil_eur[i] != null ? formatVolume(data.gross_oil_eur[i]) : '',
-          data.gross_gas_eur && data.gross_gas_eur[i] != null ? formatVolume(data.gross_gas_eur[i]) : '',
-          data.net_oil_eur && data.net_oil_eur[i] != null ? formatVolume(data.net_oil_eur[i]) : '',
-          data.net_gas_eur && data.net_gas_eur[i] != null ? formatVolume(data.net_gas_eur[i]) : '',
-          data.remaining_net_oil && data.remaining_net_oil[i] != null ? formatVolume(data.remaining_net_oil[i]) : '',
-          data.remaining_net_gas && data.remaining_net_gas[i] != null ? formatVolume(data.remaining_net_gas[i]) : '',
-          data.remaining_net_ngl && data.remaining_net_ngl[i] != null ? formatVolume(data.remaining_net_ngl[i]) : '',
-          data.pv0 && data.pv0[i] != null ? data.pv0[i] : '',
-          data.pv10 && data.pv10[i] != null ? data.pv10[i] : '',
-          data.pv12 && data.pv12[i] != null ? data.pv12[i] : '',
-          data.pv14 && data.pv14[i] != null ? data.pv14[i] : '',
-          data.pv16 && data.pv16[i] != null ? data.pv16[i] : '',
-          data.pv18 && data.pv18[i] != null ? data.pv18[i] : '',
-          data.pv20 && data.pv20[i] != null ? data.pv20[i] : ''
+        const apiValue = data.api_uwi[i] || '';
+        if (apiValue) {
+          row.dataset.api = apiValue;
+        }
+
+        const rowValues = [
+          { key: 'api_uwi', value: apiValue },
+          { key: 'name', value: data.name && data.name[i] ? data.name[i] : '' },
+          { key: 'operator', value: data.operator && data.operator[i] ? data.operator[i] : '' },
+          { key: 'trajectory', value: data.trajectory && data.trajectory[i] ? data.trajectory[i] : '' },
+          { key: 'owner_interest', value: data.owner_interest && data.owner_interest[i] != null ? formatInterest(data.owner_interest[i]) : '' },
+          { key: 'permit_date', value: data.permit_date && data.permit_date[i] ? data.permit_date[i] : '' },
+          { key: 'first_prod_date', value: data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '' },
+          { key: 'last_prod_date', value: data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : '' },
+          { key: 'gross_oil_eur', value: data.gross_oil_eur && data.gross_oil_eur[i] != null ? formatVolume(data.gross_oil_eur[i]) : '' },
+          { key: 'gross_gas_eur', value: data.gross_gas_eur && data.gross_gas_eur[i] != null ? formatVolume(data.gross_gas_eur[i]) : '' },
+          { key: 'net_oil_eur', value: data.net_oil_eur && data.net_oil_eur[i] != null ? formatVolume(data.net_oil_eur[i]) : '' },
+          { key: 'net_gas_eur', value: data.net_gas_eur && data.net_gas_eur[i] != null ? formatVolume(data.net_gas_eur[i]) : '' },
+          { key: 'remaining_net_oil', value: data.remaining_net_oil && data.remaining_net_oil[i] != null ? formatVolume(data.remaining_net_oil[i]) : '' },
+          { key: 'remaining_net_gas', value: data.remaining_net_gas && data.remaining_net_gas[i] != null ? formatVolume(data.remaining_net_gas[i]) : '' },
         ];
-        cells.forEach(txt => {
+
+        PV_RATE_KEYS.forEach(rateKey => {
+          rowValues.push({ key: rateKey, value: '' });
+        });
+
+        let pvCellStore = null;
+        if (apiValue) {
+          pvCellStore = {};
+          window.wellPvCells[apiValue] = pvCellStore;
+          const apiNoDash = apiValue.replace(/-/g, '');
+          window.wellPvCells[apiNoDash] = pvCellStore;
+        }
+
+        rowValues.forEach(({ key, value }) => {
           const td = document.createElement('td');
-          td.textContent = txt;
+          td.textContent = value;
           row.appendChild(td);
+          if (pvCellStore && PV_RATE_KEYS.includes(key)) {
+            pvCellStore[key] = td;
+          }
         });
         tbody.appendChild(row);
       }
     }
+
+    window.updateWellPvValues = function updateWellPvValues(pvMap) {
+      if (!pvMap || typeof pvMap !== 'object') return;
+      const cellsMap = window.wellPvCells || {};
+
+      const formatCurrency = (value) => {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '';
+        return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      };
+
+      for (const [apiKey, values] of Object.entries(pvMap)) {
+        if (!values || typeof values !== 'object') continue;
+        const keyVariants = [apiKey, apiKey.replace(/-/g, '')];
+        let cellGroup = null;
+        for (const variant of keyVariants) {
+          if (cellsMap[variant]) {
+            cellGroup = cellsMap[variant];
+            break;
+          }
+        }
+        if (!cellGroup) continue;
+
+        PV_RATE_KEYS.forEach(rateKey => {
+          const cell = cellGroup[rateKey];
+          if (!cell) return;
+          const rawValue = values[rateKey];
+          if (rawValue === null || rawValue === undefined || Number.isNaN(Number(rawValue))) {
+            cell.textContent = '';
+          } else {
+            cell.textContent = formatCurrency(rawValue);
+          }
+        });
+      }
+    };
 
     function renderUserWellsMap(data) {
       const mapDivId = 'userWellsMap';

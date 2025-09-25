@@ -66,6 +66,9 @@
     if (windowEl && data.window) renderWindow(windowEl, data.window);
     if (summaryEl && data.summary) renderSummary(summaryEl, data.summary);
     if (statsEl && data.stats) renderStats(statsEl, data.stats);
+    if (data.per_well_pv && typeof window.updateWellPvValues === 'function') {
+      window.updateWellPvValues(data.per_well_pv);
+    }
   }
 
   function resolveEl(el){
