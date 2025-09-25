@@ -196,6 +196,12 @@ const yearInput = document.getElementById('year');
       data.gross_gas_eur = [];
       data.net_oil_eur = [];
       data.net_gas_eur = [];
+      data.remaining_net_oil = [];
+      data.remaining_net_gas = [];
+
+      const now = new Date();
+      const remainingStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+      const remainingEnd = new Date(Date.UTC(remainingStart.getUTCFullYear() + 15, remainingStart.getUTCMonth(), 1));
 
       for (let i = 0; i < data.api_uwi.length; i++) {
         const api = data.api_uwi[i];
@@ -223,6 +229,8 @@ const yearInput = document.getElementById('year');
         let gasSum = 0;
         let oilHasVolume = false;
         let gasHasVolume = false;
+        let remainingOilSum = 0;
+        let remainingGasSum = 0;
 
         for (const key of keys) {
           const bucket = monthly.get(key);
@@ -234,12 +242,16 @@ const yearInput = document.getElementById('year');
           if (gasVolume > 0) {
             gasHasVolume = true;
           }
+          const dt = parseMonthKey(key);
           if (oilVolume > 0 || gasVolume > 0) {
-            const dt = parseMonthKey(key);
             if (dt) {
               if (!firstDate || dt < firstDate) firstDate = dt;
               if (!lastDate || dt > lastDate) lastDate = dt;
             }
+          }
+          if (dt && dt >= remainingStart && dt < remainingEnd) {
+            remainingOilSum += bucket.oilFc;
+            remainingGasSum += bucket.gasFc;
           }
           oilSum += oilVolume;
           gasSum += gasVolume;
@@ -249,6 +261,8 @@ const yearInput = document.getElementById('year');
         const lastStr = formatDate(lastDate);
         const oilTotal = oilHasVolume ? Math.round(oilSum) : '';
         const gasTotal = gasHasVolume ? Math.round(gasSum) : '';
+        const hasRemainingOil = remainingOilSum > 0;
+        const hasRemainingGas = remainingGasSum > 0;
 
         let nri = null;
         if (data.owner_interest && data.owner_interest.length > i) {
@@ -263,6 +277,8 @@ const yearInput = document.getElementById('year');
 
         const netOil = oilHasVolume && nri !== null ? Math.round(oilSum * nri) : (oilHasVolume && nri === 0 ? 0 : '');
         const netGas = gasHasVolume && nri !== null ? Math.round(gasSum * nri) : (gasHasVolume && nri === 0 ? 0 : '');
+        const remainingNetOil = hasRemainingOil && nri !== null ? Math.round(remainingOilSum * nri) : (hasRemainingOil && nri === 0 ? 0 : '');
+        const remainingNetGas = hasRemainingGas && nri !== null ? Math.round(remainingGasSum * nri) : (hasRemainingGas && nri === 0 ? 0 : '');
 
         data.first_prod_date.push(firstStr);
         data.last_prod_date.push(lastStr);
@@ -270,6 +286,8 @@ const yearInput = document.getElementById('year');
         data.gross_gas_eur.push(gasTotal);
         data.net_oil_eur.push(netOil);
         data.net_gas_eur.push(netGas);
+        data.remaining_net_oil.push(remainingNetOil);
+        data.remaining_net_gas.push(remainingNetGas);
       }
     }
 
@@ -547,7 +565,7 @@ const yearInput = document.getElementById('year');
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 23;
+        cell.colSpan = 22;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -561,6 +579,14 @@ const yearInput = document.getElementById('year');
         return `${(num * 100).toFixed(2)}%`;
       };
 
+      const formatVolume = (value) => {
+        if (value === null || value === undefined || value === '') return '';
+        const cleaned = typeof value === 'string' ? value.replace(/,/g, '') : value;
+        const num = Number(cleaned);
+        if (!Number.isFinite(num)) return '';
+        return Math.round(num).toLocaleString('en-US');
+      };
+
       for (let i = 0; i < data.api_uwi.length; i++) {
         const row = document.createElement('tr');
         const cells = [
@@ -572,14 +598,13 @@ const yearInput = document.getElementById('year');
           data.permit_date && data.permit_date[i] ? data.permit_date[i] : '',
           data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '',
           data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : '',
-          data.gross_oil_eur && data.gross_oil_eur[i] != null ? data.gross_oil_eur[i] : '',
-          data.gross_gas_eur && data.gross_gas_eur[i] != null ? data.gross_gas_eur[i] : '',
-          data.net_oil_eur && data.net_oil_eur[i] != null ? data.net_oil_eur[i] : '',
-          data.net_gas_eur && data.net_gas_eur[i] != null ? data.net_gas_eur[i] : '',
-          data.net_ngl_eur && data.net_ngl_eur[i] != null ? data.net_ngl_eur[i] : '',
-          data.remaining_net_oil && data.remaining_net_oil[i] != null ? data.remaining_net_oil[i] : '',
-          data.remaining_net_gas && data.remaining_net_gas[i] != null ? data.remaining_net_gas[i] : '',
-          data.remaining_net_ngl && data.remaining_net_ngl[i] != null ? data.remaining_net_ngl[i] : '',
+          data.gross_oil_eur && data.gross_oil_eur[i] != null ? formatVolume(data.gross_oil_eur[i]) : '',
+          data.gross_gas_eur && data.gross_gas_eur[i] != null ? formatVolume(data.gross_gas_eur[i]) : '',
+          data.net_oil_eur && data.net_oil_eur[i] != null ? formatVolume(data.net_oil_eur[i]) : '',
+          data.net_gas_eur && data.net_gas_eur[i] != null ? formatVolume(data.net_gas_eur[i]) : '',
+          data.remaining_net_oil && data.remaining_net_oil[i] != null ? formatVolume(data.remaining_net_oil[i]) : '',
+          data.remaining_net_gas && data.remaining_net_gas[i] != null ? formatVolume(data.remaining_net_gas[i]) : '',
+          data.remaining_net_ngl && data.remaining_net_ngl[i] != null ? formatVolume(data.remaining_net_ngl[i]) : '',
           data.pv0 && data.pv0[i] != null ? data.pv0[i] : '',
           data.pv10 && data.pv10[i] != null ? data.pv10[i] : '',
           data.pv12 && data.pv12[i] != null ? data.pv12[i] : '',
