@@ -584,6 +584,42 @@ const yearInput = document.getElementById('year');
 
     const PV_RATE_KEYS = ['pv0', 'pv10', 'pv12', 'pv14', 'pv16', 'pv18', 'pv20'];
     window.wellPvCells = window.wellPvCells || {};
+    window.latestPerWellPvMap = window.latestPerWellPvMap || null;
+
+    function applyPerWellPvMap(pvMap) {
+      if (!pvMap || typeof pvMap !== 'object') return;
+      const cellsMap = window.wellPvCells || {};
+
+      const formatCurrency = (value) => {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '';
+        return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      };
+
+      for (const [apiKey, values] of Object.entries(pvMap)) {
+        if (!values || typeof values !== 'object') continue;
+        const keyVariants = [apiKey, apiKey.replace(/-/g, '')];
+        let cellGroup = null;
+        for (const variant of keyVariants) {
+          if (cellsMap[variant]) {
+            cellGroup = cellsMap[variant];
+            break;
+          }
+        }
+        if (!cellGroup) continue;
+
+        PV_RATE_KEYS.forEach(rateKey => {
+          const cell = cellGroup[rateKey];
+          if (!cell) return;
+          const rawValue = values[rateKey];
+          if (rawValue === null || rawValue === undefined || Number.isNaN(Number(rawValue))) {
+            cell.textContent = '';
+          } else {
+            cell.textContent = formatCurrency(rawValue);
+          }
+        });
+      }
+    }
 
     function renderUserWellsTable(data) {
       const table = document.getElementById('userWellsTable');
@@ -665,41 +701,16 @@ const yearInput = document.getElementById('year');
         });
         tbody.appendChild(row);
       }
+
+      if (window.latestPerWellPvMap) {
+        applyPerWellPvMap(window.latestPerWellPvMap);
+      }
     }
 
     window.updateWellPvValues = function updateWellPvValues(pvMap) {
       if (!pvMap || typeof pvMap !== 'object') return;
-      const cellsMap = window.wellPvCells || {};
-
-      const formatCurrency = (value) => {
-        const num = Number(value);
-        if (!Number.isFinite(num)) return '';
-        return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
-      };
-
-      for (const [apiKey, values] of Object.entries(pvMap)) {
-        if (!values || typeof values !== 'object') continue;
-        const keyVariants = [apiKey, apiKey.replace(/-/g, '')];
-        let cellGroup = null;
-        for (const variant of keyVariants) {
-          if (cellsMap[variant]) {
-            cellGroup = cellsMap[variant];
-            break;
-          }
-        }
-        if (!cellGroup) continue;
-
-        PV_RATE_KEYS.forEach(rateKey => {
-          const cell = cellGroup[rateKey];
-          if (!cell) return;
-          const rawValue = values[rateKey];
-          if (rawValue === null || rawValue === undefined || Number.isNaN(Number(rawValue))) {
-            cell.textContent = '';
-          } else {
-            cell.textContent = formatCurrency(rawValue);
-          }
-        });
-      }
+      window.latestPerWellPvMap = pvMap;
+      applyPerWellPvMap(pvMap);
     };
 
     function renderUserWellsMap(data) {
