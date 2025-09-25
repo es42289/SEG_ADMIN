@@ -225,8 +225,10 @@ const yearInput = document.getElementById('year');
         const keys = Array.from(monthly.keys()).sort();
         let firstDate = null;
         let lastDate = null;
-        let oilSum = 0;
-        let gasSum = 0;
+        let oilHistSum = 0;
+        let gasHistSum = 0;
+        let oilForecastSum = 0;
+        let gasForecastSum = 0;
         let oilHasVolume = false;
         let gasHasVolume = false;
         let remainingOilSum = 0;
@@ -234,33 +236,55 @@ const yearInput = document.getElementById('year');
 
         for (const key of keys) {
           const bucket = monthly.get(key);
-          const oilVolume = bucket.oilHist > 0 ? bucket.oilHist : (bucket.oilFc > 0 ? bucket.oilFc : 0);
-          const gasVolume = bucket.gasHist > 0 ? bucket.gasHist : (bucket.gasFc > 0 ? bucket.gasFc : 0);
-          if (oilVolume > 0) {
-            oilHasVolume = true;
-          }
-          if (gasVolume > 0) {
-            gasHasVolume = true;
-          }
           const dt = parseMonthKey(key);
-          if (oilVolume > 0 || gasVolume > 0) {
-            if (dt) {
-              if (!firstDate || dt < firstDate) firstDate = dt;
-              if (!lastDate || dt > lastDate) lastDate = dt;
-            }
+          const histOil = bucket.oilHist > 0 ? bucket.oilHist : 0;
+          const histGas = bucket.gasHist > 0 ? bucket.gasHist : 0;
+          const fcOil = bucket.oilFc > 0 ? bucket.oilFc : 0;
+          const fcGas = bucket.gasFc > 0 ? bucket.gasFc : 0;
+
+          let includedThisMonth = false;
+
+          if (histOil > 0) {
+            oilHasVolume = true;
+            oilHistSum += histOil;
+            includedThisMonth = true;
+          }
+          if (histGas > 0) {
+            gasHasVolume = true;
+            gasHistSum += histGas;
+            includedThisMonth = true;
+          }
+
+          const includeForecastOil =
+            fcOil > 0 && dt && dt >= remainingStart && dt < remainingEnd && histOil === 0;
+          if (includeForecastOil) {
+            oilHasVolume = true;
+            oilForecastSum += fcOil;
+            includedThisMonth = true;
+          }
+
+          const includeForecastGas =
+            fcGas > 0 && dt && dt >= remainingStart && dt < remainingEnd && histGas === 0;
+          if (includeForecastGas) {
+            gasHasVolume = true;
+            gasForecastSum += fcGas;
+            includedThisMonth = true;
+          }
+
+          if (dt && includedThisMonth) {
+            if (!firstDate || dt < firstDate) firstDate = dt;
+            if (!lastDate || dt > lastDate) lastDate = dt;
           }
           if (dt && dt >= remainingStart && dt < remainingEnd) {
             remainingOilSum += bucket.oilFc;
             remainingGasSum += bucket.gasFc;
           }
-          oilSum += oilVolume;
-          gasSum += gasVolume;
         }
 
         const firstStr = formatDate(firstDate);
         const lastStr = formatDate(lastDate);
-        const oilTotal = oilHasVolume ? Math.round(oilSum) : '';
-        const gasTotal = gasHasVolume ? Math.round(gasSum) : '';
+        const oilTotal = oilHasVolume ? Math.round(oilHistSum + oilForecastSum) : '';
+        const gasTotal = gasHasVolume ? Math.round(gasHistSum + gasForecastSum) : '';
         const hasRemainingOil = remainingOilSum > 0;
         const hasRemainingGas = remainingGasSum > 0;
 
@@ -275,8 +299,12 @@ const yearInput = document.getElementById('year');
           }
         }
 
-        const netOil = oilHasVolume && nri !== null ? Math.round(oilSum * nri) : (oilHasVolume && nri === 0 ? 0 : '');
-        const netGas = gasHasVolume && nri !== null ? Math.round(gasSum * nri) : (gasHasVolume && nri === 0 ? 0 : '');
+        const netOil = oilHasVolume && nri !== null
+          ? Math.round((oilHistSum + oilForecastSum) * nri)
+          : (oilHasVolume && nri === 0 ? 0 : '');
+        const netGas = gasHasVolume && nri !== null
+          ? Math.round((gasHistSum + gasForecastSum) * nri)
+          : (gasHasVolume && nri === 0 ? 0 : '');
         const remainingNetOil = hasRemainingOil && nri !== null ? Math.round(remainingOilSum * nri) : (hasRemainingOil && nri === 0 ? 0 : '');
         const remainingNetGas = hasRemainingGas && nri !== null ? Math.round(remainingGasSum * nri) : (hasRemainingGas && nri === 0 ? 0 : '');
 
