@@ -785,11 +785,16 @@ def economics_data(request):
     ntm_gas = period_sum("GasVolWI", today, ntm_end)
     ntm_cf = period_sum("NetCashFlow", today, ntm_end)
 
-    next_month = today + pd.DateOffset(months=1)
-    future = merged[merged["PRODUCINGMONTH"] >= next_month].copy()
+    pv_start = pd.Timestamp.today().normalize() + pd.offsets.MonthBegin(1)
+    pv_end = pv_start + pd.DateOffset(years=15)
+
+    future = merged[
+        (merged["PRODUCINGMONTH"] >= pv_start)
+        & (merged["PRODUCINGMONTH"] < pv_end)
+    ].copy()
     if not future.empty:
         future["months_from_start"] = (
-            future["PRODUCINGMONTH"].dt.to_period("M") - next_month.to_period("M")
+            future["PRODUCINGMONTH"].dt.to_period("M") - pv_start.to_period("M")
         ).apply(lambda r: r.n)
 
     pv_stats_rates = [0.0, 0.10, 0.12, 0.14, 0.16, 0.18]
@@ -807,10 +812,13 @@ def economics_data(request):
         api: {f"pv{int(r*100)}": 0.0 for r in pv_table_rates}
         for api in wells_by_api.keys()
     }
-    fc_future = fc[fc["PRODUCINGMONTH"] >= next_month].copy()
+    fc_future = fc[
+        (fc["PRODUCINGMONTH"] >= pv_start)
+        & (fc["PRODUCINGMONTH"] < pv_end)
+    ].copy()
     if not fc_future.empty:
         fc_future["months_from_start"] = (
-            fc_future["PRODUCINGMONTH"].dt.to_period("M") - next_month.to_period("M")
+            fc_future["PRODUCINGMONTH"].dt.to_period("M") - pv_start.to_period("M")
         ).apply(lambda r: r.n)
         api_lookup = {api.replace('-', ''): api for api in wells_by_api.keys()}
         fc_future["api_key"] = fc_future["API_NODASH"].map(api_lookup)
