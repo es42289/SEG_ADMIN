@@ -104,3 +104,124 @@ The bind mount keeps your local file changes in sync with the running container,
 while the `--rm` flag ensures that stopped containers do not accumulate. Stop the
 server with `Ctrl+C` when you are done.
 
+# AWS Fargate Deployment Guide
+
+## Prerequisites
+
+- AWS CLI configured with appropriate profile
+- Docker installed and running
+- ECR repository created: `seg-user-app`
+- ECS cluster created: `seg-user-app-cluster`
+- Task definition family: `seg-user-app`
+
+## Deployment Steps
+
+### 1. Build Docker Image
+
+```bash
+docker build -t seg-user-app .
+```
+
+### 2. Tag for ECR
+
+```bash
+docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+```
+
+### 3. Authenticate with ECR
+
+```bash
+aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
+```
+
+### 4. Push to ECR
+
+```bash
+docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+```
+
+### 5. Stop Current Running Task (if any)
+
+First, get the current task ID:
+```bash
+aws ecs list-tasks --cluster seg-user-app-cluster --region us-east-1 --profile myaws
+```
+
+Then stop the task (replace TASK_ID with actual ID):
+```bash
+aws ecs stop-task --cluster seg-user-app-cluster --task TASK_ID --region us-east-1 --profile myaws
+```
+
+### 6. Start New Task
+
+```bash
+aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app:4 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
+```
+
+### 7. Get New Public IP Address
+
+Get the new task ID from step 6 output, then:
+
+```bash
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks NEW_TASK_ID --region us-east-1 --profile myaws
+```
+
+Extract the `networkInterfaceId` from the output, then:
+
+```bash
+aws ec2 describe-network-interfaces --network-interface-ids NETWORK_INTERFACE_ID --region us-east-1 --profile myaws
+```
+
+The public IP will be in the `Association.PublicIp` field.
+
+### 8. Update External Configurations
+
+When the public IP changes, update:
+
+1. **Snowflake Network Policy**:
+   ```sql
+   ALTER NETWORK POLICY streamlit_policy
+     SET ALLOWED_IP_LIST = ('existing_ips', 'NEW_PUBLIC_IP');
+   ```
+
+2. **Auth0 Callback URLs**:
+   Add `http://NEW_PUBLIC_IP:8000/callback/` to allowed callback URLs
+
+## Troubleshooting
+
+### Check Task Status
+```bash
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks TASK_ID --region us-east-1 --profile myaws
+```
+
+### View Application Logs
+```bash
+aws logs get-log-events --log-group-name "/ecs/seg-user-app" --log-stream-name "ecs/seg-user-app/TASK_ID" --region us-east-1 --profile myaws
+```
+
+### Common Issues
+
+- **Out of Memory**: Task definition uses 1024MB memory. If still getting OOM errors, increase memory in task definition.
+- **IP Not Allowed**: Add new public IP to Snowflake network policy
+- **Auth0 Errors**: Update callback URLs with new IP address
+- **Port 8000 Blocked**: Ensure security group allows inbound traffic on port 8000
+
+## Resource IDs
+
+- **Account ID**: 983102014556
+- **ECR Repository**: 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app
+- **ECS Cluster**: seg-user-app-cluster  
+- **Task Definition**: seg-user-app:4
+- **Subnet**: subnet-0c8fc60cca8c6eda9
+- **Security Group**: sg-05c78762d0d99d139
+- **VPC**: vpc-0c3fe55b1e0c3fea6
+- **Log Group**: /ecs/seg-user-app
+
+## Current Configuration
+
+- **CPU**: 512 units (0.5 vCPU)
+- **Memory**: 1024MB (1GB)
+- **Platform**: Fargate
+- **Networking**: Public subnet with internet gateway
+- **Port**: 8000 (HTTP)
+- **Secrets**: RSA key stored in AWS Secrets Manager (`seg-user-app/snowflake-rsa-key`)
