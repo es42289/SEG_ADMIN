@@ -462,7 +462,7 @@ const yearInput = document.getElementById('year');
         if (value === null || value === undefined || value === '') return '';
         const num = Number(value);
         if (Number.isNaN(num)) return '';
-        return `${num.toFixed(2)}%`;
+        return `${(num * 100).toFixed(2)}%`;
       };
 
       for (let i = 0; i < data.api_uwi.length; i++) {
