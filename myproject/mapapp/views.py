@@ -15,17 +15,25 @@ import numpy as np
 from functools import lru_cache
 
 def get_snowflake_connection():
-    key_path = os.getenv("SNOWFLAKE_KEY_PATH") or os.getenv("SF_PRIVATE_KEY_PATH")
-    if not key_path:
-        raise RuntimeError("Set SNOWFLAKE_KEY_PATH to your rsa_key.pem")
-
-    with open(key_path, "rb") as key_file:
+    # Get RSA key from AWS Secrets Manager
+    import boto3
+    from botocore.exceptions import ClientError
+    
+    try:
+        session = boto3.Session()
+        client = session.client('secretsmanager', region_name='us-east-1')
+        response = client.get_secret_value(SecretId='seg-user-app/snowflake-rsa-key')
+        rsa_key_pem = response['SecretString']
+        
+        # Load the key
         private_key = serialization.load_pem_private_key(
-            key_file.read(),
+            rsa_key_pem.encode(),
             password=(os.getenv("SNOWFLAKE_KEY_PASSPHRASE") or os.getenv("SF_PRIVATE_KEY_PASSPHRASE") or None)
                      and (os.getenv("SNOWFLAKE_KEY_PASSPHRASE") or os.getenv("SF_PRIVATE_KEY_PASSPHRASE")).encode(),
             backend=default_backend(),
         )
+    except ClientError as e:
+        raise RuntimeError(f"Could not retrieve RSA key from Secrets Manager: {e}")
 
     private_key_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
@@ -44,16 +52,24 @@ def get_snowflake_connection():
     return snowflake.connector.connect(**cfg)
 
 def _snowflake_points():
-    key_path = os.getenv("SNOWFLAKE_KEY_PATH")
-    if not key_path or not os.path.exists(key_path):
-        raise RuntimeError(f"SNOWFLAKE_KEY_PATH not set or file not found: {key_path}")
-
-    with open(key_path, "rb") as key_file:
+    # Get RSA key from AWS Secrets Manager
+    import boto3
+    from botocore.exceptions import ClientError
+    
+    try:
+        session = boto3.Session()
+        client = session.client('secretsmanager', region_name='us-east-1')
+        response = client.get_secret_value(SecretId='seg-user-app/snowflake-rsa-key')
+        rsa_key_pem = response['SecretString']
+        
+        # Load the key
         private_key = serialization.load_pem_private_key(
-            key_file.read(),
-            password=None,  # set a bytes passphrase here if your key is encrypted
+            rsa_key_pem.encode(),
+            password=None,
             backend=default_backend(),
         )
+    except ClientError as e:
+        raise RuntimeError(f"Could not retrieve RSA key from Secrets Manager: {e}")
 
     private_key_bytes = private_key.private_bytes(
         encoding=serialization.Encoding.DER,
@@ -70,6 +86,7 @@ def _snowflake_points():
         private_key=private_key_bytes,
     )
 
+    # Rest of your function stays the same...
     try:
         cur = conn.cursor()
         cur.execute(
@@ -77,8 +94,8 @@ def _snowflake_points():
             SELECT
                 LATITUDE   AS LAT,
                 LONGITUDE  AS LON,
-                LATITUDE_BH AS LAT_BH,     -- Add this
-                LONGITUDE_BH AS LON_BH,    -- Add this
+                LATITUDE_BH AS LAT_BH,
+                LONGITUDE_BH AS LON_BH,
                 COMPLETIONDATE,
                 DATE_PART(year, COMPLETIONDATE) AS COMPLETION_YEAR,
                 API_UWI,
@@ -86,7 +103,6 @@ def _snowflake_points():
             FROM WELLS.MINERALS.RAW_WELL_DATA
             WHERE LATITUDE IS NOT NULL
               AND LONGITUDE IS NOT NULL
-            -- AND api_uwi IN ('42-041-32667', '42-041-32540', '42-041-32602')
             """
         )
         rows = cur.fetchall()
