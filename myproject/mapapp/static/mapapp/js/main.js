@@ -451,12 +451,19 @@ const yearInput = document.getElementById('year');
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 22;
+        cell.colSpan = 23;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
         return;
       }
+
+      const formatInterest = (value) => {
+        if (value === null || value === undefined || value === '') return '';
+        const num = Number(value);
+        if (Number.isNaN(num)) return '';
+        return `${num.toFixed(2)}%`;
+      };
 
       for (let i = 0; i < data.api_uwi.length; i++) {
         const row = document.createElement('tr');
@@ -465,6 +472,7 @@ const yearInput = document.getElementById('year');
           data.name && data.name[i] ? data.name[i] : '',
           data.operator && data.operator[i] ? data.operator[i] : '',
           data.trajectory && data.trajectory[i] ? data.trajectory[i] : '',
+          data.owner_interest && data.owner_interest[i] != null ? formatInterest(data.owner_interest[i]) : '',
           data.permit_date && data.permit_date[i] ? data.permit_date[i] : '',
           data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '',
           data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : '',
