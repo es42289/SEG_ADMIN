@@ -176,48 +176,48 @@
   <section id="map-analysis" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
   <h3 style="color: #ffff; margin:0 0 .5rem 0; text-align:center;">Proximity Map</h3>
   <!-- #ffff#cd8323 -->
-  <div id="controls">
-    <div class="slider-group">
-      <label for="year">Change year to see development history:</label>
-      <input id="year" max="2025" min="1950" step="1" type="range" value="2024"/>
-      <span class="badge" id="year-val">2024</span>
-    </div>
-  </div>
   <div id="main-container">
-  <div id="map-container">
-  <div id="map"></div>
-  <div id="color-legend">
-  <h4>Well Age Color Guide</h4>
-  <div class="legend-item">
-  <div class="legend-color" style="background: rgb(0, 255, 0);"></div>
-  <div class="legend-label">Recent Wells (≤3 years)</div>
-  </div>
-  <div class="legend-item">
-  <div class="legend-color" style="background: rgb(0, 128, 0);"></div>
-  <div class="legend-label">4-10 years</div>
-  </div>
-  <div class="legend-item">
-  <div class="legend-color" style="background: rgb(100, 100, 100);"></div>
-  <div class="legend-label">11-15 years</div>
-  </div>
-  <div class="legend-item">
-  <div class="legend-color" style="background: rgb(200, 200, 200);"></div>
-  <div class="legend-label">Older Wells (&gt;15 years)</div>
-  </div>
-  </div>
-  </div>
-  <div id="chart-container" style="width: 100%; height: 500px;">
-  <div class="map-description">
-    This map shows the development over time of the area of the East Texas Basin around assets by adjusting the year slider. A 10-mile and 20-mile radius capture counts of wells proximal to the centroid of the assets. The color scheme shows the trend of development in the region. Light Green fades to black after ten years production (typically representing ~80-90% of expected ultimate recovery) and turns grey after producing +15 years (end of life production).
-  </div>
-  <!-- Switched order: 10-Mile first, then 20-Mile -->
-  <h3 style="margin-top: 0; color: #ffff; text-align:center;">10-Mile Analysis</h3>
-  <div id="nearby-chart-10" style="width: 100%; height: 50%;"></div>
-  <div style="margin-top: 1rem;">
-  <h3 style="margin-top: 0; color: #ffff; text-align:center;">20-Mile Analysis</h3>
-  </div>
-  <div id="nearby-chart" style="width: 100%; height: 50%;"></div>
-  </div>
+    <div id="map-container">
+      <div class="map-controls">
+        <div class="slider-group">
+          <label for="year">Change year to see development history:</label>
+          <input id="year" max="2025" min="1950" step="1" type="range" value="2024"/>
+          <span class="badge" id="year-val">2024</span>
+        </div>
+      </div>
+      <div id="map"></div>
+      <div id="color-legend">
+        <h4>Well Age Color Guide</h4>
+        <div class="legend-item">
+          <div class="legend-color" style="background: rgb(0, 255, 0);"></div>
+          <div class="legend-label">Recent Wells (≤3 years)</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: rgb(0, 128, 0);"></div>
+          <div class="legend-label">4-10 years</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: rgb(100, 100, 100);"></div>
+          <div class="legend-label">11-15 years</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: rgb(200, 200, 200);"></div>
+          <div class="legend-label">Older Wells (&gt;15 years)</div>
+        </div>
+      </div>
+    </div>
+    <div id="chart-container" style="width: 100%; height: 500px;">
+      <div class="map-description">
+        This map shows the development over time of the area of the East Texas Basin around assets by adjusting the year slider. A 10-mile and 20-mile radius capture counts of wells proximal to the centroid of the assets. The color scheme shows the trend of development in the region. Light Green fades to black after ten years production (typically representing ~80-90% of expected ultimate recovery) and turns grey after producing +15 years (end of life production).
+      </div>
+      <!-- Switched order: 10-Mile first, then 20-Mile -->
+      <h3 style="margin-top: 0; color: #ffff; text-align:center;">10-Mile Analysis</h3>
+      <div id="nearby-chart-10" style="width: 100%; height: 50%;"></div>
+      <div style="margin-top: 1rem;">
+        <h3 style="margin-top: 0; color: #ffff; text-align:center;">20-Mile Analysis</h3>
+      </div>
+      <div id="nearby-chart" style="width: 100%; height: 50%;"></div>
+    </div>
   </div>
   </section>
   
