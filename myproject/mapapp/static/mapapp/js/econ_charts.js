@@ -245,11 +245,11 @@
     if (assetValueBox) {
       const amountEl = assetValueBox.querySelector('.asset-value-amount');
       if (amountEl) {
-        const pv15 = Number(stats && stats.pv15);
-        if (Number.isFinite(pv15)) {
+        const pv14 = Number(stats && stats.pv14);
+        if (Number.isFinite(pv14)) {
           const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
-          const absFormatted = formatter.format(Math.round(Math.abs(pv15)));
-          amountEl.textContent = `${pv15 < 0 ? '-$' : '$'}${absFormatted}`;
+          const absFormatted = formatter.format(Math.round(Math.abs(pv14)));
+          amountEl.textContent = `${pv14 < 0 ? '-$' : '$'}${absFormatted}`;
         } else {
           amountEl.textContent = '--';
         }

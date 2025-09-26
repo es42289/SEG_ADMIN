@@ -89,7 +89,7 @@ body {
   justify-content: flex-start;
   align-items: stretch;
   gap: 2rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   box-sizing: border-box;
 }
 
@@ -154,6 +154,9 @@ body {
   .asset-value-box {
     min-width: 100%;
     margin-left: 0;
+  }
+  .well-count-box {
+    flex-wrap: wrap;
   }
 }
 
