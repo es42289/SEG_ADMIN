@@ -249,7 +249,7 @@
         if (Number.isFinite(pv14)) {
           const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
           const absFormatted = formatter.format(Math.round(Math.abs(pv14)));
-          amountEl.textContent = `${pv14 < 0 ? '-$' : '$'}${absFormatted}`;
+          amountEl.textContent = `${pv14 < 0 ? '-$' : '*$'}${absFormatted}`;
         } else {
           amountEl.textContent = '--';
         }
