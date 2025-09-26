@@ -221,18 +221,37 @@
   </div>
   </section>
 
-  <section id="feedback-section" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-    <h3 style="color:#fff; margin:0 0 .5rem 0; text-align:left;">Feedback</h3>
-    <p style="color:#fff; margin-bottom:1rem; text-align:left;">
-      Please provide feedback regarding any discrepancies or misrepresentations this application displays.
-    </p>
-    <form id="feedback-form" style="display:flex; flex-direction:column; gap:0.75rem;">
-      <textarea id="feedback-text" name="feedback" rows="4" placeholder="Enter your feedback here" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid #0f4a63; resize:vertical; box-sizing:border-box;"></textarea>
-      <button id="feedback-submit" type="submit" style="align-self:flex-end; background:#fff; color:#156082; border:none; padding:0.5rem 1.25rem; border-radius:6px; cursor:pointer; font-weight:600;">
-        Submit Feedback
-      </button>
-    </form>
-  </section>
+  <div class="support-feedback-row">
+    <section id="feedback-section" class="dashboard-panel">
+      <h3 style="color:#fff; margin:0 0 .5rem 0; text-align:left;">Feedback</h3>
+      <p style="color:#fff; margin-bottom:1rem; text-align:left;">
+        Please provide feedback regarding any discrepancies or misrepresentations this application displays.
+      </p>
+      <form id="feedback-form" style="display:flex; flex-direction:column; gap:0.75rem;">
+        <textarea id="feedback-text" name="feedback" rows="4" placeholder="Enter your feedback here" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid #0f4a63; resize:vertical; box-sizing:border-box;"></textarea>
+        <button id="feedback-submit" type="submit" style="align-self:flex-end; background:#fff; color:#156082; border:none; padding:0.5rem 1.25rem; border-radius:6px; cursor:pointer; font-weight:600;">
+          Submit Feedback
+        </button>
+      </form>
+    </section>
+
+    <section id="supporting-docs" class="dashboard-panel">
+      <h3 style="color:#fff; margin:0 0 .5rem 0; text-align:left;">Submit Supporting Documents</h3>
+      <p style="color:#fff; margin-bottom:1rem; text-align:left;">
+        Uploading documentation helps us validate ownership, enhance valuation accuracy, and provide more precise forecasts tailored to you.
+      </p>
+      <div class="support-docs-buttons">
+        <button type="button" class="support-docs-button">
+          <span class="button-title">Check Stubs</span>
+          <span class="button-subtitle">We can utilize this to fine tune your value and provide better forecasts for you. We also anonymize gross wellbore volumes to improve our data. Every month you upload a checkstub we cut 50% off the next months fee.</span>
+        </button>
+        <button type="button" class="support-docs-button">
+          <span class="button-title">Tract/Lease/Title Documents</span>
+          <span class="button-subtitle">This will help us assure you own the minerals and can do full title runs or your assets by request for a small fee.</span>
+        </button>
+      </div>
+    </section>
+  </div>
 
 </div>
 
