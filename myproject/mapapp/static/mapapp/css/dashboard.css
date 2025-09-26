@@ -23,6 +23,7 @@ body {
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 1rem;
   margin-top: 1rem;
+  padding-top: 2.5rem;
   align-items: start;
 }
 
