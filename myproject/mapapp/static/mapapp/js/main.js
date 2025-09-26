@@ -9,6 +9,8 @@ const yearInput = document.getElementById('year');
     const lastYearGas = document.getElementById('last-year-gas');
     const nextYearOil = document.getElementById('next-year-oil');
     const nextYearGas = document.getElementById('next-year-gas');
+    const effectiveDate = document.getElementById('effective-date');
+    const lastProductionDate = document.getElementById('last-production-date');
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
@@ -23,6 +25,32 @@ const yearInput = document.getElementById('year');
       if (isError) statusDiv.classList.add('error');
       if (isSuccess) statusDiv.classList.add('success');
     }
+
+    const formatDisplayDate = (dateObj) => {
+      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+      return new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        timeZone: 'UTC'
+      }).format(dateObj);
+    };
+
+    function updateEffectiveDateDisplay() {
+      if (!effectiveDate) return;
+      const today = new Date();
+      const firstOfNextMonth = new Date(Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth() + 1,
+        1
+      ));
+      const formatted = formatDisplayDate(firstOfNextMonth);
+      effectiveDate.textContent = formatted
+        ? `Effective Date: ${formatted}`
+        : 'Effective Date: --';
+    }
+
+    updateEffectiveDateDisplay();
 
     // Global variables to store all data
     let allWellData = null;
@@ -89,9 +117,19 @@ const yearInput = document.getElementById('year');
     }
 
     function updateLastProductionMetrics(prodMap) {
-      if (!lastOil || !lastGas || !lastYearOil || !lastYearGas || !nextYearOil || !nextYearGas) return;
+      if (!lastOil || !lastGas || !lastYearOil || !lastYearGas || !nextYearOil || !nextYearGas) {
+        if (lastProductionDate) {
+          lastProductionDate.textContent = 'Last Production Date: --';
+        }
+        return;
+      }
       const rows = Object.values(prodMap || {}).flat();
-      if (!rows.length) return;
+      if (!rows.length) {
+        if (lastProductionDate) {
+          lastProductionDate.textContent = 'Last Production Date: --';
+        }
+        return;
+      }
 
       const monthly = {};
 
@@ -148,6 +186,21 @@ const yearInput = document.getElementById('year');
         }
         nextYearOil.textContent = `Next 12 Months Oil, BBL: ${Math.round(sumOilFc).toLocaleString()}`;
         nextYearGas.textContent = `Next 12 Months Gas, MCF: ${Math.round(sumGasFc).toLocaleString()}`;
+
+        if (lastProductionDate) {
+          const [yearStr, monthStr] = latest.split('-');
+          const year = Number(yearStr);
+          const month = Number(monthStr);
+          const latestDate = Number.isFinite(year) && Number.isFinite(month)
+            ? new Date(Date.UTC(year, month - 1, 1))
+            : null;
+          const formattedLast = latestDate ? formatDisplayDate(latestDate) : null;
+          lastProductionDate.textContent = formattedLast
+            ? `Last Production Date: ${formattedLast}`
+            : 'Last Production Date: --';
+        }
+      } else if (lastProductionDate) {
+        lastProductionDate.textContent = 'Last Production Date: --';
       }
     }
 

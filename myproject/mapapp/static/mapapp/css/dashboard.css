@@ -92,6 +92,14 @@ body {
   box-sizing: border-box;
 }
 
+.top-banner-disclaimer {
+  font-size: 6pt;
+  font-style: italic;
+  color: #1e293a;
+  padding: 0 20px 10px;
+  line-height: 1.4;
+}
+
 .well-count-content {
   display: flex;
   flex-wrap: wrap;
