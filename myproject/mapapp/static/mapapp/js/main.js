@@ -1220,3 +1220,28 @@ const yearInput = document.getElementById('year');
         }
       });
     }
+
+    const feedbackForm = document.getElementById('feedback-form');
+    const feedbackTextarea = document.getElementById('feedback-text');
+    if (feedbackForm && feedbackTextarea) {
+      const originalPlaceholder = feedbackTextarea.getAttribute('placeholder') || '';
+      let feedbackResetTimeout = null;
+
+      feedbackForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        feedbackTextarea.value = '';
+        feedbackTextarea.blur();
+        feedbackTextarea.setAttribute('readonly', 'readonly');
+        feedbackTextarea.value = 'Feedback Submitted';
+
+        if (feedbackResetTimeout) {
+          clearTimeout(feedbackResetTimeout);
+        }
+
+        feedbackResetTimeout = window.setTimeout(() => {
+          feedbackTextarea.value = '';
+          feedbackTextarea.removeAttribute('readonly');
+          feedbackTextarea.setAttribute('placeholder', originalPlaceholder);
+        }, 2000);
+      });
+    }
