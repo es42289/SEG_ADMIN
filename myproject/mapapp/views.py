@@ -824,6 +824,7 @@ def economics_data(request):
         return float(disc.sum())
 
     pvs = {f"pv{int(r*100)}": pv(r) for r in pv_stats_rates}
+    pvs["pv15"] = pv(0.15)
 
     per_well_pv = {
         api: {f"pv{int(r*100)}": 0.0 for r in pv_table_rates}

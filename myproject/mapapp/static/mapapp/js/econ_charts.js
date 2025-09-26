@@ -227,10 +227,33 @@
     if(!target) return;
 
     function formatNumber(v){
-      return Number(v).toLocaleString(undefined,{maximumFractionDigits:0});
+      const num = Number(v ?? 0);
+      if (!Number.isFinite(num)) return '0';
+      return num.toLocaleString('en-US',{maximumFractionDigits:0});
     }
     function formatCurrency(v){
-      return '$' + Number(v).toLocaleString(undefined,{maximumFractionDigits:0});
+      const num = Number(v ?? 0);
+      if (!Number.isFinite(num)) return '$0';
+      const sign = num < 0 ? '-' : '';
+      const abs = Math.abs(num);
+      if (abs >= 1_000_000) return `${sign}$${(abs/1_000_000).toFixed(1)}M`;
+      if (abs >= 1_000) return `${sign}$${(abs/1_000).toFixed(1)}k`;
+      return `${sign}$${abs.toFixed(0)}`;
+    }
+
+    const assetValueBox = document.getElementById('asset-value-box');
+    if (assetValueBox) {
+      const amountEl = assetValueBox.querySelector('.asset-value-amount');
+      if (amountEl) {
+        const pv15 = Number(stats && stats.pv15);
+        if (Number.isFinite(pv15)) {
+          const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+          const absFormatted = formatter.format(Math.round(Math.abs(pv15)));
+          amountEl.textContent = `${pv15 < 0 ? '-$' : '$'}${absFormatted}`;
+        } else {
+          amountEl.textContent = '--';
+        }
+      }
     }
 
     const mapping = {
@@ -249,7 +272,10 @@
     };
 
     Object.entries(mapping).forEach(([id, html]) => {
-      document.getElementById(id).innerHTML = html;
+      const statEl = document.getElementById(id);
+      if (statEl) {
+        statEl.innerHTML = html;
+      }
     });
   }
 
