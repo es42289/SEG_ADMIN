@@ -1232,7 +1232,7 @@ const yearInput = document.getElementById('year');
         feedbackTextarea.value = '';
         feedbackTextarea.blur();
         feedbackTextarea.setAttribute('readonly', 'readonly');
-        feedbackTextarea.value = 'Feedback Submitted';
+        feedbackTextarea.value = 'Feedback Submitted!';
 
         if (feedbackResetTimeout) {
           clearTimeout(feedbackResetTimeout);
