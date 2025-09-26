@@ -93,7 +93,7 @@ body {
 }
 
 .top-banner-disclaimer {
-  font-size: 6pt;
+  font-size: 8pt;
   font-style: italic;
   color: #1e293a;
   padding: 0 20px 10px;
@@ -131,18 +131,29 @@ body {
   gap: 0.25rem;
 }
 
-.well-count-box span {
-  font-size: 18px;
-  font-weight: bold;
-  white-space: nowrap;
+.well-count-box .stat-box {
+  display: inline-block;
+  padding: 8px 8px;
+  border-radius: 4px;
+  background: #156082;      /* example box color */
+  color: white;
+  font-size: 16px;
+  font-weight: 400;
+  white-space: normal;
+  line-height: 1.3;
 }
 
-.well-count-box .stat-box {
-    display: inline-block;
-    padding: 8px 8px;
-    border-radius: 4px;
-    background: #156082;      /* example box color */
-    color: white;
+.stat-box .stat-label,
+.stat-box .stat-value {
+  display: block;
+}
+
+.stat-box .stat-label {
+  font-weight: 400;
+}
+
+.stat-box .stat-value {
+  font-weight: 700;
 }
 
 .stat-box {
