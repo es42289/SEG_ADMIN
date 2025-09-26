@@ -89,7 +89,7 @@ body {
   justify-content: flex-start;
   align-items: stretch;
   gap: 2rem;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   box-sizing: border-box;
 }
 
@@ -127,11 +127,12 @@ body {
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  padding: 16px 24px;
+  padding: 14px 20px;
   border-radius: 8px;
   margin-left: auto;
   flex: 0 0 auto;
-  min-width: 220px;
+  min-width: 180px;
+  max-width: 240px;
   align-self: stretch;
   box-sizing: border-box;
 }
