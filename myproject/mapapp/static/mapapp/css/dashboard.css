@@ -23,7 +23,7 @@ body {
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 1rem;
   margin-top: 1rem;
-  padding-top: 2.5rem;
+  padding-top: 4.5rem;
   align-items: start;
 }
 
@@ -116,7 +116,7 @@ body {
   justify-content: center;
   flex: 0 0 auto;
   padding-right: 1rem;
-  max-height: calc(84px * 0.9);
+  max-height: 120px;
 }
 
 .well-count-logo img {
@@ -139,7 +139,7 @@ body {
   border-radius: 4px;
   background: #156082;      /* example box color */
   color: white;
-  font-size: 14pt;
+  font-size: 12pt;
   font-weight: 400;
   white-space: normal;
   line-height: 1.3;
