@@ -151,6 +151,14 @@ body {
   color: inherit;
 }
 
+.asset-value-box .asset-value-disclaimer {
+  margin-top: 0.5rem;
+  font-size: 6pt;
+  font-style: italic;
+  line-height: 1.3;
+  color: inherit;
+}
+
 @media (max-width: 900px) {
   .asset-value-box {
     min-width: 100%;
