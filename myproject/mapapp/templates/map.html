@@ -177,9 +177,14 @@
   <h3 style="color: #ffff; margin:0 0 .5rem 0; text-align:center;">Proximity Map</h3>
   <!-- #ffff#cd8323 -->
   <div id="controls">
-  <label for="year">Change year to see development history:</label>
-  <input id="year" max="2025" min="1950" step="1" type="range" value="2024"/>
-  <span class="badge" id="year-val">2024</span>
+    <div class="slider-group">
+      <label for="year">Change year to see development history:</label>
+      <input id="year" max="2025" min="1950" step="1" type="range" value="2024"/>
+      <span class="badge" id="year-val">2024</span>
+    </div>
+    <div class="map-description">
+      This map shows the development over time of the area of the East Texas Basin around assets by adjusting the year slider. A 10-mile and 20-mile radius capture counts of wells proximal to the centroid of the assets. The color scheme shows the trend of development in the region. Light Green fades to black after ten years production (typically representing ~80-90% of expected ultimate recovery) and turns grey after producing +15 years (end of life production).
+    </div>
   </div>
   <div id="main-container">
   <div id="map-container">
