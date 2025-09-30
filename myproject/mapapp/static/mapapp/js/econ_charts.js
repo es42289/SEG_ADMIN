@@ -65,7 +65,7 @@
     if (cumEl && data.cum) renderCum(cumEl, data.cum);
     if (windowEl && data.window) renderWindow(windowEl, data.window);
     if (summaryEl && data.summary) renderSummary(summaryEl, data.summary);
-    if (statsEl && data.stats) renderStats(statsEl, data.stats);
+    if (statsEl && data.stats) renderStats(statsEl, data.stats, data.royalty_curve);
     if (data.per_well_pv && typeof window.updateWellPvValues === 'function') {
       window.updateWellPvValues(data.per_well_pv);
     }
@@ -222,7 +222,7 @@
     Plotly.newPlot(target, [trace], layout, {responsive: true});
   }
 
-  function renderStats(el, stats){
+  function renderStats(el, stats, royaltyCurve){
     const target = resolveEl(el);
     if(!target) return;
 
@@ -245,11 +245,11 @@
     if (assetValueBox) {
       const amountEl = assetValueBox.querySelector('.asset-value-amount');
       if (amountEl) {
-        const pv14 = Number(stats && stats.pv14);
-        if (Number.isFinite(pv14)) {
+        const pv17 = Number(stats && stats.pv17);
+        if (Number.isFinite(pv17)) {
           const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
-          const absFormatted = formatter.format(Math.round(Math.abs(pv14)));
-          amountEl.textContent = `${pv14 < 0 ? '-$' : '*$'}${absFormatted}`;
+          const absFormatted = formatter.format(Math.round(Math.abs(pv17)));
+          amountEl.textContent = `${pv17 < 0 ? '-$' : '*$'}${absFormatted}`;
         } else {
           amountEl.textContent = '--';
         }
@@ -262,13 +262,7 @@
       'stat-ltm-cf': `LTM Cashflow: <br>${formatCurrency(stats.ltm_cf)}`,
       'stat-ntm-oil': `NTM Oil: <br>${formatNumber(stats.ntm_oil)} BBL`,
       'stat-ntm-gas': `NTM Gas: <br>${formatNumber(stats.ntm_gas)} MCF`,
-      'stat-ntm-cf': `NTM Cashflow: <br>${formatCurrency(stats.ntm_cf)}`,
-      'stat-pv0': `PV0: <br>${formatCurrency(stats.pv0)}`,
-      'stat-pv10': `PV10: <br>${formatCurrency(stats.pv10)}`,
-      'stat-pv12': `PV12: <br>${formatCurrency(stats.pv12)}`,
-      'stat-pv14': `PV14: <br>${formatCurrency(stats.pv14)}`,
-      'stat-pv16': `PV16: <br>${formatCurrency(stats.pv16)}`,
-      'stat-pv18': `PV18: <br>${formatCurrency(stats.pv18)}`
+      'stat-ntm-cf': `NTM Cashflow: <br>${formatCurrency(stats.ntm_cf)}`
     };
 
     Object.entries(mapping).forEach(([id, html]) => {
@@ -277,6 +271,68 @@
         statEl.innerHTML = html;
       }
     });
+
+    renderRoyaltyChart('royaltyValueChart', royaltyCurve);
+  }
+
+  function renderRoyaltyChart(el, curve){
+    const target = resolveEl(el);
+    if(!target) return;
+
+    if(!curve || !Array.isArray(curve.months) || !Array.isArray(curve.values)){
+      Plotly.purge(target);
+      return;
+    }
+
+    const xDates = curve.months.map(m => new Date(m));
+    const yVals = curve.values.map(v => Number(v) || 0);
+    const textLabels = xDates.map(d => {
+      if (!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${month}-${year}`;
+    });
+
+    const trace = {
+      x: xDates,
+      y: yVals,
+      mode: 'lines+markers',
+      line: {color: '#FBD784', width: 2},
+      marker: {color: '#ffffff', size: 6, line: {color: '#FBD784', width: 1}},
+      hovertemplate: '%{text}<br>$%{y:,.0f}<extra></extra>',
+      text: textLabels,
+      name: 'Royalty Value'
+    };
+
+    const layout = {
+      height: 50,
+      margin: {l: 70, r: 10, t: 10, b: 20},
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      xaxis: {
+        type: 'date',
+        tickformat: '%m-%Y',
+        dtick: 'M6',
+        showgrid: false,
+        tickfont: {size: 10, color: '#ffffff'},
+        linecolor: '#ffffff',
+        mirror: true
+      },
+      yaxis: {
+        title: {text: 'Royalty Value ($)', font: {size: 10, color: '#ffffff'}},
+        tickprefix: '$',
+        tickfont: {size: 10, color: '#ffffff'},
+        showgrid: false,
+        linecolor: '#ffffff',
+        mirror: true,
+        automargin: true
+      },
+      showlegend: false,
+      font: {color: '#ffffff'},
+      hoverlabel: {bgcolor: '#156082', font: {color: '#ffffff'}},
+    };
+
+    Plotly.newPlot(target, [trace], layout, {displayModeBar: false, responsive: true});
   }
 
   if(document.readyState !== 'loading') loadPriceDeckOptions();

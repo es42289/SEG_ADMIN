@@ -812,7 +812,7 @@ def economics_data(request):
             pv_monthly["PRODUCINGMONTH"].dt.to_period("M") - pv_start.to_period("M")
         ).apply(lambda r: r.n)
 
-    pv_stats_rates = [0.0, 0.10, 0.12, 0.14, 0.16, 0.18]
+    pv_stats_rates = [0.0, 0.10, 0.12, 0.14, 0.16, 0.17, 0.18]
     pv_table_rates = pv_stats_rates + [0.20]
 
     def pv(rate):
@@ -872,6 +872,32 @@ def economics_data(request):
         **pvs,
     }
 
+    def pv_from_month(start_month: pd.Timestamp, rate: float) -> float:
+        end_month = start_month + pd.DateOffset(years=15)
+        sub = merged[
+            (merged["PRODUCINGMONTH"] >= start_month)
+            & (merged["PRODUCINGMONTH"] < end_month)
+        ].copy()
+        if sub.empty:
+            return 0.0
+        sub["months_from_start"] = (
+            sub["PRODUCINGMONTH"].dt.to_period("M") - start_month.to_period("M")
+        ).apply(lambda r: r.n)
+        disc = sub["NetCashFlow"] / (1 + rate) ** (sub["months_from_start"] / 12)
+        return float(disc.sum())
+
+    base_period = today.to_period("M")
+    start_period = (today - pd.DateOffset(months=12)).to_period("M")
+    end_period = (today + pd.DateOffset(months=24)).to_period("M")
+    period_range = pd.period_range(start=start_period, end=end_period, freq="M")
+    royalty_rate = 0.17
+    royalty_curve = {
+        "months": [p.to_timestamp().strftime("%Y-%m-%d") for p in period_range],
+        "values": [pv_from_month(p.to_timestamp(), royalty_rate) for p in period_range],
+        "rate": royalty_rate,
+        "today_month": base_period.to_timestamp().strftime("%Y-%m-%d"),
+    }
+
     return JsonResponse({
         "npv": npvs,
         "cum": cum,
@@ -879,4 +905,5 @@ def economics_data(request):
         "summary": summary,
         "stats": stats,
         "per_well_pv": per_well_pv,
+        "royalty_curve": royalty_curve,
     })
