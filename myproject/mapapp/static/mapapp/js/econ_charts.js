@@ -305,18 +305,19 @@
     };
 
     const layout = {
-      height: 50,
-      margin: {l: 70, r: 10, t: 10, b: 20},
+      height: 200,
+      margin: {l: 70, r: 10, t: 30, b: 40},
       paper_bgcolor: 'rgba(0,0,0,0)',
       plot_bgcolor: 'rgba(0,0,0,0)',
       xaxis: {
         type: 'date',
         tickformat: '%m-%Y',
-        dtick: 'M6',
+        dtick: 'M3',
         showgrid: false,
         tickfont: {size: 10, color: '#ffffff'},
         linecolor: '#ffffff',
-        mirror: true
+        mirror: true,
+        title: {text: 'Sale Date', font: {size: 12, color: '#ffffff'}},
       },
       yaxis: {
         title: {text: 'Royalty Value ($)', font: {size: 10, color: '#ffffff'}},

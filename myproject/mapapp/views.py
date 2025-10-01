@@ -886,14 +886,15 @@ def economics_data(request):
         disc = sub["NetCashFlow"] / (1 + rate) ** (sub["months_from_start"] / 12)
         return float(disc.sum())
 
-    base_period = today.to_period("M")
-    start_period = (today - pd.DateOffset(months=12)).to_period("M")
-    end_period = (today + pd.DateOffset(months=24)).to_period("M")
-    period_range = pd.period_range(start=start_period, end=end_period, freq="M")
+    base_month = pd.Timestamp(today.year, today.month, 1)
+    base_period = base_month.to_period("M")
+    start_period = (base_month - pd.DateOffset(years=1)).to_period("Q")
+    end_period = (base_month + pd.DateOffset(months=1) + pd.DateOffset(years=5)).to_period("Q")
+    period_range = pd.period_range(start=start_period, end=end_period, freq="Q")
     royalty_rate = 0.17
     royalty_curve = {
-        "months": [p.to_timestamp().strftime("%Y-%m-%d") for p in period_range],
-        "values": [pv_from_month(p.to_timestamp(), royalty_rate) for p in period_range],
+        "months": [p.to_timestamp(how="end").strftime("%Y-%m-%d") for p in period_range],
+        "values": [pv_from_month(p.to_timestamp(how="end"), royalty_rate) for p in period_range],
         "rate": royalty_rate,
         "today_month": base_period.to_timestamp().strftime("%Y-%m-%d"),
     }
