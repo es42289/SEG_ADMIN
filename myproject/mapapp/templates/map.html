@@ -10,7 +10,7 @@
   <div class="login-bar">
     <div class="login-content">
       {% if request.session.user %}
-        Logged in as <strong>&nbsp;{{ request.session.user.name|default:request.session.user.email }}</strong>
+        Logged in as: <strong>&nbsp;{{ request.session.user.name|default:request.session.user.email }}</strong>
         <a href="/logout/">Logout</a>
       {% else %}
         <a href="/login/">Login</a>
