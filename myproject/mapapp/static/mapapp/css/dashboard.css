@@ -174,10 +174,16 @@ body {
 
 .well-count-content {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   justify-content: flex-start;
   align-items: stretch;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.well-count-content .stat-box {
+  flex: 0 0 auto;
 }
 
 .asset-value-box {
