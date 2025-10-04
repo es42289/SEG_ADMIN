@@ -204,14 +204,14 @@ body {
 
 .asset-value-box .asset-label {
   font-weight: 400;
-  font-size: 0.95rem;
+  font-size: 1.12rem;
   color: inherit;
   margin-bottom: 0.35rem;
 }
 
 .asset-value-box .asset-value-amount {
   font-weight: 700;
-  font-size: 1.6rem;
+  font-size: 1.77rem;
   line-height: 1.1;
   color: inherit;
 }
@@ -292,6 +292,10 @@ body {
   background: #156082;
   color: white;
   border: 0.5px solid #ffffff;
+}
+
+.well-count-content .stat-box {
+  font-size: 12pt;
 }
 
 #summaryStats .stat-box {
