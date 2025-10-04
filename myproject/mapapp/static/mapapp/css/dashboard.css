@@ -292,6 +292,9 @@ body {
   background: white;
   color: #156082;
   font-weight: 700;
+  display: block;
+  width: 100%;
+  text-align: center;
 }
 
 input#year[type="range"] {
