@@ -296,40 +296,40 @@
     const trace = {
       x: xDates,
       y: yVals,
-      mode: 'lines+markers',
-      line: {color: '#FBD784', width: 2},
-      marker: {color: '#ffffff', size: 6, line: {color: '#FBD784', width: 1}},
+      mode: 'markers',
+      marker: {color: '#156082', size: 8, line: {color: '#0b3d57', width: 1}},
       hovertemplate: '%{text}<br>$%{y:,.0f}<extra></extra>',
       text: textLabels,
       name: 'Royalty Value'
     };
 
     const layout = {
-      height: 200,
-      margin: {l: 70, r: 10, t: 30, b: 40},
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
+      height: 400,
+      title: {text: 'Value Loss Through Time', font: {size: 16, color: '#156082'}},
+      margin: {l: 70, r: 10, t: 50, b: 40},
+      paper_bgcolor: '#ffffff',
+      plot_bgcolor: '#ffffff',
       xaxis: {
         type: 'date',
         tickformat: '%m-%Y',
-        dtick: 'M3',
+        dtick: 'M6',
         showgrid: false,
-        tickfont: {size: 10, color: '#ffffff'},
-        linecolor: '#ffffff',
+        tickfont: {size: 10, color: '#156082'},
+        linecolor: '#156082',
         mirror: true,
-        title: {text: 'Sale Date', font: {size: 12, color: '#ffffff'}},
+        title: {text: 'Sale Date', font: {size: 12, color: '#156082'}},
       },
       yaxis: {
-        title: {text: 'Royalty Value ($)', font: {size: 10, color: '#ffffff'}},
+        title: {text: 'Royalty Value ($)', font: {size: 10, color: '#156082'}},
         tickprefix: '$',
-        tickfont: {size: 10, color: '#ffffff'},
+        tickfont: {size: 10, color: '#156082'},
         showgrid: false,
-        linecolor: '#ffffff',
+        linecolor: '#156082',
         mirror: true,
         automargin: true
       },
       showlegend: false,
-      font: {color: '#ffffff'},
+      font: {color: '#156082'},
       hoverlabel: {bgcolor: '#156082', font: {color: '#ffffff'}},
     };
 
