@@ -854,10 +854,10 @@ def economics_data(request):
                 store[f"pv{int(rate*100)}"] = float(disc.sum())
 
     summary = []
-    summary.append({"label": "LTM", "value": ltm_cf})
-    summary.append({"label": "NTM", "value": ntm_cf})
+    summary.append({"label": "Last 12 Months", "value": ltm_cf})
+    summary.append({"label": "Next 12 Months", "value": ntm_cf})
     year = today.year
-    for yr in range(year, year + 6):
+    for yr in range(year, year + 10):
         s = pd.Timestamp(f"{yr}-01-01")
         e = pd.Timestamp(f"{yr}-12-31")
         summary.append({"label": str(yr), "value": period_sum("NetCashFlow", s, e)})

@@ -138,7 +138,7 @@
         {
           x:ltmCenter,
           y:yMax*1.05,
-          text:'LTM',
+          text:'Last 12 Months',
           showarrow:false,
           font:{size:14},
           xanchor:'center'
@@ -162,12 +162,15 @@
     const labels = s.map(v => v.label || v.CF_YR);
     const vals = s.map(v => v.value ?? v.CNCF);
 
-    const ltmIdx = labels.indexOf('LTM');
-    const ntmIdx = labels.indexOf('NTM');
+    const LTM_LABEL = 'Last 12 Months';
+    const NTM_LABEL = 'Next 12 Months';
+
+    const ltmIdx = labels.indexOf(LTM_LABEL);
+    const ntmIdx = labels.indexOf(NTM_LABEL);
 
     const ordered = [];
-    if (ltmIdx !== -1) ordered.push({label: 'LTM', value: vals[ltmIdx]});
-    if (ntmIdx !== -1) ordered.push({label: 'NTM', value: vals[ntmIdx]});
+    if (ltmIdx !== -1) ordered.push({label: LTM_LABEL, value: vals[ltmIdx]});
+    if (ntmIdx !== -1) ordered.push({label: NTM_LABEL, value: vals[ntmIdx]});
     const years = labels
       .map((label, i) => ({label, value: vals[i]}))
       .filter((_, i) => i !== ltmIdx && i !== ntmIdx)
@@ -178,8 +181,8 @@
     const ordVals = ordered.map(o => o.value);
 
     const colors = ordLabels.map(l => {
-      if (l === 'LTM') return '#156082';
-      if (l === 'NTM') return '#156082';
+      if (l === LTM_LABEL) return '#156082';
+      if (l === NTM_LABEL) return '#156082';
       return '#156082';
     });
 
@@ -249,7 +252,7 @@
         if (Number.isFinite(pv17)) {
           const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
           const absFormatted = formatter.format(Math.round(Math.abs(pv17)));
-          amountEl.textContent = `${pv17 < 0 ? '-$' : '*$'}${absFormatted}`;
+          amountEl.textContent = `${pv17 < 0 ? '-$' : '$'}${absFormatted}`;
         } else {
           amountEl.textContent = '--';
         }
@@ -257,12 +260,12 @@
     }
 
     const mapping = {
-      'stat-ltm-oil': `LTM Oil: <br>${formatNumber(stats.ltm_oil)} BBL`,
-      'stat-ltm-gas': `LTM Gas: <br>${formatNumber(stats.ltm_gas)} MCF`,
-      'stat-ltm-cf': `LTM Cashflow: <br>${formatCurrency(stats.ltm_cf)}`,
-      'stat-ntm-oil': `NTM Oil: <br>${formatNumber(stats.ntm_oil)} BBL`,
-      'stat-ntm-gas': `NTM Gas: <br>${formatNumber(stats.ntm_gas)} MCF`,
-      'stat-ntm-cf': `NTM Cashflow: <br>${formatCurrency(stats.ntm_cf)}`
+      'stat-ltm-oil': `Last 12 Months Oil: <br>${formatNumber(stats.ltm_oil)} BBL`,
+      'stat-ltm-gas': `Last 12 Months Gas: <br>${formatNumber(stats.ltm_gas)} MCF`,
+      'stat-ltm-cf': `Last 12 Months Cashflow: <br>${formatCurrency(stats.ltm_cf)}`,
+      'stat-ntm-oil': `Next 12 Months Oil: <br>${formatNumber(stats.ntm_oil)} BBL`,
+      'stat-ntm-gas': `Next 12 Months Gas: <br>${formatNumber(stats.ntm_gas)} MCF`,
+      'stat-ntm-cf': `Next 12 Months Cashflow: <br>${formatCurrency(stats.ntm_cf)}`
     };
 
     Object.entries(mapping).forEach(([id, html]) => {
