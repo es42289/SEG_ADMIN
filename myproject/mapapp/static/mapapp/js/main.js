@@ -1051,7 +1051,7 @@ const yearInput = document.getElementById('year');
               zoom: nearbyAnalysis20.centroid ? 8 : 6
             },
             margin: { t: 40, r: 10, b: 10, l: 10 },
-            height: window.innerHeight * 0.85,
+            height: window.innerHeight * 0.75,
             title: {
               text: `Oil Development Proximity Map - Year ${year}`,
               font: { color: '#eaeaea' }

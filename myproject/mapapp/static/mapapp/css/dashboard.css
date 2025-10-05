@@ -479,7 +479,7 @@ input#year[type="range"] {
      ::-webkit-slider-runnable-track { background: #333; } */
 }
 
-    #main-container { display: flex; gap: 1rem; height: 85vh; margin-top: 0; }
+    #main-container { display: flex; gap: 1rem; height: 75vh; margin-top: 0; }
     #map-container { flex: 2; position: relative; display:flex; flex-direction:column; min-height:0; }
       #chart-container { flex: 1; padding: 1rem; }
     .map-controls { display:flex; gap:1rem; align-items:center; justify-content:center; flex-wrap:wrap; padding:0.75rem 1rem; background:rgba(21,96,130,0.85); border-radius:12px; margin:0 auto 0.75rem; max-width:fit-content; }
