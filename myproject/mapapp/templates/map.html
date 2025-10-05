@@ -17,18 +17,21 @@
       {% endif %}
     </div>
   </div>
-  <div id="metrics-bar" class="well-count-box">
-    <div class="well-count-main">
-      <div class="well-count-header">
-        <div class="well-count-logo">
-          <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
-        </div>
-        <div class="asset-value-box" id="asset-value-box">
-          <span class="asset-label">Total Net Revenue Interest Value:</span>
-          <span class="asset-value-amount">--</span>
-        </div>
+  <div class="top-banner-disclaimer">
+    Below you will find your assets as best represented by public data and utilizing any data provided by you, the owner. Given the data available, we would value and purchase your royalties at the asset price shown above. If this interests you or think we missed something, please reach out. We want this dashboard to be helpful and an ongoing tool you can use. We will keep it updated monthly and you can access anytime you’d like for $4/month.
+  </div>
+</div>
+<div class="page-content">
+  <div class="dashboard-layout">
+    <aside class="metrics-sidebar">
+      <div class="sidebar-logo">
+        <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
       </div>
-      <div class="well-count-content">
+      <div class="asset-value-box" id="asset-value-box">
+        <span class="asset-label">Total Net Revenue Interest Value:</span>
+        <span class="asset-value-amount">--</span>
+      </div>
+      <div class="sidebar-kpis">
         <span id="user-wells-count" class="stat-box">
           <span class="stat-label">Well Count:</span>
           <span class="stat-value">0</span>
@@ -70,15 +73,9 @@
           <span class="stat-value">0</span>
         </span>
       </div>
-    </div>
-  </div>
-  <div class="top-banner-disclaimer">
-    Below you will find your assets as best represented by public data and utilizing any data provided by you, the owner. Given the data available, we would value and purchase your royalties at the asset price shown above. If this interests you or think we missed something, please reach out. We want this dashboard to be helpful and an ongoing tool you can use. We will keep it updated monthly and you can access anytime you’d like for $4/month.
-  </div>
-</div>
-  <div class="page-content">
-
-  <div class="chart-map-grid">
+    </aside>
+    <div class="main-content">
+      <div class="chart-map-grid">
     <!-- Production chart (Plotly target) -->
     <section id="prod-chart" style="min-width:0; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
       <h3 style="margin:0 0 .5rem 0; text-align:center;">Production History & Forecasts</h3>
@@ -247,6 +244,8 @@
     </section>
   </div>
 
+    </div>
+  </div>
 </div>
 
   {% endblock %}
