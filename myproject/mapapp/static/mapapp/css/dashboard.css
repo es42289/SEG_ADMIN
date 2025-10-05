@@ -167,12 +167,12 @@ body {
 }
 
 .top-banner-disclaimer {
-  font-size: 8pt;
+  font-size: 12pt;
   font-style: italic;
   color: #1e293a;
   padding: 0 20px 12px;
   line-height: 1.4;
-  text-align: left;
+  text-align: center;
 }
 
 .well-count-content {
@@ -195,11 +195,11 @@ body {
   color: #064e3b;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: top;
   align-items: flex-start;
-  padding: 3.75px 20px 10.5px;
+  padding: 1px 10px 1px;
   border-radius: 8px;
-  flex: 0 1 280px;
+  flex: 0 1 130px;
   min-width: 200px;
   max-width: 320px;
   box-sizing: border-box;
@@ -212,10 +212,10 @@ body {
 }
 
 .asset-value-box .asset-label {
-  font-weight: 400;
-  font-size: 1.12rem;
+  font-weight: 500;
+  font-size: 1.5rem;
   color: inherit;
-  margin-bottom: 0.35rem;
+  margin-top: 0.35rem;
 }
 
 .asset-value-box .asset-value-amount {
@@ -223,6 +223,7 @@ body {
   font-size: 2.44rem;
   line-height: 1.1;
   color: inherit;
+  margin-bottom: 0.35rem;
 }
 
 .asset-value-box .asset-value-disclaimer {
@@ -335,7 +336,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1rem;
+  padding: 0.35rem;
   background: #ffffff;
   border: 1px solid #dbe7f0;
   border-radius: 12px;
