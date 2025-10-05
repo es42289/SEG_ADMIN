@@ -225,3 +225,27 @@ aws logs get-log-events --log-group-name "/ecs/seg-user-app" --log-stream-name "
 - **Networking**: Public subnet with internet gateway
 - **Port**: 8000 (HTTP)
 - **Secrets**: RSA key stored in AWS Secrets Manager (`seg-user-app/snowflake-rsa-key`)
+
+
+- Fast
+```bash
+docker build -t seg-user-app .
+docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
+docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+aws ecs list-tasks --cluster seg-user-app-cluster --region us-east-1 --profile myaws
+```
+Then stop the task (replace TASK_ID with actual ID):
+```bash
+aws ecs stop-task --cluster seg-user-app-cluster --task TASK_ID --region us-east-1 --profile myaws
+```
+```bash
+aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app:4 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
+```
+Get the new task ID from step 6 output, then:
+```bash
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks NEW_TASK_ID --region us-east-1 --profile myaws
+```
+Extract the `networkInterfaceId` from the output, then:
+```bash
+aws ec2 describe-network-interfaces --network-interface-ids NETWORK_INTERFACE_ID --region us-east-1 --profile myaws
