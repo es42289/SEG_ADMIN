@@ -309,6 +309,29 @@ body {
   padding: 4px 8px;
 }
 
+.econ-card {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.econ-card-title {
+  color: #ffffff;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.econ-card label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+#summaryStats.econ-card {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 input#year[type="range"] {
   accent-color: #1f293b;     /* replace with your preferred color */
   /* Optional vendor tweaks: 
