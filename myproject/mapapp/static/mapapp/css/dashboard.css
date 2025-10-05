@@ -6,6 +6,10 @@
   font-style: normal;
 }
 
+:root {
+  --top-banner-height: 120px;
+}
+
 body {
   font-family: "Aptos Narrow", system-ui, sans-serif;
   margin: 0;
@@ -15,7 +19,7 @@ body {
 
 .page-content {
   padding: 1rem;
-  margin-top: 120px;
+  margin-top: var(--top-banner-height);
 }
 
 .chart-map-grid {
@@ -216,7 +220,7 @@ body {
 
 .asset-value-box .asset-value-amount {
   font-weight: 700;
-  font-size: 1.77rem;
+  font-size: 2.44rem;
   line-height: 1.1;
   color: inherit;
 }
@@ -316,7 +320,15 @@ body {
   min-width: 240px;
   max-width: 300px;
   position: sticky;
-  top: 120px;
+  top: var(--top-banner-height);
+  height: calc(100vh - var(--top-banner-height) - 1rem);
+  max-height: calc(100vh - var(--top-banner-height) - 1rem);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.metrics-sidebar > * {
+  flex-shrink: 0;
 }
 
 .sidebar-logo {
@@ -339,6 +351,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  min-height: 0;
+  scrollbar-gutter: stable;
 }
 
 .sidebar-kpis .stat-box {
@@ -363,12 +380,16 @@ body {
     position: static;
     width: 100%;
     max-width: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .sidebar-kpis {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
+    overflow: visible;
   }
 
   .sidebar-kpis .stat-box {
@@ -382,6 +403,7 @@ body {
   font-weight: 700;
   display: block;
   width: 100%;
+  box-sizing: border-box;
   text-align: center;
   font-size: 10pt;
   padding: 4px 8px;
@@ -393,6 +415,30 @@ body {
   padding: 0.75rem;
   background: #156082;
   box-shadow: 0 10px 24px rgba(12, 61, 84, 0.35);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.econ-card--match-cashflow {
+  min-height: 460px;
+}
+
+.econ-card--match-cashflow .econ-card-title {
+  margin-bottom: 0.75rem;
+}
+
+.chart-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#summaryStats {
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .econ-card-title {

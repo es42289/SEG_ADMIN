@@ -18,6 +18,21 @@ const yearInput = document.getElementById('year');
     const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
     let currentMapStyle = MAPBOX_STYLE_TERRAIN;
 
+    const rootElement = document.documentElement;
+    const updateLayoutOffsets = () => {
+      const banner = document.querySelector('.top-banner');
+      if (!banner || !rootElement) return;
+      const bannerHeight = banner.offsetHeight;
+      if (bannerHeight > 0) {
+        rootElement.style.setProperty('--top-banner-height', `${bannerHeight}px`);
+      }
+    };
+
+    updateLayoutOffsets();
+    document.addEventListener('DOMContentLoaded', updateLayoutOffsets);
+    window.addEventListener('load', updateLayoutOffsets);
+    window.addEventListener('resize', updateLayoutOffsets);
+
     function updateStatus(message, isError = false, isSuccess = false) {
       if (!statusDiv) return;
       statusDiv.textContent = message;
