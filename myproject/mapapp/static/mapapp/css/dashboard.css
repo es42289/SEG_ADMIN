@@ -357,6 +357,17 @@ body {
   padding-right: 0.25rem;
   min-height: 0;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff #ffffff;
+}
+
+.sidebar-kpis::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-kpis::-webkit-scrollbar-track,
+.sidebar-kpis::-webkit-scrollbar-thumb {
+  background-color: #ffffff;
 }
 
 .sidebar-kpis .stat-box {

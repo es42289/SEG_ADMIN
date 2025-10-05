@@ -309,13 +309,15 @@
     const layout = {
       height: 400,
       title: {text: 'Value Loss Through Time', font: {size: 16, color: '#156082'}},
-      margin: {l: 70, r: 10, t: 50, b: 40},
+      margin: {l: 70, r: 10, t: 50, b: 60},
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
       xaxis: {
         type: 'date',
-        tickformat: '%m-%Y',
-        dtick: 'M6',
+        tickformat: '%Y',
+        dtick: 'M12',
+        tick0: '2000-01-01',
+        tickangle: 45,
         showgrid: false,
         tickfont: {size: 10, color: '#156082'},
         linecolor: '#156082',
