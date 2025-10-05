@@ -310,10 +310,11 @@ body {
 }
 
 .econ-card {
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(19, 108, 148, 0.9);
   border-radius: 12px;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: #156082;
+  box-shadow: 0 10px 24px rgba(12, 61, 84, 0.35);
 }
 
 .econ-card-title {
@@ -329,7 +330,7 @@ body {
 }
 
 #summaryStats.econ-card {
-  background: rgba(255, 255, 255, 0.12);
+  background: #1b6f96;
 }
 
 input#year[type="range"] {
