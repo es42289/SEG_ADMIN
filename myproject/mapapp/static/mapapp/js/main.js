@@ -653,19 +653,19 @@ const yearInput = document.getElementById('year');
       return { lineLats, lineLons };
     }
 
-    const PV_RATE_KEYS = ['pv0', 'pv10', 'pv12', 'pv14', 'pv16', 'pv18', 'pv20'];
+    const ROYALTY_RATE_KEY = 'pv17';
     window.wellPvCells = window.wellPvCells || {};
     window.latestPerWellPvMap = window.latestPerWellPvMap || null;
+
+    const formatCurrencyNoCents = (value) => {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return '';
+      return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    };
 
     function applyPerWellPvMap(pvMap) {
       if (!pvMap || typeof pvMap !== 'object') return;
       const cellsMap = window.wellPvCells || {};
-
-      const formatCurrency = (value) => {
-        const num = Number(value);
-        if (!Number.isFinite(num)) return '';
-        return '$' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
-      };
 
       for (const [apiKey, values] of Object.entries(pvMap)) {
         if (!values || typeof values !== 'object') continue;
@@ -679,16 +679,14 @@ const yearInput = document.getElementById('year');
         }
         if (!cellGroup) continue;
 
-        PV_RATE_KEYS.forEach(rateKey => {
-          const cell = cellGroup[rateKey];
-          if (!cell) return;
-          const rawValue = values[rateKey];
-          if (rawValue === null || rawValue === undefined || Number.isNaN(Number(rawValue))) {
-            cell.textContent = '';
-          } else {
-            cell.textContent = formatCurrency(rawValue);
-          }
-        });
+        const cell = cellGroup[ROYALTY_RATE_KEY];
+        if (!cell) continue;
+        const rawValue = values[ROYALTY_RATE_KEY];
+        if (rawValue === null || rawValue === undefined || Number.isNaN(Number(rawValue))) {
+          cell.textContent = '';
+        } else {
+          cell.textContent = formatCurrencyNoCents(rawValue);
+        }
       }
     }
 
@@ -704,7 +702,7 @@ const yearInput = document.getElementById('year');
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 21;
+        cell.colSpan = 15;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -748,11 +746,8 @@ const yearInput = document.getElementById('year');
           { key: 'net_gas_eur', value: data.net_gas_eur && data.net_gas_eur[i] != null ? formatVolume(data.net_gas_eur[i]) : '' },
           { key: 'remaining_net_oil', value: data.remaining_net_oil && data.remaining_net_oil[i] != null ? formatVolume(data.remaining_net_oil[i]) : '' },
           { key: 'remaining_net_gas', value: data.remaining_net_gas && data.remaining_net_gas[i] != null ? formatVolume(data.remaining_net_gas[i]) : '' },
+          { key: ROYALTY_RATE_KEY, value: data[ROYALTY_RATE_KEY] && data[ROYALTY_RATE_KEY][i] != null ? formatCurrencyNoCents(data[ROYALTY_RATE_KEY][i]) : '' },
         ];
-
-        PV_RATE_KEYS.forEach(rateKey => {
-          rowValues.push({ key: rateKey, value: '' });
-        });
 
         let pvCellStore = null;
         if (apiValue) {
@@ -766,7 +761,7 @@ const yearInput = document.getElementById('year');
           const td = document.createElement('td');
           td.textContent = value;
           row.appendChild(td);
-          if (pvCellStore && PV_RATE_KEYS.includes(key)) {
+          if (pvCellStore && key === ROYALTY_RATE_KEY) {
             pvCellStore[key] = td;
           }
         });

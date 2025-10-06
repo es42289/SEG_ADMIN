@@ -322,7 +322,7 @@
         tickfont: {size: 10, color: '#156082'},
         linecolor: '#156082',
         mirror: true,
-        title: {text: 'Sale Date', font: {size: 12, color: '#156082'}},
+        title: {text: 'Close Date', font: {size: 12, color: '#156082'}},
       },
       yaxis: {
         title: {text: 'Royalty Value ($)', font: {size: 10, color: '#156082'}},
