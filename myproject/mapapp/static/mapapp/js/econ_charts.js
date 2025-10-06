@@ -303,7 +303,7 @@
       marker: {color: '#156082', size: 8, line: {color: '#0b3d57', width: 1}},
       hovertemplate: '%{text}<br>$%{y:,.0f}<extra></extra>',
       text: textLabels,
-      name: 'Royalty Value'
+      name: 'Est. NRI Value'
     };
 
     const layout = {
@@ -325,7 +325,7 @@
         title: {text: 'Close Date', font: {size: 12, color: '#156082'}},
       },
       yaxis: {
-        title: {text: 'Royalty Value ($)', font: {size: 10, color: '#156082'}},
+        title: {text: 'Est. NRI Value ($)', font: {size: 10, color: '#156082'}},
         tickprefix: '$',
         tickfont: {size: 10, color: '#156082'},
         showgrid: false,
