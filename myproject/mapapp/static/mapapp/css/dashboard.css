@@ -213,14 +213,14 @@ body {
 
 .asset-value-box .asset-label {
   font-weight: 500;
-  font-size: 1.5rem;
+  font-size: calc(1.5rem - 4pt);
   color: inherit;
   margin-top: 0.35rem;
 }
 
 .asset-value-box .asset-value-amount {
   font-weight: 700;
-  font-size: 2.44rem;
+  font-size: calc(2.44rem - 4pt);
   line-height: 1.1;
   color: inherit;
   margin-bottom: 0.35rem;
@@ -318,8 +318,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-width: 240px;
-  max-width: 300px;
+  min-width: 192px;
+  max-width: 240px;
   position: sticky;
   top: var(--top-banner-height);
   height: calc(100vh - var(--top-banner-height) - 1rem);
