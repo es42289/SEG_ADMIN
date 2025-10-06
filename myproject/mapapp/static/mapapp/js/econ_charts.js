@@ -68,6 +68,9 @@
     if (data.stats || data.royalty_curve) {
       renderStats(statsEl, data.stats, data.royalty_curve);
     }
+    if (typeof window.updateCashflowMetrics === 'function' && data.stats) {
+      window.updateCashflowMetrics(data.stats.ltm_cf, data.stats.ntm_cf);
+    }
     if (data.per_well_pv && typeof window.updateWellPvValues === 'function') {
       window.updateWellPvValues(data.per_well_pv);
     }

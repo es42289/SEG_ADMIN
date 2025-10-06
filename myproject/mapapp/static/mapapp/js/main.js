@@ -9,6 +9,8 @@ const yearInput = document.getElementById('year');
     const lastYearGas = document.getElementById('last-year-gas');
     const nextYearOil = document.getElementById('next-year-oil');
     const nextYearGas = document.getElementById('next-year-gas');
+    const lastYearCashflow = document.getElementById('last-year-cashflow');
+    const nextYearCashflow = document.getElementById('next-year-cashflow');
     const effectiveDate = document.getElementById('effective-date');
     const lastProductionDate = document.getElementById('last-production-date');
     // Removed references to totalNearby elements as they were removed from the HTML
@@ -61,6 +63,30 @@ const yearInput = document.getElementById('year');
         valueEl.textContent = typeof value === 'number' ? value.toString() : value;
       }
     };
+
+    const formatCurrencyStat = (value) => {
+      if (value === undefined || value === null) return null;
+      const num = Number(value);
+      if (!Number.isFinite(num)) return null;
+      return num.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+      });
+    };
+
+    function updateCashflowMetrics(ltmValue, ntmValue) {
+      if (lastYearCashflow) {
+        const formatted = formatCurrencyStat(ltmValue);
+        setStatValue(lastYearCashflow, formatted, '--');
+      }
+      if (nextYearCashflow) {
+        const formatted = formatCurrencyStat(ntmValue);
+        setStatValue(nextYearCashflow, formatted, '--');
+      }
+    }
+
+    window.updateCashflowMetrics = updateCashflowMetrics;
 
     function updateEffectiveDateDisplay() {
       if (!effectiveDate) return;
