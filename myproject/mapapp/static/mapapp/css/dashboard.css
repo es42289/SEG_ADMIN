@@ -195,8 +195,9 @@ body {
   color: #064e3b;
   display: flex;
   flex-direction: column;
-  justify-content: top;
-  align-items: flex-start;
+  justify-content: center;   /* was top */
+  align-items: center;       /* was flex-start */
+  text-align: center;
   padding: 1px 10px 1px;
   border-radius: 8px;
   flex: 0 1 130px;
@@ -380,6 +381,9 @@ body {
 
 .sidebar-kpis .stat-box {
   position: relative;
+  justify-content: center;   /* was top */
+  align-items: center;       /* was flex-start */
+  text-align: center;
   display: block;
   width: 100%;
   text-align: left;
