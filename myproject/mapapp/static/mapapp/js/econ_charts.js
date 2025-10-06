@@ -65,7 +65,9 @@
     if (cumEl && data.cum) renderCum(cumEl, data.cum);
     if (windowEl && data.window) renderWindow(windowEl, data.window);
     if (summaryEl && data.summary) renderSummary(summaryEl, data.summary);
-    if (statsEl && data.stats) renderStats(statsEl, data.stats, data.royalty_curve);
+    if (data.stats || data.royalty_curve) {
+      renderStats(statsEl, data.stats, data.royalty_curve);
+    }
     if (data.per_well_pv && typeof window.updateWellPvValues === 'function') {
       window.updateWellPvValues(data.per_well_pv);
     }
@@ -227,7 +229,7 @@
 
   function renderStats(el, stats, royaltyCurve){
     const target = resolveEl(el);
-    if(!target) return;
+    const statData = stats || {};
 
     function formatNumber(v){
       const num = Number(v ?? 0);
@@ -248,7 +250,7 @@
     if (assetValueBox) {
       const amountEl = assetValueBox.querySelector('.asset-value-amount');
       if (amountEl) {
-        const pv17 = Number(stats && stats.pv17);
+        const pv17 = Number(statData && statData.pv17);
         if (Number.isFinite(pv17)) {
           const formatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
           const absFormatted = formatter.format(Math.round(Math.abs(pv17)));
@@ -260,20 +262,22 @@
     }
 
     const mapping = {
-      'stat-ltm-oil': `Last 12 Months Oil: <br>${formatNumber(stats.ltm_oil)} BBL`,
-      'stat-ltm-gas': `Last 12 Months Gas: <br>${formatNumber(stats.ltm_gas)} MCF`,
-      'stat-ltm-cf': `Last 12 Months Cashflow: <br>${formatCurrency(stats.ltm_cf)}`,
-      'stat-ntm-oil': `Next 12 Months Oil: <br>${formatNumber(stats.ntm_oil)} BBL`,
-      'stat-ntm-gas': `Next 12 Months Gas: <br>${formatNumber(stats.ntm_gas)} MCF`,
-      'stat-ntm-cf': `Next 12 Months Cashflow: <br>${formatCurrency(stats.ntm_cf)}`
+      'stat-ltm-oil': `Last 12 Months Oil: <br>${formatNumber(statData.ltm_oil)} BBL`,
+      'stat-ltm-gas': `Last 12 Months Gas: <br>${formatNumber(statData.ltm_gas)} MCF`,
+      'stat-ltm-cf': `Last 12 Months Cashflow: <br>${formatCurrency(statData.ltm_cf)}`,
+      'stat-ntm-oil': `Next 12 Months Oil: <br>${formatNumber(statData.ntm_oil)} BBL`,
+      'stat-ntm-gas': `Next 12 Months Gas: <br>${formatNumber(statData.ntm_gas)} MCF`,
+      'stat-ntm-cf': `Next 12 Months Cashflow: <br>${formatCurrency(statData.ntm_cf)}`
     };
 
-    Object.entries(mapping).forEach(([id, html]) => {
-      const statEl = document.getElementById(id);
-      if (statEl) {
-        statEl.innerHTML = html;
-      }
-    });
+    if (target) {
+      Object.entries(mapping).forEach(([id, html]) => {
+        const statEl = document.getElementById(id);
+        if (statEl) {
+          statEl.innerHTML = html;
+        }
+      });
+    }
 
     renderRoyaltyChart('royaltyValueChart', royaltyCurve);
   }
