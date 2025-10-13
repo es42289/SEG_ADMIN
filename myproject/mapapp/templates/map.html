@@ -11,10 +11,24 @@
     <div class="login-content">
       {% if request.session.user %}
         Logged in as: <strong>&nbsp;{{ request.session.user.name|default:request.session.user.email }}</strong>
-        <a href="/logout/">Logout</a>
+        <a href="/logout/" class="login-link">Logout</a>
       {% else %}
-        <a href="/login/">Login</a>
+        <a href="/login/" class="login-link">Login</a>
       {% endif %}
+    </div>
+    <div class="login-actions" role="navigation" aria-label="Quick links">
+      <a href="/docs/" class="login-action" title="View documentation">
+        <span class="login-action__icon" aria-hidden="true">📄</span>
+        <span class="login-action__label">Docs</span>
+      </a>
+      <a href="/owner-profile/" class="login-action" title="View owner profile">
+        <span class="login-action__icon" aria-hidden="true">👤</span>
+        <span class="login-action__label">Owner Profile</span>
+      </a>
+      <a href="/chat/" class="login-action" title="Open chat">
+        <span class="login-action__icon" aria-hidden="true">💬</span>
+        <span class="login-action__label">Chat</span>
+      </a>
     </div>
   </div>
   <div class="top-banner-disclaimer">
