@@ -506,6 +506,8 @@ const yearInput = document.getElementById('year');
         }
       }];
 
+      const chartElement = document.getElementById(chartId);
+
       const layout = {
         title: {
           text: `Wells within ${radiusMiles} Miles by Age`,
@@ -524,10 +526,32 @@ const yearInput = document.getElementById('year');
           color: '#eaeaea',
           gridcolor: '#66666668'
         },
-        margin: { t: 50, r: 20, b: 60, l: 60 }
+        margin: { t: 50, r: 20, b: 60, l: 60 },
+        autosize: true
       };
 
-      Plotly.newPlot(chartId, data, layout, {displayModeBar: false});
+      if (chartElement) {
+        const elementHeight = chartElement.getBoundingClientRect().height;
+        if (elementHeight > 0) {
+          layout.height = elementHeight;
+        } else if (chartElement.parentElement) {
+          const parentHeight = chartElement.parentElement.getBoundingClientRect().height;
+          if (parentHeight > 0) {
+            layout.height = parentHeight;
+          }
+        }
+      }
+
+      Plotly.newPlot(chartElement || chartId, data, layout, { displayModeBar: false, responsive: true });
+
+      if (chartElement) {
+        Plotly.Plots.resize(chartElement);
+
+        if (!chartElement.dataset.resizeBound) {
+          chartElement.dataset.resizeBound = 'true';
+          window.addEventListener('resize', () => Plotly.Plots.resize(chartElement));
+        }
+      }
 
       // Removed the code that updates the total count display elements
     }
