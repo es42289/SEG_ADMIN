@@ -387,7 +387,7 @@ body {
   gap: 0.35rem;
   width: 100%;
   margin: 0;
-  padding: 0.5rem 1.1rem;
+  padding: 0.75rem 1.1rem;
   border-radius: 12px;
   background: #156082;
   overflow: hidden;
@@ -433,7 +433,7 @@ body {
 }
 
 .sidebar-kpis .stat-label {
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   display: block;
