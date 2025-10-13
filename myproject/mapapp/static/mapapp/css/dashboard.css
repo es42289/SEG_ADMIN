@@ -388,7 +388,7 @@ body {
   width: 100%;
   text-align: left;
   margin: 0;
-  padding: 1.1rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   border-radius: 12px;
   background: #156082;
   overflow: hidden;
@@ -437,10 +437,14 @@ body {
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.01em;
+  display: block;
+  text-align: left;
 }
 
 .sidebar-kpis .stat-value {
   font-size: 1.2rem;
+  display: block;
+  text-align: center;
 }
 
 .sidebar-kpis .stat-box:hover {
