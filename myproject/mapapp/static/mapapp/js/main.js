@@ -1093,7 +1093,7 @@ const yearInput = document.getElementById('year');
               center: nearbyAnalysis20.centroid ? 
                 { lat: nearbyAnalysis20.centroid.lat, lon: nearbyAnalysis20.centroid.lon } :
                 { lat: 31.0, lon: -99.0 },
-              zoom: nearbyAnalysis20.centroid ? 8 : 6
+              zoom: nearbyAnalysis20.centroid ? 9 : 6
             },
             margin: { t: 40, r: 10, b: 10, l: 10 },
             height: window.innerHeight * 0.75,
