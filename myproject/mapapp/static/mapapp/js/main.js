@@ -1109,7 +1109,7 @@ const yearInput = document.getElementById('year');
             }
           };
 
-          await Plotly.react('map', traces, layout, {scrollZoom: true});
+          await Plotly.react('map', traces, layout, {scrollZoom: false});
           
           // ADD CIRCLE AFTER MAP IS CREATED - separate operation that doesn't affect your trace structure
           if (userWellData && userWellData.lat && userWellData.lat.length > 0) {
