@@ -1,8 +1,9 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import os
 import snowflake.connector
+from snowflake.connector import DictCursor
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from django.shortcuts import render, redirect
@@ -91,6 +92,43 @@ def get_snowflake_connection():
         private_key_bytes = _load_private_key_from_secrets_manager()
 
     return snowflake.connector.connect(**_build_snowflake_config(private_key_bytes))
+
+
+def _format_timestamp_for_json(value):
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        else:
+            value = value.astimezone(timezone.utc)
+        return value.isoformat().replace('+00:00', 'Z')
+    return str(value)
+
+
+def _parse_iso_timestamp(value):
+    if not value:
+        return None
+
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if cleaned.endswith('Z'):
+            cleaned = f"{cleaned[:-1]}+00:00"
+        try:
+            parsed = datetime.fromisoformat(cleaned)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+
+    return None
 
 def _snowflake_points():
     private_key_bytes = _load_private_key_from_env()
@@ -371,6 +409,139 @@ def user_wells_data(request):
         "owner_interest": [r["owner_interest"] for r in rows],
         "owner_name": [r["owner_name"] for r in rows],
     })
+
+@csrf_exempt
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
+def user_feedback_entries(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    user_info = request.session.get("user") or {}
+    user_email = user_info.get("email")
+
+    if not user_email:
+        return JsonResponse({"detail": "User email unavailable."}, status=400)
+
+    conn = get_snowflake_connection()
+    cur = None
+
+    try:
+        cur = conn.cursor(DictCursor)
+
+        if request.method == "GET":
+            cur.execute(
+                """
+                SELECT FEEDBACK_TEXT, SUBMITTED_AT, USERNAME
+                FROM WELLS.MINERALS.USER_FEEDBACK
+                WHERE USERNAME = %s
+                ORDER BY SUBMITTED_AT DESC
+                """,
+                (user_email,),
+            )
+            rows = cur.fetchall()
+            entries = [
+                {
+                    "feedback_text": row.get("FEEDBACK_TEXT"),
+                    "submitted_at": _format_timestamp_for_json(row.get("SUBMITTED_AT")),
+                    "username": row.get("USERNAME"),
+                }
+                for row in rows
+            ]
+            return JsonResponse({"entries": entries})
+
+        try:
+            payload = json.loads(request.body or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+        if request.method == "POST":
+            feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
+            if not feedback_text:
+                return JsonResponse({"detail": "Feedback text is required."}, status=400)
+
+            submitted_at = datetime.now(timezone.utc)
+            cur.execute(
+                """
+                INSERT INTO WELLS.MINERALS.USER_FEEDBACK (FEEDBACK_TEXT, SUBMITTED_AT, USERNAME)
+                VALUES (%s, %s, %s)
+                """,
+                (feedback_text, submitted_at, user_email),
+            )
+            conn.commit()
+            return JsonResponse(
+                {
+                    "entry": {
+                        "feedback_text": feedback_text,
+                        "submitted_at": _format_timestamp_for_json(submitted_at),
+                        "username": user_email,
+                    }
+                },
+                status=201,
+            )
+
+        if request.method == "PUT":
+            original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
+            new_feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
+
+            if not original_submitted_at:
+                return JsonResponse({"detail": "submitted_at is required."}, status=400)
+            if not new_feedback_text:
+                return JsonResponse({"detail": "Feedback text is required."}, status=400)
+
+            updated_timestamp = datetime.now(timezone.utc)
+            cur.execute(
+                """
+                UPDATE WELLS.MINERALS.USER_FEEDBACK
+                SET FEEDBACK_TEXT = %s, SUBMITTED_AT = %s
+                WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                """,
+                (new_feedback_text, updated_timestamp, user_email, original_submitted_at),
+            )
+
+            if cur.rowcount == 0:
+                conn.rollback()
+                return JsonResponse({"detail": "Feedback entry not found."}, status=404)
+
+            conn.commit()
+            return JsonResponse(
+                {
+                    "entry": {
+                        "feedback_text": new_feedback_text,
+                        "submitted_at": _format_timestamp_for_json(updated_timestamp),
+                        "username": user_email,
+                    }
+                }
+            )
+
+        if request.method == "DELETE":
+            original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
+            if not original_submitted_at:
+                return JsonResponse({"detail": "submitted_at is required."}, status=400)
+
+            cur.execute(
+                """
+                DELETE FROM WELLS.MINERALS.USER_FEEDBACK
+                WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                """,
+                (user_email, original_submitted_at),
+            )
+
+            if cur.rowcount == 0:
+                conn.rollback()
+                return JsonResponse({"detail": "Feedback entry not found."}, status=404)
+
+            conn.commit()
+            return JsonResponse({"deleted_at": _format_timestamp_for_json(original_submitted_at)})
+
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+    finally:
+        if cur is not None:
+            try:
+                cur.close()
+            except Exception:
+                pass
+        conn.close()
+
 
 @csrf_exempt
 @require_http_methods(["POST"])

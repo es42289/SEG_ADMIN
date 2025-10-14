@@ -98,6 +98,172 @@ body {
   line-height: 1.4;
 }
 
+.feedback-status {
+  min-height: 1.25rem;
+  color: #ffffff;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+  transition: opacity 0.2s ease;
+  opacity: 0;
+}
+
+.feedback-status--success {
+  color: #8fe7b5;
+}
+
+.feedback-status--error {
+  color: #ffb8b8;
+}
+
+.feedback-history {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.feedback-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #ffffff;
+}
+
+.feedback-history__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.feedback-history__refresh {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 6px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.feedback-history__refresh:hover,
+.feedback-history__refresh:focus {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.feedback-history__table-wrapper {
+  position: relative;
+  background: rgba(6, 48, 71, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 0.5rem;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+#feedback-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #ffffff;
+  font-size: 0.85rem;
+}
+
+#feedback-table thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(21, 96, 130, 0.95);
+  padding: 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  z-index: 1;
+}
+
+#feedback-table tbody td {
+  padding: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  vertical-align: top;
+}
+
+.feedback-history__actions-header,
+#feedback-table tbody td.feedback-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.feedback-history__empty {
+  display: none;
+  margin: 0.5rem 0 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.feedback-history__empty.is-visible {
+  display: block;
+}
+
+.feedback-action {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  padding: 0.2rem 0.6rem;
+  margin-left: 0.35rem;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.feedback-action:first-of-type {
+  margin-left: 0;
+}
+
+.feedback-action:hover,
+.feedback-action:focus {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.feedback-action--danger {
+  border-color: rgba(255, 184, 184, 0.8);
+  color: #ffb8b8;
+}
+
+.feedback-action--primary {
+  border-color: rgba(143, 231, 181, 0.8);
+  color: #8fe7b5;
+}
+
+.feedback-edit-textarea {
+  width: 100%;
+  min-height: 6rem;
+  resize: vertical;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(2, 30, 44, 0.6);
+  color: #ffffff;
+  font: inherit;
+}
+
+.feedback-row--saving {
+  opacity: 0.65;
+}
+
+.feedback-history__table-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.feedback-history__table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+}
+
+.feedback-history__table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 #prodChart,
 #userWellsMap {
   width: 100%;
@@ -189,6 +355,16 @@ body {
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
   font-size: 0.75rem;
   text-align: center;
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.login-action:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
 }
 
 .login-action__icon {

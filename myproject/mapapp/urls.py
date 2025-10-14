@@ -13,4 +13,5 @@ urlpatterns = [
     path('bulk-production/', views.bulk_well_production, name='bulk_well_production'),
     path('price-decks/', views.price_decks, name='price_decks'),
     path('econ-data/', views.economics_data, name='economics_data'),
+    path('feedback/', views.user_feedback_entries, name='user_feedback_entries'),
 ]

@@ -22,24 +22,24 @@
       Below you will find your assets as best represented by public data and utilizing any data provided by you, the owner. Given the data available, we would value and purchase your royalties at the asset price shown above. If this interests you or think we missed something, please reach out. We want this dashboard to be helpful and an ongoing tool you can use. We will keep it updated monthly and you can access anytime you’d like for $4/month.
     </div>
     <div class="login-actions" role="navigation" aria-label="Quick links">
-      <a href="/docs/" class="login-action" title="View documentation">
+      <button type="button" class="login-action" title="Documentation (coming soon)">
         <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M6.75 2.5h7.19c.2 0 .39.08.53.22l4.31 4.31c.14.14.22.33.22.53v13.94c0 .6-.49 1.1-1.09 1.1H6.75c-.6 0-1.09-.5-1.09-1.1V3.6c0-.6.49-1.1 1.09-1.1Zm6.1 1.5H6.75a.1.1 0 0 0-.09.1v17.9c0 .05.04.1.09.1h11.16c.05 0 .09-.05.09-.1V7.71h-4.31c-.6 0-1.1-.5-1.1-1.1V4Zm1.5.44v2.17h2.17L14.35 4.94Z"/>
         </svg>
         <span class="login-action__label">Docs</span>
-      </a>
-      <a href="/owner-profile/" class="login-action" title="View owner profile">
+      </button>
+      <button type="button" class="login-action" title="Owner profile (coming soon)">
         <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M12 12.5a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 1.5c-4.07 0-7.5 2.78-7.5 6.02 0 .76.62 1.48 1.64 1.48h11.72c1.02 0 1.64-.72 1.64-1.48 0-3.24-3.43-6.02-7.5-6.02Z"/>
         </svg>
         <span class="login-action__label">Owner Profile</span>
-      </a>
-      <a href="/chat/" class="login-action" title="Open chat">
+      </button>
+      <button type="button" class="login-action" title="Chat (coming soon)">
         <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M4.5 4A1.5 1.5 0 0 0 3 5.5v9A1.5 1.5 0 0 0 4.5 16H7v3.25a.75.75 0 0 0 1.22.57L13 16h6.5A1.5 1.5 0 0 0 21 14.5v-9A1.5 1.5 0 0 0 19.5 4h-15Z"/>
         </svg>
         <span class="login-action__label">Chat</span>
-      </a>
+      </button>
     </div>
   </div>
 </div>
@@ -235,12 +235,32 @@
       <p style="color:#fff; margin-bottom:1rem; text-align:left;">
         Please provide feedback regarding any discrepancies or misrepresentations this application displays.
       </p>
+      <div id="feedback-status" class="feedback-status" role="status" aria-live="polite"></div>
       <form id="feedback-form" style="display:flex; flex-direction:column; gap:0.75rem;">
         <textarea id="feedback-text" name="feedback" rows="8" placeholder="Enter your feedback here" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid #0f4a63; resize:vertical; box-sizing:border-box;"></textarea>
         <button id="feedback-submit" type="submit" style="align-self:flex-end; background:#fff; color:#156082; border:none; padding:0.5rem 1.25rem; border-radius:6px; cursor:pointer; font-weight:600;">
           Submit Feedback
         </button>
       </form>
+      <div id="feedback-history" class="feedback-history">
+        <div class="feedback-history__header">
+          <h4 class="feedback-history__title">Submitted Feedback</h4>
+          <button type="button" class="feedback-history__refresh" id="feedback-refresh">Refresh</button>
+        </div>
+        <div class="feedback-history__table-wrapper">
+          <table id="feedback-table" aria-describedby="feedback-status">
+            <thead>
+              <tr>
+                <th scope="col">Submitted</th>
+                <th scope="col">Feedback</th>
+                <th scope="col" class="feedback-history__actions-header">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="feedback-empty" class="feedback-history__empty" role="note">No feedback submitted yet.</div>
+        </div>
+      </div>
     </section>
 
     <section id="supporting-docs" class="dashboard-panel">

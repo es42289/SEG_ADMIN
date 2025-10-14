@@ -1283,25 +1283,325 @@ const yearInput = document.getElementById('year');
 
     const feedbackForm = document.getElementById('feedback-form');
     const feedbackTextarea = document.getElementById('feedback-text');
-    if (feedbackForm && feedbackTextarea) {
-      const originalPlaceholder = feedbackTextarea.getAttribute('placeholder') || '';
-      let feedbackResetTimeout = null;
+    const feedbackSubmitButton = document.getElementById('feedback-submit');
+    const feedbackStatus = document.getElementById('feedback-status');
+    const feedbackTableBody = document.querySelector('#feedback-table tbody');
+    const feedbackEmptyState = document.getElementById('feedback-empty');
+    const feedbackRefreshButton = document.getElementById('feedback-refresh');
 
-      feedbackForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-        feedbackTextarea.value = '';
-        feedbackTextarea.blur();
-        feedbackTextarea.setAttribute('readonly', 'readonly');
-        feedbackTextarea.value = 'Feedback Submitted!';
+    const feedbackDateFormatter = new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
 
-        if (feedbackResetTimeout) {
-          clearTimeout(feedbackResetTimeout);
+    let feedbackEntries = [];
+    let feedbackStatusTimeoutId = null;
+    let isFeedbackLoading = false;
+
+    const normaliseIsoString = (value) => {
+      if (typeof value !== 'string') return value;
+      return value.endsWith('Z') ? `${value.slice(0, -1)}+00:00` : value;
+    };
+
+    const parseIsoDate = (value) => {
+      if (!value) return null;
+      const parsed = new Date(normaliseIsoString(value));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const formatFeedbackTimestamp = (value) => {
+      const date = parseIsoDate(value);
+      if (!date) return '--';
+      return feedbackDateFormatter.format(date);
+    };
+
+    const setFeedbackStatus = (message, variant = 'info') => {
+      if (!feedbackStatus) return;
+      feedbackStatus.textContent = message || '';
+      feedbackStatus.className = 'feedback-status';
+      feedbackStatus.style.opacity = message ? 1 : 0;
+
+      if (message) {
+        if (variant === 'success') {
+          feedbackStatus.classList.add('feedback-status--success');
+        } else if (variant === 'error') {
+          feedbackStatus.classList.add('feedback-status--error');
         }
 
-        feedbackResetTimeout = window.setTimeout(() => {
-          feedbackTextarea.value = '';
-          feedbackTextarea.removeAttribute('readonly');
-          feedbackTextarea.setAttribute('placeholder', originalPlaceholder);
-        }, 2000);
+        if (feedbackStatusTimeoutId) {
+          window.clearTimeout(feedbackStatusTimeoutId);
+        }
+
+        feedbackStatusTimeoutId = window.setTimeout(() => {
+          feedbackStatus.style.opacity = 0;
+          feedbackStatusTimeoutId = null;
+        }, 4000);
+      } else if (feedbackStatusTimeoutId) {
+        window.clearTimeout(feedbackStatusTimeoutId);
+        feedbackStatusTimeoutId = null;
+      }
+    };
+
+    const toggleFeedbackEmptyState = () => {
+      if (!feedbackEmptyState) return;
+      if (!feedbackEntries.length) {
+        feedbackEmptyState.classList.add('is-visible');
+      } else {
+        feedbackEmptyState.classList.remove('is-visible');
+      }
+    };
+
+    const renderFeedbackEntries = () => {
+      if (!feedbackTableBody) return;
+      feedbackTableBody.innerHTML = '';
+
+      feedbackEntries.forEach((entry) => {
+        const row = document.createElement('tr');
+        row.dataset.submittedAt = entry.submitted_at;
+        if (entry.isSaving) {
+          row.classList.add('feedback-row--saving');
+        }
+
+        const submittedCell = document.createElement('td');
+        submittedCell.textContent = formatFeedbackTimestamp(entry.submitted_at);
+        row.appendChild(submittedCell);
+
+        const feedbackCell = document.createElement('td');
+        if (entry.isEditing) {
+          const textarea = document.createElement('textarea');
+          textarea.className = 'feedback-edit-textarea';
+          textarea.value = entry.editDraft ?? entry.feedback_text ?? '';
+          textarea.addEventListener('input', (event) => {
+            entry.editDraft = event.target.value;
+          });
+          feedbackCell.appendChild(textarea);
+        } else {
+          feedbackCell.textContent = entry.feedback_text || '--';
+        }
+        row.appendChild(feedbackCell);
+
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'feedback-actions';
+
+        if (entry.isEditing) {
+          const saveBtn = document.createElement('button');
+          saveBtn.type = 'button';
+          saveBtn.className = 'feedback-action feedback-action--primary';
+          saveBtn.textContent = 'Save';
+          saveBtn.addEventListener('click', () => {
+            saveFeedbackEdit(entry);
+          });
+
+          const cancelBtn = document.createElement('button');
+          cancelBtn.type = 'button';
+          cancelBtn.className = 'feedback-action';
+          cancelBtn.textContent = 'Cancel';
+          cancelBtn.addEventListener('click', () => {
+            entry.isEditing = false;
+            entry.editDraft = undefined;
+            renderFeedbackEntries();
+          });
+
+          actionsCell.appendChild(saveBtn);
+          actionsCell.appendChild(cancelBtn);
+        } else {
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'feedback-action';
+          editBtn.textContent = 'Edit';
+          editBtn.addEventListener('click', () => {
+            entry.isEditing = true;
+            entry.editDraft = entry.feedback_text;
+            renderFeedbackEntries();
+          });
+
+          const deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.className = 'feedback-action feedback-action--danger';
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.addEventListener('click', () => {
+            deleteFeedbackEntry(entry);
+          });
+
+          actionsCell.appendChild(editBtn);
+          actionsCell.appendChild(deleteBtn);
+        }
+
+        row.appendChild(actionsCell);
+        feedbackTableBody.appendChild(row);
       });
+
+      toggleFeedbackEmptyState();
+    };
+
+    const hydrateFeedbackEntries = (entries) => {
+      feedbackEntries = Array.isArray(entries)
+        ? entries.map((entry) => ({ ...entry }))
+        : [];
+      renderFeedbackEntries();
+    };
+
+    const loadFeedbackEntries = async (showStatus = false) => {
+      if (!feedbackTableBody || isFeedbackLoading) return;
+      isFeedbackLoading = true;
+      if (showStatus) {
+        setFeedbackStatus('Refreshing feedback history...');
+      }
+      if (feedbackRefreshButton) {
+        feedbackRefreshButton.disabled = true;
+      }
+
+      try {
+        const response = await fetch('/feedback/');
+        if (!response.ok) {
+          throw new Error(`Unexpected status: ${response.status}`);
+        }
+        const payload = await response.json();
+        hydrateFeedbackEntries(payload.entries || []);
+        if (showStatus) {
+          setFeedbackStatus('Feedback history updated.', 'success');
+        } else {
+          setFeedbackStatus('');
+        }
+      } catch (error) {
+        console.error('Failed to load feedback entries:', error);
+        setFeedbackStatus('Unable to load feedback history right now.', 'error');
+      } finally {
+        isFeedbackLoading = false;
+        if (feedbackRefreshButton) {
+          feedbackRefreshButton.disabled = false;
+        }
+      }
+    };
+
+    const saveFeedbackEdit = async (entry) => {
+      const newText = (entry.editDraft ?? '').trim();
+      if (!newText) {
+        setFeedbackStatus('Feedback text cannot be empty.', 'error');
+        return;
+      }
+
+      entry.isSaving = true;
+      renderFeedbackEntries();
+
+      try {
+        const response = await fetch('/feedback/', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submitted_at: entry.submitted_at,
+            feedback_text: newText
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unexpected status: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const updatedEntry = payload.entry || {};
+        entry.feedback_text = updatedEntry.feedback_text ?? newText;
+        entry.submitted_at = updatedEntry.submitted_at ?? entry.submitted_at;
+        entry.isEditing = false;
+        entry.editDraft = undefined;
+        setFeedbackStatus('Feedback updated.', 'success');
+      } catch (error) {
+        console.error('Failed to update feedback entry:', error);
+        setFeedbackStatus('Unable to update feedback. Please try again.', 'error');
+      } finally {
+        entry.isSaving = false;
+        renderFeedbackEntries();
+      }
+    };
+
+    const deleteFeedbackEntry = async (entry) => {
+      if (!window.confirm('Delete this feedback entry?')) {
+        return;
+      }
+
+      entry.isSaving = true;
+      renderFeedbackEntries();
+
+      try {
+        const response = await fetch('/feedback/', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ submitted_at: entry.submitted_at })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unexpected status: ${response.status}`);
+        }
+
+        feedbackEntries = feedbackEntries.filter((item) => item !== entry);
+        renderFeedbackEntries();
+        setFeedbackStatus('Feedback removed.', 'success');
+      } catch (error) {
+        console.error('Failed to delete feedback entry:', error);
+        entry.isSaving = false;
+        renderFeedbackEntries();
+        setFeedbackStatus('Unable to delete feedback. Please try again.', 'error');
+      }
+    };
+
+    if (feedbackTableBody) {
+      toggleFeedbackEmptyState();
+    }
+
+    if (feedbackRefreshButton) {
+      feedbackRefreshButton.addEventListener('click', () => {
+        loadFeedbackEntries(true);
+      });
+    }
+
+    if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
+      const originalButtonText = feedbackSubmitButton.textContent;
+
+      feedbackForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const feedbackValue = (feedbackTextarea.value || '').trim();
+
+        if (!feedbackValue) {
+          setFeedbackStatus('Please enter feedback before submitting.', 'error');
+          feedbackTextarea.focus();
+          return;
+        }
+
+        try {
+          feedbackTextarea.setAttribute('disabled', 'disabled');
+          feedbackSubmitButton.disabled = true;
+          feedbackSubmitButton.textContent = 'Submitting...';
+          setFeedbackStatus('Submitting feedback...');
+
+          const response = await fetch('/feedback/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ feedback_text: feedbackValue })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Unexpected status: ${response.status}`);
+          }
+
+          const payload = await response.json();
+          const newEntry = payload.entry || {};
+          feedbackEntries = [
+            newEntry,
+            ...feedbackEntries.filter((entry) => entry.submitted_at !== newEntry.submitted_at)
+          ];
+          renderFeedbackEntries();
+          feedbackForm.reset();
+          setFeedbackStatus('Feedback submitted. Thank you!', 'success');
+        } catch (error) {
+          console.error('Failed to submit feedback:', error);
+          setFeedbackStatus('Unable to submit feedback right now.', 'error');
+        } finally {
+          feedbackTextarea.removeAttribute('disabled');
+          feedbackSubmitButton.disabled = false;
+          feedbackSubmitButton.textContent = originalButtonText;
+          feedbackTextarea.focus();
+        }
+      });
+
+      loadFeedbackEntries();
     }
