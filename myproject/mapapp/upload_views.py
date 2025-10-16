@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
 import boto3
 from botocore.exceptions import ClientError
@@ -21,6 +22,10 @@ S3_BUCKET_NAME = "seg-user-document-uploads"
 S3_REGION = "us-east-2"
 UPLOAD_URL_EXPIRES_IN = 600  # 10 minutes
 DOWNLOAD_URL_EXPIRES_IN = 90  # seconds
+
+
+logger = logging.getLogger(__name__)
+_configured_cors_origins: Set[str] = set()
 
 
 def _json_from_body(request) -> Dict[str, Any]:
@@ -51,6 +56,85 @@ def _dict_get(row: Dict[str, Any], key: str, default: Any = None) -> Any:
     return row.get(key) or row.get(key.lower()) or row.get(key.upper()) or default
 
 
+def _normalize_origin(origin: Optional[str]) -> Optional[str]:
+    if not origin:
+        return None
+    origin = origin.strip()
+    if not origin or origin.lower() == "null":
+        return None
+    return origin.rstrip("/") or None
+
+
+def _ensure_bucket_cors_allows_origin(s3_client, origin: Optional[str]) -> None:
+    normalized = _normalize_origin(origin)
+    if not normalized or normalized in _configured_cors_origins:
+        return
+
+    try:
+        response = s3_client.get_bucket_cors(Bucket=S3_BUCKET_NAME)
+        rules = list(response.get("CORSRules", []))
+    except ClientError as exc:
+        error_code = exc.response.get("Error", {}).get("Code") if hasattr(exc, "response") else None
+        if error_code == "NoSuchCORSConfiguration":
+            rules = []
+        else:
+            logger.warning("Unable to read S3 bucket CORS configuration: %s", exc)
+            return
+
+    required_methods = {"GET", "HEAD", "PUT"}
+
+    def rule_covers_origin(rule: Dict[str, Any]) -> bool:
+        origins = {_normalize_origin(item) for item in rule.get("AllowedOrigins", [])}
+        return "*" in origins or normalized in origins
+
+    def rule_satisfies_requirements(rule: Dict[str, Any]) -> bool:
+        methods = {method.upper() for method in rule.get("AllowedMethods", [])}
+        headers = {header.lower() for header in rule.get("AllowedHeaders", [])}
+        return required_methods.issubset(methods) and ("*" in headers or "content-type" in headers)
+
+    matching_rule = next((rule for rule in rules if rule_covers_origin(rule)), None)
+
+    if matching_rule and rule_satisfies_requirements(matching_rule):
+        _configured_cors_origins.add(normalized)
+        return
+
+    updated_rules = list(rules)
+
+    target_origin = normalized
+
+    if matching_rule:
+        matching_rule.setdefault("AllowedOrigins", [])
+        if target_origin not in {_normalize_origin(item) for item in matching_rule["AllowedOrigins"]}:
+            matching_rule["AllowedOrigins"].append(target_origin)
+        existing_methods = {method.upper() for method in matching_rule.get("AllowedMethods", [])}
+        matching_rule["AllowedMethods"] = sorted(existing_methods.union(required_methods))
+        headers = set(matching_rule.get("AllowedHeaders", []))
+        headers.add("*")
+        matching_rule["AllowedHeaders"] = sorted(headers, key=lambda value: (value != "*", value))
+        expose_headers = set(matching_rule.get("ExposeHeaders", []))
+        expose_headers.add("ETag")
+        matching_rule["ExposeHeaders"] = sorted(expose_headers)
+    else:
+        updated_rules.append(
+            {
+                "AllowedHeaders": ["*"],
+                "AllowedMethods": sorted(required_methods),
+                "AllowedOrigins": [target_origin],
+                "ExposeHeaders": ["ETag"],
+                "MaxAgeSeconds": 300,
+            }
+        )
+
+    try:
+        s3_client.put_bucket_cors(
+            Bucket=S3_BUCKET_NAME,
+            CORSConfiguration={"CORSRules": updated_rules},
+        )
+        _configured_cors_origins.add(normalized)
+    except ClientError as exc:
+        logger.warning("Unable to update S3 bucket CORS configuration for %s: %s", origin, exc)
+
+
 @method_decorator(csrf_exempt, name="dispatch")
 class StartUpload(LoginRequiredMixin, View):
     """Return a pre-signed PUT URL for uploading a document."""
@@ -79,6 +163,8 @@ class StartUpload(LoginRequiredMixin, View):
         s3_key = f"user/{request.user.id}/{file_id}/{sanitized}"
 
         s3_client = boto3.client("s3", region_name=S3_REGION)
+        request_origin = request.headers.get("Origin") or request.META.get("HTTP_ORIGIN")
+        _ensure_bucket_cors_allows_origin(s3_client, request_origin)
         try:
             upload_url = s3_client.generate_presigned_url(
                 ClientMethod="put_object",

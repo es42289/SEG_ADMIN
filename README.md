@@ -41,6 +41,9 @@ AWS_DEFAULT_REGION=us-east-2
 The uploads API uses the private S3 bucket `seg-user-document-uploads` in the
 `us-east-2` region. Grant the configured AWS IAM principal permission to `s3:*`
 actions on that bucket (put, head, get, delete) so that presigned URLs work.
+The Django view automatically ensures the bucket's CORS rules allow requests
+from the active site origin, so the IAM principal must also be able to call
+`s3:GetBucketCORS` and `s3:PutBucketCORS`.
 
 SQL used:
 ```sql
