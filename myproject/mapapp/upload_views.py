@@ -135,8 +135,18 @@ def _ensure_bucket_cors_allows_origin(s3_client, origin: Optional[str]) -> None:
         logger.warning("Unable to update S3 bucket CORS configuration for %s: %s", origin, exc)
 
 
+class ApiLoginRequiredMixin(LoginRequiredMixin):
+    """LoginRequired mixin that returns JSON instead of redirecting."""
+
+    login_url = None
+    raise_exception = True
+
+    def handle_no_permission(self):
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+
 @method_decorator(csrf_exempt, name="dispatch")
-class StartUpload(LoginRequiredMixin, View):
+class StartUpload(ApiLoginRequiredMixin, View):
     """Return a pre-signed PUT URL for uploading a document."""
 
     login_url = '/login/'
@@ -190,7 +200,7 @@ class StartUpload(LoginRequiredMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class FinalizeUpload(LoginRequiredMixin, View):
+class FinalizeUpload(ApiLoginRequiredMixin, View):
     """Persist a completed upload into Snowflake."""
 
     login_url = '/login/'
@@ -269,7 +279,7 @@ class FinalizeUpload(LoginRequiredMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class ListMyFiles(LoginRequiredMixin, View):
+class ListMyFiles(ApiLoginRequiredMixin, View):
     """List uploaded documents for the current user."""
 
     login_url = '/login/'
@@ -302,7 +312,7 @@ class ListMyFiles(LoginRequiredMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class FileDetail(LoginRequiredMixin, View):
+class FileDetail(ApiLoginRequiredMixin, View):
     """Update or delete a stored document record."""
 
     login_url = '/login/'
@@ -378,7 +388,7 @@ class FileDetail(LoginRequiredMixin, View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class OpenFile(LoginRequiredMixin, View):
+class OpenFile(ApiLoginRequiredMixin, View):
     """Return a short-lived download URL for a document."""
 
     login_url = '/login/'

@@ -1444,6 +1444,10 @@ const yearInput = document.getElementById('year');
         try { data = JSON.parse(text); } catch (_) { data = null; }
       }
 
+      if (response.status === 401) {
+        throw new Error('Please log in to manage supporting documents.');
+      }
+
       if (!response.ok) {
         const detail = data && (data.detail || data.error);
         throw new Error(detail || `Request failed (${response.status})`);
