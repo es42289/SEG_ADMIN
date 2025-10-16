@@ -1,6 +1,13 @@
 from django.urls import path
 from . import views
 from . import auth_views
+from .upload_views import (
+    StartUpload,
+    FinalizeUpload,
+    ListMyFiles,
+    FileDetail,
+    OpenFile,
+)
 
 urlpatterns = [
     path('', views.map_page, name='map_page'),
@@ -14,4 +21,9 @@ urlpatterns = [
     path('price-decks/', views.price_decks, name='price_decks'),
     path('econ-data/', views.economics_data, name='economics_data'),
     path('feedback/', views.user_feedback_entries, name='user_feedback_entries'),
+    path('api/uploads/start', StartUpload.as_view(), name='start_upload'),
+    path('api/uploads/finalize', FinalizeUpload.as_view(), name='finalize_upload'),
+    path('api/files', ListMyFiles.as_view(), name='list_files'),
+    path('api/files/<uuid:file_id>', FileDetail.as_view(), name='file_detail'),
+    path('api/files/<uuid:file_id>/open', OpenFile.as_view(), name='open_file'),
 ]

@@ -102,6 +102,11 @@ const yearInput = document.getElementById('year');
 
     updateEffectiveDateDisplay();
 
+    function getCsrfToken() {
+      const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+      return match ? decodeURIComponent(match[1]) : '';
+    }
+
     // Global variables to store all data
     let allWellData = null;
     let userWellData = null;
@@ -1279,6 +1284,367 @@ const yearInput = document.getElementById('year');
           Plotly.relayout('map', { 'mapbox.style': currentMapStyle });
         }
       });
+    }
+
+    // ===== Supporting documents =====
+    const supportDocButtons = Array.from(document.querySelectorAll('.support-docs-button'));
+    const supportDocsStatus = document.getElementById('support-docs-status');
+    const supportDocsTableBody = document.querySelector('#support-docs-table tbody');
+    const supportDocsEmptyState = document.getElementById('support-docs-empty');
+    const supportDocsDateFormatter = new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+    let supportDocs = [];
+    let isLoadingSupportDocs = false;
+    let isUploadingSupportDoc = false;
+    let supportDocsStatusTimeoutId = null;
+
+    function setSupportDocsStatus(message, variant = null) {
+      if (!supportDocsStatus) return;
+
+      supportDocsStatus.textContent = message || '';
+      supportDocsStatus.classList.remove(
+        'support-docs-status--success',
+        'support-docs-status--error',
+        'is-visible'
+      );
+
+      if (supportDocsStatusTimeoutId) {
+        window.clearTimeout(supportDocsStatusTimeoutId);
+        supportDocsStatusTimeoutId = null;
+      }
+
+      if (message) {
+        supportDocsStatus.classList.add('is-visible');
+        if (variant === 'success') {
+          supportDocsStatus.classList.add('support-docs-status--success');
+          supportDocsStatusTimeoutId = window.setTimeout(() => {
+            supportDocsStatus.classList.remove('is-visible');
+            supportDocsStatusTimeoutId = null;
+          }, 5000);
+        } else if (variant === 'error') {
+          supportDocsStatus.classList.add('support-docs-status--error');
+        }
+      }
+    }
+
+    function updateSupportDocsEmptyState() {
+      if (!supportDocsEmptyState) return;
+      if (!supportDocs.length) {
+        supportDocsEmptyState.classList.add('is-visible');
+      } else {
+        supportDocsEmptyState.classList.remove('is-visible');
+      }
+    }
+
+    function formatSupportDocSize(bytes) {
+      const size = Number(bytes);
+      if (!Number.isFinite(size) || size <= 0) return '--';
+      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let value = size;
+      let unitIndex = 0;
+      while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+      }
+      const precision = unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
+      return `${value.toFixed(precision)} ${units[unitIndex]}`;
+    }
+
+    function renderSupportDocsTable() {
+      if (!supportDocsTableBody) return;
+
+      supportDocsTableBody.innerHTML = '';
+      supportDocs.forEach((doc) => {
+        const row = document.createElement('tr');
+
+        const nameCell = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = '#';
+        link.textContent = doc.filename || 'Document';
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          openSupportDoc(doc);
+        });
+        nameCell.appendChild(link);
+        row.appendChild(nameCell);
+
+        const uploadedCell = document.createElement('td');
+        if (doc.created_at) {
+          const date = new Date(doc.created_at);
+          uploadedCell.textContent = Number.isNaN(date.getTime())
+            ? '--'
+            : supportDocsDateFormatter.format(date);
+        } else {
+          uploadedCell.textContent = '--';
+        }
+        row.appendChild(uploadedCell);
+
+        const sizeCell = document.createElement('td');
+        sizeCell.textContent = formatSupportDocSize(doc.bytes);
+        row.appendChild(sizeCell);
+
+        const noteCell = document.createElement('td');
+        noteCell.textContent = doc.note || '--';
+        row.appendChild(noteCell);
+
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'support-docs-actions';
+
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.className = 'support-docs-action support-docs-action--primary';
+        editButton.textContent = 'Edit Note';
+        editButton.addEventListener('click', () => {
+          handleSupportDocEdit(doc);
+        });
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'support-docs-action support-docs-action--danger';
+        deleteButton.textContent = 'Delete';
+        deleteButton.addEventListener('click', () => {
+          handleSupportDocDelete(doc);
+        });
+
+        actionsCell.appendChild(editButton);
+        actionsCell.appendChild(deleteButton);
+        row.appendChild(actionsCell);
+
+        supportDocsTableBody.appendChild(row);
+      });
+
+      updateSupportDocsEmptyState();
+    }
+
+    async function supportDocsRequest(url, options = {}) {
+      const fetchOptions = {
+        method: options.method || 'GET',
+        credentials: 'same-origin',
+        headers: options.headers ? { ...options.headers } : {},
+      };
+
+      if (options.body !== undefined) {
+        if (!fetchOptions.headers['Content-Type']) {
+          fetchOptions.headers['Content-Type'] = 'application/json';
+        }
+        fetchOptions.body = options.body;
+      }
+
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        fetchOptions.headers['X-CSRFToken'] = csrfToken;
+      }
+
+      const response = await fetch(url, fetchOptions);
+      const text = await response.text();
+      let data = null;
+      if (text) {
+        try { data = JSON.parse(text); } catch (_) { data = null; }
+      }
+
+      if (!response.ok) {
+        const detail = data && (data.detail || data.error);
+        throw new Error(detail || `Request failed (${response.status})`);
+      }
+
+      return data;
+    }
+
+    async function loadSupportDocs() {
+      if (!supportDocsTableBody || isLoadingSupportDocs) return;
+
+      isLoadingSupportDocs = true;
+      setSupportDocsStatus('Loading documents...');
+      try {
+        const data = await supportDocsRequest('/api/files');
+        supportDocs = Array.isArray(data?.files) ? data.files : [];
+        renderSupportDocsTable();
+        if (supportDocs.length) {
+          setSupportDocsStatus('');
+        } else {
+          setSupportDocsStatus('');
+        }
+      } catch (error) {
+        console.error('Failed to load supporting documents:', error);
+        setSupportDocsStatus('Unable to load documents right now.', 'error');
+      } finally {
+        isLoadingSupportDocs = false;
+      }
+    }
+
+    async function openSupportDoc(doc) {
+      if (!doc || !doc.id) return;
+      try {
+        setSupportDocsStatus('Generating download link...');
+        const data = await supportDocsRequest(`/api/files/${doc.id}/open`, {
+          method: 'POST',
+          body: '{}',
+        });
+        if (data?.download_url) {
+          window.open(data.download_url, '_blank', 'noopener');
+          setSupportDocsStatus('Download link ready.', 'success');
+        } else {
+          throw new Error('Download URL unavailable.');
+        }
+      } catch (error) {
+        console.error('Failed to open document:', error);
+        setSupportDocsStatus(error.message || 'Unable to open document.', 'error');
+      }
+    }
+
+    async function updateSupportDocNote(doc, newNote) {
+      if (!doc || !doc.id) return;
+      try {
+        setSupportDocsStatus('Saving comment...');
+        const payload = { note: newNote };
+        await supportDocsRequest(`/api/files/${doc.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        doc.note = (newNote || '').trim() ? newNote : null;
+        renderSupportDocsTable();
+        setSupportDocsStatus('Comment updated.', 'success');
+      } catch (error) {
+        console.error('Failed to update document note:', error);
+        setSupportDocsStatus(error.message || 'Unable to update comment.', 'error');
+      }
+    }
+
+    async function deleteSupportDoc(doc) {
+      if (!doc || !doc.id) return;
+      try {
+        setSupportDocsStatus('Deleting document...');
+        await supportDocsRequest(`/api/files/${doc.id}`, {
+          method: 'DELETE',
+        });
+        supportDocs = supportDocs.filter((item) => item !== doc);
+        renderSupportDocsTable();
+        setSupportDocsStatus('Document deleted.', 'success');
+      } catch (error) {
+        console.error('Failed to delete document:', error);
+        setSupportDocsStatus(error.message || 'Unable to delete document.', 'error');
+      }
+    }
+
+    async function uploadSupportDoc(file, note) {
+      if (!file) return;
+      if (isUploadingSupportDoc) {
+        setSupportDocsStatus('An upload is already in progress.');
+        return;
+      }
+
+      isUploadingSupportDoc = true;
+      supportDocButtons.forEach((button) => button.setAttribute('disabled', 'disabled'));
+      setSupportDocsStatus('Starting upload...');
+
+      try {
+        const contentType = file.type || 'application/octet-stream';
+        const startData = await supportDocsRequest('/api/uploads/start', {
+          method: 'POST',
+          body: JSON.stringify({
+            filename: file.name,
+            content_type: contentType,
+          }),
+        });
+
+        if (!startData?.upload_url || !startData?.file_id || !startData?.s3_key) {
+          throw new Error('Upload could not be initialized.');
+        }
+
+        const uploadHeaders = { ...(startData.headers || {}) };
+        if (!uploadHeaders['Content-Type'] && !uploadHeaders['content-type']) {
+          uploadHeaders['Content-Type'] = contentType;
+        }
+
+        const uploadResponse = await fetch(startData.upload_url, {
+          method: 'PUT',
+          headers: uploadHeaders,
+          body: file,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed (${uploadResponse.status})`);
+        }
+
+        await supportDocsRequest('/api/uploads/finalize', {
+          method: 'POST',
+          body: JSON.stringify({
+            file_id: startData.file_id,
+            s3_key: startData.s3_key,
+            note,
+          }),
+        });
+
+        setSupportDocsStatus('Document uploaded successfully.', 'success');
+        await loadSupportDocs();
+      } catch (error) {
+        console.error('Failed to upload supporting document:', error);
+        setSupportDocsStatus(error.message || 'Unable to upload document.', 'error');
+      } finally {
+        isUploadingSupportDoc = false;
+        supportDocButtons.forEach((button) => button.removeAttribute('disabled'));
+      }
+    }
+
+    function handleSupportDocEdit(doc) {
+      if (!doc) return;
+      const currentNote = doc.note || '';
+      const result = window.prompt('Update the comment for this document:', currentNote);
+      if (result === null) {
+        return;
+      }
+      updateSupportDocNote(doc, result);
+    }
+
+    function handleSupportDocDelete(doc) {
+      if (!doc) return;
+      const confirmed = window.confirm('Delete this document and its comment?');
+      if (!confirmed) return;
+      deleteSupportDoc(doc);
+    }
+
+    function handleSupportDocButtonClick() {
+      if (isUploadingSupportDoc) {
+        setSupportDocsStatus('Please wait for the current upload to complete.');
+        return;
+      }
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.style.display = 'none';
+      document.body.appendChild(fileInput);
+
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        document.body.removeChild(fileInput);
+
+        if (!file) {
+          setSupportDocsStatus('No file selected.');
+          return;
+        }
+
+        const note = window.prompt('Add a comment about this document (optional):', '');
+        if (note === null) {
+          setSupportDocsStatus('Upload cancelled.');
+          return;
+        }
+
+        uploadSupportDoc(file, note);
+      }, { once: true });
+
+      fileInput.click();
+    }
+
+    if (supportDocButtons.length) {
+      supportDocButtons.forEach((button) => {
+        button.addEventListener('click', handleSupportDocButtonClick);
+      });
+    }
+
+    if (supportDocsTableBody) {
+      loadSupportDocs();
     }
 
     const feedbackForm = document.getElementById('feedback-form');

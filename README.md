@@ -15,6 +15,33 @@ SF_ROLE=YOUR_ROLE          # optional
 SF_AUTH=externalbrowser    # or key-pair/IdP per your setup
 ```
 
+### File upload configuration
+
+Set the following environment variables so the document upload APIs can talk to
+Snowflake and S3:
+
+```
+SNOWFLAKE_ACCOUNT=<ACCOUNT>
+SNOWFLAKE_USER=ELII
+SNOWFLAKE_ROLE=APP_ROLE_MIN
+SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+SNOWFLAKE_DATABASE=WELLS
+SNOWFLAKE_SCHEMA=MINERALS
+SNOWFLAKE_PASSWORD=<PASSWORD>           # or configure SNOWFLAKE_PRIVATE_KEY_PATH
+SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/rsa_key.pem
+SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=<PASSPHRASE_IF_NEEDED>
+
+# Standard AWS credentials must also be present so boto3 can sign requests:
+AWS_ACCESS_KEY_ID=<AWS_KEY>
+AWS_SECRET_ACCESS_KEY=<AWS_SECRET>
+AWS_SESSION_TOKEN=<OPTIONAL_TEMP_TOKEN>
+AWS_DEFAULT_REGION=us-east-2
+```
+
+The uploads API uses the private S3 bucket `seg-user-document-uploads` in the
+`us-east-2` region. Grant the configured AWS IAM principal permission to `s3:*`
+actions on that bucket (put, head, get, delete) so that presigned URLs work.
+
 SQL used:
 ```sql
 SELECT LATITUDE AS LAT, LONGITUDE AS LON, COMPLETIONDATE
