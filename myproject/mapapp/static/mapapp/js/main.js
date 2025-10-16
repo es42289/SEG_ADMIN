@@ -1445,7 +1445,17 @@ const yearInput = document.getElementById('year');
       }
 
       if (response.status === 401) {
-        throw new Error('Please log in to manage supporting documents.');
+        const nextLocation = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        const nextParam = encodeURIComponent(nextLocation || '/');
+        const loginUrl = `/login/?next=${nextParam}`;
+
+        // Avoid infinite redirects if the login page itself triggers this helper.
+        if (!window.__supportDocsAuthRedirected) {
+          window.__supportDocsAuthRedirected = true;
+          window.location.assign(loginUrl);
+        }
+
+        throw new Error('Authentication required. Redirecting to log in...');
       }
 
       if (!response.ok) {
