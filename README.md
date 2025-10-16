@@ -43,7 +43,23 @@ The uploads API uses the private S3 bucket `seg-user-document-uploads` in the
 actions on that bucket (put, head, get, delete) so that presigned URLs work.
 The Django view automatically ensures the bucket's CORS rules allow requests
 from the active site origin, so the IAM principal must also be able to call
-`s3:GetBucketCORS` and `s3:PutBucketCORS`.
+`s3:GetBucketCORS` and `s3:PutBucketCORS`. If those permissions are missing the
+upload dialog will surface a warning and the CORS configuration must be updated
+manually. A minimal rule looks like this:
+
+```json
+{
+  "CORSRules": [
+    {
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "HEAD", "PUT"],
+      "AllowedOrigins": ["https://your-site.example"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 300
+    }
+  ]
+}
+```
 
 SQL used:
 ```sql

@@ -15,6 +15,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from django.utils.text import get_valid_filename
 
+from snowflake.connector.errors import Error as SnowflakeError
+
 from . import snowflake_helpers
 
 
@@ -65,21 +67,41 @@ def _normalize_origin(origin: Optional[str]) -> Optional[str]:
     return origin.rstrip("/") or None
 
 
-def _ensure_bucket_cors_allows_origin(s3_client, origin: Optional[str]) -> None:
+def _ensure_bucket_cors_allows_origin(
+    s3_client, origin: Optional[str]
+) -> Optional[str]:
+    """Ensure the bucket CORS configuration allows the request origin."""
+
     normalized = _normalize_origin(origin)
     if not normalized or normalized in _configured_cors_origins:
-        return
+        return None
+
+    warning_message: Optional[str] = None
 
     try:
         response = s3_client.get_bucket_cors(Bucket=S3_BUCKET_NAME)
         rules = list(response.get("CORSRules", []))
     except ClientError as exc:
-        error_code = exc.response.get("Error", {}).get("Code") if hasattr(exc, "response") else None
+        error_code = (
+            exc.response.get("Error", {}).get("Code")
+            if hasattr(exc, "response")
+            else None
+        )
         if error_code == "NoSuchCORSConfiguration":
             rules = []
+        elif error_code == "AccessDenied":
+            warning_message = (
+                "AWS credentials lack permission to read the bucket CORS rules. "
+                "Manually allow PUT/GET/HEAD from your site origin in the "
+                f"{S3_BUCKET_NAME} bucket."
+            )
+            logger.warning(
+                "Unable to read S3 bucket CORS configuration: %s", exc
+            )
+            return warning_message
         else:
             logger.warning("Unable to read S3 bucket CORS configuration: %s", exc)
-            return
+            return None
 
     required_methods = {"GET", "HEAD", "PUT"}
 
@@ -132,7 +154,56 @@ def _ensure_bucket_cors_allows_origin(s3_client, origin: Optional[str]) -> None:
         )
         _configured_cors_origins.add(normalized)
     except ClientError as exc:
-        logger.warning("Unable to update S3 bucket CORS configuration for %s: %s", origin, exc)
+        error_code = (
+            exc.response.get("Error", {}).get("Code")
+            if hasattr(exc, "response")
+            else None
+        )
+        if error_code == "AccessDenied":
+            warning_message = (
+                "AWS credentials lack permission to update the bucket CORS "
+                "rules. Configure CORS manually to allow PUT/GET/HEAD from "
+                "your site origin."
+            )
+        else:
+            warning_message = None
+        logger.warning(
+            "Unable to update S3 bucket CORS configuration for %s: %s", origin, exc
+        )
+        return warning_message
+
+    return warning_message
+
+
+def _snowflake_error_response(exc: Exception, action: str) -> JsonResponse:
+    """Convert Snowflake exceptions into JSON API responses."""
+
+    if isinstance(exc, snowflake_helpers.SnowflakeConfigurationError):
+        detail = (
+            "Snowflake configuration is incomplete. Set SNOWFLAKE_ACCOUNT, "
+            "SNOWFLAKE_USER, SNOWFLAKE_WAREHOUSE, SNOWFLAKE_DATABASE, "
+            "SNOWFLAKE_SCHEMA, and authentication credentials, then reload."
+        )
+        return JsonResponse(
+            {
+                "detail": detail,
+                "code": "snowflake_configuration_missing",
+            },
+            status=503,
+        )
+
+    if isinstance(exc, SnowflakeError):
+        logger.exception("Snowflake error while %s", action, exc_info=exc)
+    else:
+        logger.exception("Unexpected error while %s", action, exc_info=exc)
+
+    return JsonResponse(
+        {
+            "detail": "Snowflake request failed. Please try again later.",
+            "code": "snowflake_unavailable",
+        },
+        status=503,
+    )
 
 
 class ApiLoginRequiredMixin(LoginRequiredMixin):
@@ -174,7 +245,7 @@ class StartUpload(ApiLoginRequiredMixin, View):
 
         s3_client = boto3.client("s3", region_name=S3_REGION)
         request_origin = request.headers.get("Origin") or request.META.get("HTTP_ORIGIN")
-        _ensure_bucket_cors_allows_origin(s3_client, request_origin)
+        cors_warning = _ensure_bucket_cors_allows_origin(s3_client, request_origin)
         try:
             upload_url = s3_client.generate_presigned_url(
                 ClientMethod="put_object",
@@ -188,15 +259,17 @@ class StartUpload(ApiLoginRequiredMixin, View):
         except ClientError as exc:
             return JsonResponse({"detail": str(exc)}, status=500)
 
-        return JsonResponse(
-            {
-                "file_id": file_id,
-                "s3_key": s3_key,
-                "upload_url": upload_url,
-                "headers": {"Content-Type": content_type},
-                "expires_in": UPLOAD_URL_EXPIRES_IN,
-            }
-        )
+        payload = {
+            "file_id": file_id,
+            "s3_key": s3_key,
+            "upload_url": upload_url,
+            "headers": {"Content-Type": content_type},
+            "expires_in": UPLOAD_URL_EXPIRES_IN,
+        }
+        if cors_warning:
+            payload["cors_warning"] = cors_warning
+
+        return JsonResponse(payload)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -234,46 +307,49 @@ class FinalizeUpload(ApiLoginRequiredMixin, View):
         content_type = head.get("ContentType") or "application/octet-stream"
         filename = s3_key.split("/")[-1]
 
-        existing = snowflake_helpers.fetch_one(
-            """
-            SELECT id, owner_user_id
-            FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-            WHERE id = %s
-            """,
-            (file_id,),
-        )
+        try:
+            existing = snowflake_helpers.fetch_one(
+                """
+                SELECT id, owner_user_id
+                FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+                WHERE id = %s
+                """,
+                (file_id,),
+            )
 
-        if existing:
-            owner_id = _dict_get(existing, "OWNER_USER_ID")
-            if owner_id != request.user.id:
-                return JsonResponse({"detail": "Forbidden."}, status=403)
+            if existing:
+                owner_id = _dict_get(existing, "OWNER_USER_ID")
+                if owner_id != request.user.id:
+                    return JsonResponse({"detail": "Forbidden."}, status=403)
+
+                snowflake_helpers.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_DOC_DIRECTORY
+                    SET note = %s
+                    WHERE id = %s AND owner_user_id = %s
+                    """,
+                    (note, file_id, request.user.id),
+                )
+                return JsonResponse({"ok": True})
 
             snowflake_helpers.execute(
                 """
-                UPDATE WELLS.MINERALS.USER_DOC_DIRECTORY
-                SET note = %s
-                WHERE id = %s AND owner_user_id = %s
+                INSERT INTO WELLS.MINERALS.USER_DOC_DIRECTORY
+                (id, owner_user_id, s3_key, filename, content_type, bytes, note)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
-                (note, file_id, request.user.id),
+                (
+                    file_id,
+                    request.user.id,
+                    s3_key,
+                    filename,
+                    content_type,
+                    content_length,
+                    note,
+                ),
             )
-            return JsonResponse({"ok": True})
-
-        snowflake_helpers.execute(
-            """
-            INSERT INTO WELLS.MINERALS.USER_DOC_DIRECTORY
-            (id, owner_user_id, s3_key, filename, content_type, bytes, note)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                file_id,
-                request.user.id,
-                s3_key,
-                filename,
-                content_type,
-                content_length,
-                note,
-            ),
-        )
+        except Exception as exc:  # noqa: BLE001
+            return _snowflake_error_response(exc, "finalizing upload metadata")
 
         return JsonResponse({"ok": True})
 
@@ -285,15 +361,18 @@ class ListMyFiles(ApiLoginRequiredMixin, View):
     login_url = '/login/'
 
     def get(self, request, *args, **kwargs):
-        rows = snowflake_helpers.fetch_all(
-            """
-            SELECT id, filename, note, bytes, content_type, created_at
-            FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-            WHERE owner_user_id = %s
-            ORDER BY created_at DESC
-            """,
-            (request.user.id,),
-        )
+        try:
+            rows = snowflake_helpers.fetch_all(
+                """
+                SELECT id, filename, note, bytes, content_type, created_at
+                FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+                WHERE owner_user_id = %s
+                ORDER BY created_at DESC
+                """,
+                (request.user.id,),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return _snowflake_error_response(exc, "listing supporting documents")
 
         documents = []
         for row in rows:
@@ -325,57 +404,63 @@ class FileDetail(ApiLoginRequiredMixin, View):
 
         note = _normalize_note(payload.get("note"))
 
-        row = snowflake_helpers.fetch_one(
-            """
-            SELECT id, owner_user_id
-            FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-            WHERE id = %s
-            """,
-            (str(file_id),),
-        )
-        if not row:
-            return JsonResponse({"detail": "File not found."}, status=404)
+        try:
+            row = snowflake_helpers.fetch_one(
+                """
+                SELECT id, owner_user_id
+                FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+                WHERE id = %s
+                """,
+                (str(file_id),),
+            )
+            if not row:
+                return JsonResponse({"detail": "File not found."}, status=404)
 
-        owner_id = _dict_get(row, "OWNER_USER_ID")
-        if owner_id != request.user.id:
-            return JsonResponse({"detail": "Forbidden."}, status=403)
+            owner_id = _dict_get(row, "OWNER_USER_ID")
+            if owner_id != request.user.id:
+                return JsonResponse({"detail": "Forbidden."}, status=403)
 
-        snowflake_helpers.execute(
-            """
-            UPDATE WELLS.MINERALS.USER_DOC_DIRECTORY
-            SET note = %s
-            WHERE id = %s AND owner_user_id = %s
-            """,
-            (note, str(file_id), request.user.id),
-        )
+            snowflake_helpers.execute(
+                """
+                UPDATE WELLS.MINERALS.USER_DOC_DIRECTORY
+                SET note = %s
+                WHERE id = %s AND owner_user_id = %s
+                """,
+                (note, str(file_id), request.user.id),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return _snowflake_error_response(exc, "updating document comment")
 
         return JsonResponse({"ok": True, "note": note})
 
     def delete(self, request, file_id, *args, **kwargs):
-        row = snowflake_helpers.fetch_one(
-            """
-            SELECT id, owner_user_id, s3_key
-            FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-            WHERE id = %s
-            """,
-            (str(file_id),),
-        )
-        if not row:
-            return JsonResponse({"detail": "File not found."}, status=404)
+        try:
+            row = snowflake_helpers.fetch_one(
+                """
+                SELECT id, owner_user_id, s3_key
+                FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+                WHERE id = %s
+                """,
+                (str(file_id),),
+            )
+            if not row:
+                return JsonResponse({"detail": "File not found."}, status=404)
 
-        owner_id = _dict_get(row, "OWNER_USER_ID")
-        if owner_id != request.user.id:
-            return JsonResponse({"detail": "Forbidden."}, status=403)
+            owner_id = _dict_get(row, "OWNER_USER_ID")
+            if owner_id != request.user.id:
+                return JsonResponse({"detail": "Forbidden."}, status=403)
 
-        s3_key = _dict_get(row, "S3_KEY")
+            s3_key = _dict_get(row, "S3_KEY")
 
-        snowflake_helpers.execute(
-            """
-            DELETE FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-            WHERE id = %s AND owner_user_id = %s
-            """,
-            (str(file_id), request.user.id),
-        )
+            snowflake_helpers.execute(
+                """
+                DELETE FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+                WHERE id = %s AND owner_user_id = %s
+                """,
+                (str(file_id), request.user.id),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return _snowflake_error_response(exc, "deleting document record")
 
         if s3_key:
             s3_client = boto3.client("s3", region_name=S3_REGION)
@@ -394,24 +479,27 @@ class OpenFile(ApiLoginRequiredMixin, View):
     login_url = '/login/'
 
     def post(self, request, file_id, *args, **kwargs):
-        row = snowflake_helpers.fetch_one(
-            """
-            SELECT id, owner_user_id, s3_key
-            FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-            WHERE id = %s
-            """,
-            (str(file_id),),
-        )
-        if not row:
-            return JsonResponse({"detail": "File not found."}, status=404)
+        try:
+            row = snowflake_helpers.fetch_one(
+                """
+                SELECT id, owner_user_id, s3_key
+                FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+                WHERE id = %s
+                """,
+                (str(file_id),),
+            )
+            if not row:
+                return JsonResponse({"detail": "File not found."}, status=404)
 
-        owner_id = _dict_get(row, "OWNER_USER_ID")
-        if owner_id != request.user.id:
-            return JsonResponse({"detail": "Forbidden."}, status=403)
+            owner_id = _dict_get(row, "OWNER_USER_ID")
+            if owner_id != request.user.id:
+                return JsonResponse({"detail": "Forbidden."}, status=403)
 
-        s3_key = _dict_get(row, "S3_KEY")
-        if not s3_key:
-            return JsonResponse({"detail": "File has no S3 key."}, status=400)
+            s3_key = _dict_get(row, "S3_KEY")
+            if not s3_key:
+                return JsonResponse({"detail": "File has no S3 key."}, status=400)
+        except Exception as exc:  # noqa: BLE001
+            return _snowflake_error_response(exc, "opening document download link")
 
         s3_client = boto3.client("s3", region_name=S3_REGION)
         try:

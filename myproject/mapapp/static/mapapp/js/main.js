@@ -1307,6 +1307,7 @@ const yearInput = document.getElementById('year');
       supportDocsStatus.classList.remove(
         'support-docs-status--success',
         'support-docs-status--error',
+        'support-docs-status--warning',
         'is-visible'
       );
 
@@ -1325,6 +1326,8 @@ const yearInput = document.getElementById('year');
           }, 5000);
         } else if (variant === 'error') {
           supportDocsStatus.classList.add('support-docs-status--error');
+        } else if (variant === 'warning') {
+          supportDocsStatus.classList.add('support-docs-status--warning');
         }
       }
     }
@@ -1482,7 +1485,8 @@ const yearInput = document.getElementById('year');
         }
       } catch (error) {
         console.error('Failed to load supporting documents:', error);
-        setSupportDocsStatus('Unable to load documents right now.', 'error');
+        const message = error?.message || 'Unable to load documents right now.';
+        setSupportDocsStatus(message, 'error');
       } finally {
         isLoadingSupportDocs = false;
       }
@@ -1562,6 +1566,10 @@ const yearInput = document.getElementById('year');
             content_type: contentType,
           }),
         });
+
+        if (startData?.cors_warning) {
+          setSupportDocsStatus(startData.cors_warning, 'warning');
+        }
 
         if (!startData?.upload_url || !startData?.file_id || !startData?.s3_key) {
           throw new Error('Upload could not be initialized.');

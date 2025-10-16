@@ -86,6 +86,10 @@ body {
   color: #ffb8b8;
 }
 
+.support-docs-status--warning {
+  color: #ffd17a;
+}
+
 .support-docs-table-wrapper {
   margin-top: 1rem;
   background: rgba(6, 48, 71, 0.45);
