@@ -111,7 +111,7 @@ def _snowflake_cursor(dict_cursor: bool = False):
     """Yield a Snowflake cursor and ensure cleanup."""
 
     conn = snowflake.connector.connect(**_build_connection_kwargs())
-    cursor = conn.cursor(DictCursor if dict_cursor else None)
+    cursor = conn.cursor(DictCursor) if dict_cursor else conn.cursor()
     try:
         yield cursor
         conn.commit()
