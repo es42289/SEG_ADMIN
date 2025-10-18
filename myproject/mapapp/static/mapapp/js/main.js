@@ -1296,6 +1296,7 @@ const yearInput = document.getElementById('year');
       timeStyle: 'short'
     });
     let supportDocs = [];
+    let lastSupportDocCorsWarning = null;
     let isLoadingSupportDocs = false;
     let isUploadingSupportDoc = false;
     let supportDocsStatusTimeoutId = null;
@@ -1568,7 +1569,10 @@ const yearInput = document.getElementById('year');
         });
 
         if (startData?.cors_warning) {
+          lastSupportDocCorsWarning = startData.cors_warning;
           setSupportDocsStatus(startData.cors_warning, 'warning');
+        } else {
+          lastSupportDocCorsWarning = null;
         }
 
         if (!startData?.upload_url || !startData?.file_id || !startData?.s3_key) {
@@ -1587,7 +1591,33 @@ const yearInput = document.getElementById('year');
         });
 
         if (!uploadResponse.ok) {
-          throw new Error(`Upload failed (${uploadResponse.status})`);
+          let errorDetail = '';
+          try {
+            const responseText = await uploadResponse.text();
+            if (responseText) {
+              try {
+                const parser = new window.DOMParser();
+                const doc = parser.parseFromString(responseText, 'application/xml');
+                const messageNode = doc.querySelector('Message');
+                if (messageNode && messageNode.textContent) {
+                  errorDetail = messageNode.textContent.trim();
+                }
+              } catch (_) {
+                errorDetail = responseText.trim();
+              }
+            }
+          } catch (_) {
+            errorDetail = '';
+          }
+
+          let combinedMessage = `Upload failed (${uploadResponse.status})`;
+          if (errorDetail) {
+            combinedMessage += `: ${errorDetail}`;
+          }
+          if (lastSupportDocCorsWarning) {
+            combinedMessage += ` ${lastSupportDocCorsWarning}`;
+          }
+          throw new Error(combinedMessage);
         }
 
         await supportDocsRequest('/api/uploads/finalize', {
@@ -1599,11 +1629,16 @@ const yearInput = document.getElementById('year');
           }),
         });
 
+        lastSupportDocCorsWarning = null;
         setSupportDocsStatus('Document uploaded successfully.', 'success');
         await loadSupportDocs();
       } catch (error) {
         console.error('Failed to upload supporting document:', error);
-        setSupportDocsStatus(error.message || 'Unable to upload document.', 'error');
+        let message = error.message || 'Unable to upload document.';
+        if (!message.includes('Unable to upload') && lastSupportDocCorsWarning && !message.includes(lastSupportDocCorsWarning)) {
+          message = `${message} ${lastSupportDocCorsWarning}`;
+        }
+        setSupportDocsStatus(message, 'error');
       } finally {
         isUploadingSupportDoc = false;
         supportDocButtons.forEach((button) => button.removeAttribute('disabled'));
