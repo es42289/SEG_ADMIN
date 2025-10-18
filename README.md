@@ -61,6 +61,45 @@ manually. A minimal rule looks like this:
 }
 ```
 
+### Step-by-step: Configure Snowflake key-pair authentication
+
+If you have been issued an RSA key instead of a password for the Snowflake
+service user, follow these steps to wire it into the Django upload endpoints.
+
+1. **Locate your PEM private key.** The helper expects a PEM-encoded RSA key on
+   disk (for example, a file that starts with `-----BEGIN PRIVATE KEY-----`). If
+   the key is encrypted, keep the passphrase handy; if it is unencrypted you can
+   leave the passphrase variable unset.
+2. **Pick a secure file path.** Place the key somewhere only your user account
+   can read (for instance `C:\\secrets\\snowflake_rsa_key.pem` on Windows or
+   `~/secrets/snowflake_rsa_key.pem` on macOS/Linux). Ensure the directory
+   exists and the file permissions restrict access to your account.
+3. **Export the Snowflake connection variables.** You need the standard
+   connection parameters plus the key path before launching `manage.py`:
+   ```powershell
+   $env:SNOWFLAKE_ACCOUNT = "<ACCOUNT>"
+   $env:SNOWFLAKE_USER = "ELII"
+   $env:SNOWFLAKE_ROLE = "APP_ROLE_MIN"          # optional but recommended
+   $env:SNOWFLAKE_WAREHOUSE = "COMPUTE_WH"
+   $env:SNOWFLAKE_DATABASE = "WELLS"
+   $env:SNOWFLAKE_SCHEMA = "MINERALS"
+   $env:SNOWFLAKE_PRIVATE_KEY_PATH = "C:\\secrets\\snowflake_rsa_key.pem"
+   # Only set this if the key is encrypted:
+   # $env:SNOWFLAKE_PRIVATE_KEY_PASSPHRASE = "<PASSPHRASE>"
+   ```
+   Leave `SNOWFLAKE_PASSWORD` unset when using a private key; the helper will
+   detect the key automatically. The same variable names work in `.env` files
+   (`KEY=value`) or other shells (`export KEY=value`).
+4. **Restart the Django server.** Stop any running `python manage.py runserver`
+   process and start a new one from the same shell so it inherits the variables.
+   Watch the terminal for `SnowflakeConfigurationError` messages—if you see
+   them, double-check the names and values above.
+5. **Verify the upload APIs.** Load the dashboard and confirm the supporting
+   documents table renders without a 500 error. If the API still fails, inspect
+   the server logs for authentication errors and ensure your AWS credentials are
+   also set (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional
+   `AWS_SESSION_TOKEN`, and `AWS_DEFAULT_REGION=us-east-2`).
+
 SQL used:
 ```sql
 SELECT LATITUDE AS LAT, LONGITUDE AS LON, COMPLETIONDATE
