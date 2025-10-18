@@ -53,30 +53,41 @@ def _load_private_key_bytes() -> Optional[bytes]:
     )
 
 
+def _getenv(*names: str) -> Optional[str]:
+    """Return the first defined environment variable from ``names``."""
+
+    for name in names:
+        value = os.getenv(name)
+        if value:
+            return value
+    return None
+
+
 def _build_connection_kwargs() -> Dict[str, Any]:
-    required = [
-        "SNOWFLAKE_ACCOUNT",
-        "SNOWFLAKE_USER",
-        "SNOWFLAKE_WAREHOUSE",
-        "SNOWFLAKE_DATABASE",
-        "SNOWFLAKE_SCHEMA",
+    required_vars = {
+        "account": ("SNOWFLAKE_ACCOUNT", "SF_ACCOUNT"),
+        "user": ("SNOWFLAKE_USER", "SF_USER"),
+        "warehouse": ("SNOWFLAKE_WAREHOUSE", "SF_WAREHOUSE"),
+        "database": ("SNOWFLAKE_DATABASE", "SF_DATABASE"),
+        "schema": ("SNOWFLAKE_SCHEMA", "SF_SCHEMA"),
+    }
+
+    missing = [
+        primary
+        for primary, aliases in required_vars.items()
+        if _getenv(*aliases) is None
     ]
-    missing = [name for name in required if not os.getenv(name)]
     if missing:
+        readable = ", ".join(sorted(missing))
         raise SnowflakeConfigurationError(
-            "Missing required Snowflake environment variables: "
-            + ", ".join(sorted(missing))
+            f"Missing required Snowflake configuration for: {readable}"
         )
 
     cfg: Dict[str, Any] = {
-        "account": os.environ["SNOWFLAKE_ACCOUNT"],
-        "user": os.environ["SNOWFLAKE_USER"],
-        "warehouse": os.environ["SNOWFLAKE_WAREHOUSE"],
-        "database": os.environ["SNOWFLAKE_DATABASE"],
-        "schema": os.environ["SNOWFLAKE_SCHEMA"],
+        key: _getenv(*aliases) for key, aliases in required_vars.items()
     }
 
-    role = os.getenv("SNOWFLAKE_ROLE")
+    role = _getenv("SNOWFLAKE_ROLE", "SF_ROLE")
     if role:
         cfg["role"] = role
 
@@ -84,10 +95,11 @@ def _build_connection_kwargs() -> Dict[str, Any]:
     if private_key:
         cfg["private_key"] = private_key
     else:
-        password = os.getenv("SNOWFLAKE_PASSWORD")
+        password = _getenv("SNOWFLAKE_PASSWORD", "SF_PASSWORD")
         if not password:
             raise SnowflakeConfigurationError(
-                "Provide SNOWFLAKE_PASSWORD or SNOWFLAKE_PRIVATE_KEY_PATH."
+                "Provide SNOWFLAKE_PASSWORD/SF_PASSWORD or "
+                "SNOWFLAKE_PRIVATE_KEY_PATH."
             )
         cfg["password"] = password
 
