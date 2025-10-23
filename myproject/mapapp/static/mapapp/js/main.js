@@ -18,7 +18,15 @@ const yearInput = document.getElementById('year');
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
     const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
     const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
-    let currentMapStyle = MAPBOX_STYLE_TERRAIN;
+    const mapStyles = {
+      userWellsMap: MAPBOX_STYLE_TERRAIN,
+      map: MAPBOX_STYLE_TERRAIN
+    };
+
+    const getMapStyle = (mapId) => mapStyles[mapId] || MAPBOX_STYLE_TERRAIN;
+    const setMapStyle = (mapId, style) => {
+      mapStyles[mapId] = style;
+    };
 
     const rootElement = document.documentElement;
     const updateLayoutOffsets = () => {
@@ -906,7 +914,7 @@ const yearInput = document.getElementById('year');
         font: { color: '#eaeaea' },
         mapbox: {
           accesstoken: MAPBOX_TOKEN,
-          style: currentMapStyle,
+          style: getMapStyle(mapDivId),
           center: center,
           zoom: zoom
         },
@@ -1094,8 +1102,8 @@ const yearInput = document.getElementById('year');
             font: { color: '#eaeaea' },
             mapbox: {
               accesstoken: MAPBOX_TOKEN,
-              style: currentMapStyle,
-              center: nearbyAnalysis20.centroid ? 
+              style: getMapStyle('map'),
+              center: nearbyAnalysis20.centroid ?
                 { lat: nearbyAnalysis20.centroid.lat, lon: nearbyAnalysis20.centroid.lon } :
                 { lat: 31.0, lon: -99.0 },
               zoom: nearbyAnalysis20.centroid ? 9 : 6
@@ -1274,14 +1282,18 @@ const yearInput = document.getElementById('year');
 
     const mapStyleToggleBtn = document.getElementById('mapStyleToggle');
     if (mapStyleToggleBtn) {
+      const targetMapId = mapStyleToggleBtn.dataset.mapTarget || 'userWellsMap';
+      mapStyleToggleBtn.textContent = getMapStyle(targetMapId) === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
+
       mapStyleToggleBtn.addEventListener('click', () => {
-        currentMapStyle = currentMapStyle === MAPBOX_STYLE_TERRAIN ? MAPBOX_STYLE_SATELLITE : MAPBOX_STYLE_TERRAIN;
-        mapStyleToggleBtn.textContent = currentMapStyle === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
-        if (document.getElementById('userWellsMap') && document.getElementById('userWellsMap').data) {
-          Plotly.relayout('userWellsMap', { 'mapbox.style': currentMapStyle });
-        }
-        if (document.getElementById('map') && document.getElementById('map').data) {
-          Plotly.relayout('map', { 'mapbox.style': currentMapStyle });
+        const currentStyle = getMapStyle(targetMapId);
+        const nextStyle = currentStyle === MAPBOX_STYLE_TERRAIN ? MAPBOX_STYLE_SATELLITE : MAPBOX_STYLE_TERRAIN;
+        setMapStyle(targetMapId, nextStyle);
+        mapStyleToggleBtn.textContent = nextStyle === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
+
+        const targetMapElement = document.getElementById(targetMapId);
+        if (targetMapElement && targetMapElement.data) {
+          Plotly.relayout(targetMapId, { 'mapbox.style': nextStyle });
         }
       });
     }
