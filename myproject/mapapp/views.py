@@ -1,11 +1,10 @@
 import json
-import os
 from datetime import datetime, timezone
 from functools import lru_cache
 
 import numpy as np
 import pandas as pd
-import snowflake.connector
+from snowflake.connector import DictCursor
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -14,25 +13,8 @@ from django.views.decorators.http import require_http_methods
 from . import snowflake_helpers
 
 
-def _build_snowflake_config():
-    cfg = {
-        "account": os.getenv("SF_ACCOUNT") or "CMZNSCB-MU47932",
-        "user": os.getenv("SF_USER") or "ELII",
-        "warehouse": os.getenv("SF_WAREHOUSE") or "COMPUTE_WH",
-        "database": os.getenv("SF_DATABASE") or "WELLS",
-        "schema": os.getenv("SF_SCHEMA") or "MINERALS",
-        "private_key": snowflake_helpers.get_private_key_bytes(),
-    }
-
-    role = os.getenv("SF_ROLE")
-    if role:
-        cfg["role"] = role
-
-    return cfg
-
-
 def get_snowflake_connection():
-    return snowflake.connector.connect(**_build_snowflake_config())
+    return snowflake_helpers.connect()
 
 
 def _format_timestamp_for_json(value):
@@ -72,7 +54,7 @@ def _parse_iso_timestamp(value):
     return None
 
 def _snowflake_points():
-    conn = snowflake.connector.connect(**_build_snowflake_config())
+    conn = get_snowflake_connection()
 
     # Rest of your function stays the same...
     try:

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 import os
 from contextlib import contextmanager
+from functools import lru_cache
 from typing import Any, Dict, Iterable, Optional, Sequence
 
 import boto3
@@ -83,16 +85,22 @@ def _load_private_key_from_secret_manager() -> Optional[bytes]:
             f"Could not retrieve Snowflake RSA key from Secrets Manager: {exc}"
         ) from exc
 
+    payload: Optional[bytes]
     secret_string = response.get("SecretString")
-    if not secret_string:
-        raise SnowflakeConfigurationError(
-            f"Secret {secret_id} did not contain a SecretString payload"
-        )
+    if secret_string:
+        payload = secret_string.encode()
+    else:
+        secret_binary = response.get("SecretBinary")
+        if not secret_binary:
+            raise SnowflakeConfigurationError(
+                f"Secret {secret_id} did not contain a SecretString or SecretBinary payload"
+            )
+        payload = base64.b64decode(secret_binary)
 
     passphrase = _private_key_passphrase()
 
     private_key = serialization.load_pem_private_key(
-        secret_string.encode(),
+        payload,
         password=passphrase.encode() if passphrase else None,
         backend=default_backend(),
     )
@@ -104,6 +112,7 @@ def _load_private_key_from_secret_manager() -> Optional[bytes]:
     )
 
 
+@lru_cache(maxsize=1)
 def _load_private_key_bytes() -> bytes:
     """Return the Snowflake RSA private key bytes from disk or Secrets Manager."""
 
@@ -169,11 +178,25 @@ def _build_connection_kwargs() -> Dict[str, Any]:
     return cfg
 
 
+def get_connection_kwargs() -> Dict[str, Any]:
+    """Return a copy of the Snowflake connection configuration."""
+
+    return dict(_build_connection_kwargs())
+
+
+def connect(**overrides: Any):
+    """Create a Snowflake connection using the shared configuration."""
+
+    cfg = _build_connection_kwargs()
+    cfg.update(overrides)
+    return snowflake.connector.connect(**cfg)
+
+
 @contextmanager
 def _snowflake_cursor(dict_cursor: bool = False):
     """Yield a Snowflake cursor and ensure cleanup."""
 
-    conn = snowflake.connector.connect(**_build_connection_kwargs())
+    conn = connect()
     cursor = conn.cursor(DictCursor) if dict_cursor else conn.cursor()
     try:
         yield cursor
