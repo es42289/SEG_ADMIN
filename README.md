@@ -27,8 +27,8 @@ SNOWFLAKE_ROLE=APP_ROLE_MIN
 SNOWFLAKE_WAREHOUSE=COMPUTE_WH
 SNOWFLAKE_DATABASE=WELLS
 SNOWFLAKE_SCHEMA=MINERALS
-SNOWFLAKE_PASSWORD=<PASSWORD>           # or configure SNOWFLAKE_PRIVATE_KEY_PATH
-SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/rsa_key.pem
+SNOWFLAKE_PRIVATE_KEY_SECRET_ID=seg-user-app/snowflake-rsa-key  # or set SNOWFLAKE_PRIVATE_KEY_PATH
+SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/rsa_key.pem                 # optional local override
 SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=<PASSPHRASE_IF_NEEDED>
 
 # Standard AWS credentials must also be present so boto3 can sign requests:
@@ -75,7 +75,8 @@ service user, follow these steps to wire it into the Django upload endpoints.
    `~/secrets/snowflake_rsa_key.pem` on macOS/Linux). Ensure the directory
    exists and the file permissions restrict access to your account.
 3. **Export the Snowflake connection variables.** You need the standard
-   connection parameters plus the key path before launching `manage.py`:
+   connection parameters plus either a Secrets Manager identifier or a key path
+   before launching `manage.py`:
    ```powershell
    $env:SNOWFLAKE_ACCOUNT = "<ACCOUNT>"
    $env:SNOWFLAKE_USER = "ELII"
@@ -83,13 +84,15 @@ service user, follow these steps to wire it into the Django upload endpoints.
    $env:SNOWFLAKE_WAREHOUSE = "COMPUTE_WH"
    $env:SNOWFLAKE_DATABASE = "WELLS"
    $env:SNOWFLAKE_SCHEMA = "MINERALS"
-   $env:SNOWFLAKE_PRIVATE_KEY_PATH = "C:\\secrets\\snowflake_rsa_key.pem"
+   $env:SNOWFLAKE_PRIVATE_KEY_SECRET_ID = "seg-user-app/snowflake-rsa-key"
+   # To use a local file instead of Secrets Manager:
+   # $env:SNOWFLAKE_PRIVATE_KEY_PATH = "C:\\secrets\\snowflake_rsa_key.pem"
    # Only set this if the key is encrypted:
    # $env:SNOWFLAKE_PRIVATE_KEY_PASSPHRASE = "<PASSPHRASE>"
    ```
-   Leave `SNOWFLAKE_PASSWORD` unset when using a private key; the helper will
-   detect the key automatically. The same variable names work in `.env` files
-   (`KEY=value`) or other shells (`export KEY=value`).
+   Password-based authentication is no longer supported; configure Secrets
+   Manager or a private key path instead. The same variable names work in `.env`
+   files (`KEY=value`) or other shells (`export KEY=value`).
 4. **Restart the Django server.** Stop any running `python manage.py runserver`
    process and start a new one from the same shell so it inherits the variables.
    Watch the terminal for `SnowflakeConfigurationError` messages—if you see

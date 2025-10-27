@@ -1,82 +1,27 @@
-from django.http import JsonResponse
-from django.shortcuts import render
-from datetime import date, datetime, timezone
-import os
-import snowflake.connector
-from snowflake.connector import DictCursor
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.backends import default_backend
-from django.shortcuts import render, redirect
 import json
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.http import JsonResponse
-import pandas as pd
-import numpy as np
+import os
+from datetime import datetime, timezone
 from functools import lru_cache
 
-def _load_private_key_from_env():
-    """Return the Snowflake RSA private key from a filesystem path if set."""
-    key_path = os.getenv("SNOWFLAKE_KEY_PATH") or os.getenv("SF_PRIVATE_KEY_PATH")
-    if not key_path:
-        return None
+import numpy as np
+import pandas as pd
+import snowflake.connector
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
-    expanded_path = os.path.expanduser(key_path)
-    if not os.path.isfile(expanded_path):
-        raise RuntimeError(f"SNOWFLAKE_KEY_PATH is set but file not found at: {expanded_path}")
-
-    passphrase = os.getenv("SNOWFLAKE_KEY_PASSPHRASE") or os.getenv("SF_PRIVATE_KEY_PASSPHRASE")
-    try:
-        with open(expanded_path, "rb") as key_file:
-            private_key = serialization.load_pem_private_key(
-                key_file.read(),
-                password=passphrase.encode() if passphrase else None,
-                backend=default_backend(),
-            )
-    except Exception as exc:
-        raise RuntimeError(f"Failed to load Snowflake private key from {expanded_path}: {exc}")
-
-    return private_key.private_bytes(
-        encoding=serialization.Encoding.DER,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
+from . import snowflake_helpers
 
 
-def _load_private_key_from_secrets_manager():
-    """Retrieve the Snowflake RSA private key via AWS Secrets Manager."""
-    import boto3
-    from botocore.exceptions import ClientError
-
-    try:
-        session = boto3.Session()
-        client = session.client('secretsmanager', region_name='us-east-1')
-        response = client.get_secret_value(SecretId='seg-user-app/snowflake-rsa-key')
-        rsa_key_pem = response['SecretString']
-        passphrase = os.getenv("SNOWFLAKE_KEY_PASSPHRASE") or os.getenv("SF_PRIVATE_KEY_PASSPHRASE")
-        private_key = serialization.load_pem_private_key(
-            rsa_key_pem.encode(),
-            password=passphrase.encode() if passphrase else None,
-            backend=default_backend(),
-        )
-    except ClientError as e:
-        raise RuntimeError(f"Could not retrieve RSA key from Secrets Manager: {e}")
-
-    return private_key.private_bytes(
-        encoding=serialization.Encoding.DER,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    )
-
-
-def _build_snowflake_config(private_key_bytes):
+def _build_snowflake_config():
     cfg = {
         "account": os.getenv("SF_ACCOUNT") or "CMZNSCB-MU47932",
         "user": os.getenv("SF_USER") or "ELII",
         "warehouse": os.getenv("SF_WAREHOUSE") or "COMPUTE_WH",
         "database": os.getenv("SF_DATABASE") or "WELLS",
         "schema": os.getenv("SF_SCHEMA") or "MINERALS",
-        "private_key": private_key_bytes,
+        "private_key": snowflake_helpers.get_private_key_bytes(),
     }
 
     role = os.getenv("SF_ROLE")
@@ -87,11 +32,7 @@ def _build_snowflake_config(private_key_bytes):
 
 
 def get_snowflake_connection():
-    private_key_bytes = _load_private_key_from_env()
-    if private_key_bytes is None:
-        private_key_bytes = _load_private_key_from_secrets_manager()
-
-    return snowflake.connector.connect(**_build_snowflake_config(private_key_bytes))
+    return snowflake.connector.connect(**_build_snowflake_config())
 
 
 def _format_timestamp_for_json(value):
@@ -131,11 +72,7 @@ def _parse_iso_timestamp(value):
     return None
 
 def _snowflake_points():
-    private_key_bytes = _load_private_key_from_env()
-    if private_key_bytes is None:
-        private_key_bytes = _load_private_key_from_secrets_manager()
-
-    conn = snowflake.connector.connect(**_build_snowflake_config(private_key_bytes))
+    conn = snowflake.connector.connect(**_build_snowflake_config())
 
     # Rest of your function stays the same...
     try:

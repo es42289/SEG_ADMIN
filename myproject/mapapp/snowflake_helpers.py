@@ -6,7 +6,9 @@ import os
 from contextlib import contextmanager
 from typing import Any, Dict, Iterable, Optional, Sequence
 
+import boto3
 import snowflake.connector
+from botocore.exceptions import ClientError
 from snowflake.connector import DictCursor
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
@@ -16,8 +18,8 @@ class SnowflakeConfigurationError(RuntimeError):
     """Raised when the Snowflake configuration is incomplete."""
 
 
-def _load_private_key_bytes() -> Optional[bytes]:
-    """Return the Snowflake RSA private key bytes if a path is configured."""
+def _load_private_key_from_file() -> Optional[bytes]:
+    """Return the RSA key bytes from the filesystem if a path is configured."""
 
     key_path = (
         os.getenv("SNOWFLAKE_PRIVATE_KEY_PATH")
@@ -33,11 +35,7 @@ def _load_private_key_bytes() -> Optional[bytes]:
             f"Snowflake private key not found at {expanded_path}"
         )
 
-    passphrase = (
-        os.getenv("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE")
-        or os.getenv("SNOWFLAKE_KEY_PASSPHRASE")
-        or os.getenv("SF_PRIVATE_KEY_PASSPHRASE")
-    )
+    passphrase = _private_key_passphrase()
 
     with open(expanded_path, "rb") as key_file:
         private_key = serialization.load_pem_private_key(
@@ -51,6 +49,81 @@ def _load_private_key_bytes() -> Optional[bytes]:
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     )
+
+
+def _private_key_passphrase() -> Optional[str]:
+    """Return the configured passphrase for the RSA key, if any."""
+
+    return (
+        os.getenv("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE")
+        or os.getenv("SNOWFLAKE_KEY_PASSPHRASE")
+        or os.getenv("SF_PRIVATE_KEY_PASSPHRASE")
+    )
+
+
+def _load_private_key_from_secret_manager() -> Optional[bytes]:
+    """Fetch the RSA private key from AWS Secrets Manager if configured."""
+
+    secret_id = (
+        os.getenv("SNOWFLAKE_PRIVATE_KEY_SECRET_ID")
+        or "seg-user-app/snowflake-rsa-key"
+    )
+
+    if not secret_id:
+        return None
+
+    region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+
+    try:
+        session = boto3.Session()
+        client = session.client("secretsmanager", region_name=region)
+        response = client.get_secret_value(SecretId=secret_id)
+    except ClientError as exc:
+        raise SnowflakeConfigurationError(
+            f"Could not retrieve Snowflake RSA key from Secrets Manager: {exc}"
+        ) from exc
+
+    secret_string = response.get("SecretString")
+    if not secret_string:
+        raise SnowflakeConfigurationError(
+            f"Secret {secret_id} did not contain a SecretString payload"
+        )
+
+    passphrase = _private_key_passphrase()
+
+    private_key = serialization.load_pem_private_key(
+        secret_string.encode(),
+        password=passphrase.encode() if passphrase else None,
+        backend=default_backend(),
+    )
+
+    return private_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+
+def _load_private_key_bytes() -> bytes:
+    """Return the Snowflake RSA private key bytes from disk or Secrets Manager."""
+
+    key_bytes = _load_private_key_from_file()
+    if key_bytes:
+        return key_bytes
+
+    key_bytes = _load_private_key_from_secret_manager()
+    if key_bytes:
+        return key_bytes
+
+    raise SnowflakeConfigurationError(
+        "Configure SNOWFLAKE_PRIVATE_KEY_PATH or SNOWFLAKE_PRIVATE_KEY_SECRET_ID"
+    )
+
+
+def get_private_key_bytes() -> bytes:
+    """Public helper so other modules can reuse the RSA key loader."""
+
+    return _load_private_key_bytes()
 
 
 def _getenv(*names: str) -> Optional[str]:
@@ -91,17 +164,7 @@ def _build_connection_kwargs() -> Dict[str, Any]:
     if role:
         cfg["role"] = role
 
-    private_key = _load_private_key_bytes()
-    if private_key:
-        cfg["private_key"] = private_key
-    else:
-        password = _getenv("SNOWFLAKE_PASSWORD", "SF_PASSWORD")
-        if not password:
-            raise SnowflakeConfigurationError(
-                "Provide SNOWFLAKE_PASSWORD/SF_PASSWORD or "
-                "SNOWFLAKE_PRIVATE_KEY_PATH."
-            )
-        cfg["password"] = password
+    cfg["private_key"] = _load_private_key_bytes()
 
     return cfg
 
