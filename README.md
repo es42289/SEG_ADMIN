@@ -328,7 +328,7 @@ Then stop the task (replace TASK_ID with actual ID):
 aws ecs stop-task --cluster seg-user-app-cluster --task TASK_ID --region us-east-1 --profile myaws
 ```
 ```bash
-aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app:4 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
+aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
 ```
 Get the new task ID from step 6 output, then:
 ```bash

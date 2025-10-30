@@ -81,9 +81,8 @@ def _load_private_key_from_secret_manager() -> Optional[bytes]:
         client = session.client("secretsmanager", region_name=region)
         response = client.get_secret_value(SecretId=secret_id)
     except ClientError as exc:
-        raise SnowflakeConfigurationError(
-            f"Could not retrieve Snowflake RSA key from Secrets Manager: {exc}"
-        ) from exc
+        # Return None instead of raising - let the caller decide what to do
+        return None
 
     payload: Optional[bytes]
     secret_string = response.get("SecretString")
@@ -92,18 +91,19 @@ def _load_private_key_from_secret_manager() -> Optional[bytes]:
     else:
         secret_binary = response.get("SecretBinary")
         if not secret_binary:
-            raise SnowflakeConfigurationError(
-                f"Secret {secret_id} did not contain a SecretString or SecretBinary payload"
-            )
+            return None
         payload = base64.b64decode(secret_binary)
 
     passphrase = _private_key_passphrase()
 
-    private_key = serialization.load_pem_private_key(
-        payload,
-        password=passphrase.encode() if passphrase else None,
-        backend=default_backend(),
-    )
+    try:
+        private_key = serialization.load_pem_private_key(
+            payload,
+            password=passphrase.encode() if passphrase else None,
+            backend=default_backend(),
+        )
+    except Exception:
+        return None
 
     return private_key.private_bytes(
         encoding=serialization.Encoding.DER,

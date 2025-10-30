@@ -1,0 +1,36 @@
+﻿{
+    "name":  "seg-user-app",
+    "image":  "983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest",
+    "cpu":  0,
+    "portMappings":  [
+                         {
+                             "containerPort":  8000,
+                             "hostPort":  8000,
+                             "protocol":  "tcp"
+                         }
+                     ],
+    "essential":  true,
+    "environment":  [
+                        {
+                            "name":  "AWS_DEFAULT_REGION",
+                            "value":  "us-east-2"
+                        }
+                    ],
+    "mountPoints":  [
+
+                    ],
+    "volumesFrom":  [
+
+                    ],
+    "logConfiguration":  {
+                             "logDriver":  "awslogs",
+                             "options":  {
+                                             "awslogs-group":  "/ecs/seg-user-app",
+                                             "awslogs-region":  "us-east-1",
+                                             "awslogs-stream-prefix":  "ecs"
+                                         }
+                         },
+    "systemControls":  [
+
+                       ]
+}

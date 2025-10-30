@@ -1,0 +1,65 @@
+[
+    {
+        "name": "seg-user-app",
+        "image": "983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest",
+        "cpu": 0,
+        "portMappings": [
+            {
+                "containerPort": 8000,
+                "hostPort": 8000,
+                "protocol": "tcp",
+                "name": "seg-user-app-8000-tcp"
+            }
+        ],
+        "essential": true,
+        "environment": [
+            {
+                "name": "AWS_DEFAULT_REGION",
+                "value": "us-east-1"
+            },
+            {
+                "name": "SNOWFLAKE_ACCOUNT",
+                "value": "cmznscb-mu47932"
+            },
+            {
+                "name": "SNOWFLAKE_DATABASE",
+                "value": "WELLS"
+            },
+            {
+                "name": "SNOWFLAKE_SCHEMA",
+                "value": "MINERALS"
+            },
+            {
+                "name": "SNOWFLAKE_USER",
+                "value": "ELII"
+            },
+            {
+                "name": "SNOWFLAKE_WAREHOUSE",
+                "value": "COMPUTE_WH"
+            }
+        ],
+        "mountPoints": [],
+        "volumesFrom": [],
+        "secrets": [
+            {
+                "name": "SNOWFLAKE_PASSWORD",
+                "valueFrom": "arn:aws:secretsmanager:us-east-1:983102014556:secret:seg-user-app/snowflake-password-qNstcT"
+            },
+            {
+                "name": "SNOWFLAKE_PRIVATE_KEY",
+                "valueFrom": "arn:aws:secretsmanager:us-east-1:983102014556:secret:seg-user-app/snowflake-rsa-key-VMxW4s"
+            }
+        ],
+        "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+                "awslogs-group": "/ecs/seg-user-app",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "ecs"
+            },
+            "secretOptions": []
+        },
+        "systemControls": []
+    }
+]
+
