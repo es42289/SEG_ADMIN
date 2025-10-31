@@ -468,12 +468,15 @@ const yearInput = document.getElementById('year');
       }
     }
 
-    function hideOwnerProfileModal() {
+    function hideOwnerProfileModal(options = {}) {
       if (!ownerProfileModal) return;
+      const preserveMessage = Boolean(options && options.preserveMessage);
       ownerProfileModal.classList.remove('is-visible');
       ownerProfileModal.setAttribute('aria-hidden', 'true');
       ownerProfileState.isOpen = false;
-      setTimeout(() => setOwnerProfileMessage('', null), 200);
+      if (!preserveMessage) {
+        setTimeout(() => setOwnerProfileMessage('', null), 200);
+      }
       if (ownerProfileButton) {
         ownerProfileButton.focus({ preventScroll: true });
       }
@@ -509,7 +512,32 @@ const yearInput = document.getElementById('year');
       const saved = await saveOwnerProfile(current);
       if (saved) {
         hideOwnerProfileModal();
+        return;
       }
+
+      const discard = window.confirm(
+        'We were unable to save your updates. Close without saving them?'
+      );
+
+      if (!discard) {
+        setOwnerProfileMessage(
+          'Your changes have not been saved. Please review and try again.',
+          'error'
+        );
+        return;
+      }
+
+      const fallback =
+        ownerProfileState.original ||
+        createOwnerProfileDefaults(ownerProfileState.userEmail);
+
+      ownerProfileState.data = fallback;
+      populateOwnerProfileForm(fallback);
+      setOwnerProfileMessage(
+        'Your recent changes were not saved due to a connection error.',
+        'error'
+      );
+      hideOwnerProfileModal({ preserveMessage: true });
     }
 
     function handleOwnerProfileFieldChange(event) {

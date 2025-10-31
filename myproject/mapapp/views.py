@@ -1,10 +1,11 @@
 import json
+import logging
 from datetime import datetime, timezone
 from functools import lru_cache
 
 import numpy as np
 import pandas as pd
-from snowflake.connector import DictCursor
+from snowflake.connector import DictCursor, errors as snowflake_errors
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
@@ -50,6 +51,100 @@ WITHHOLDING_CANONICAL = {
     "EXEMPT": "Exempt",
     "BACKUP": "Backup",
 }
+
+
+OWNER_PROFILE_SELECT_SQL = (
+    "SELECT {columns} "
+    "FROM MINERALS.WELLS.USER_INFO "
+    "WHERE EMAIL = %s "
+    "LIMIT 1"
+)
+
+OWNER_PROFILE_MERGE_SQL = """
+    MERGE INTO MINERALS.WELLS.USER_INFO AS target
+    USING (
+        SELECT %s AS EMAIL,
+               %s AS OWNER_TYPE,
+               %s AS FIRST_NAME,
+               %s AS LAST_NAME,
+               %s AS DISPLAY_NAME,
+               %s AS PHONE_NUMBER,
+               %s AS ADDRESS_LINE_1,
+               %s AS ADDRESS_LINE_2,
+               %s AS CITY,
+               %s AS STATE,
+               %s AS POSTAL_CODE,
+               %s AS COUNTRY,
+               %s AS CONTACT_FIRST_NAME,
+               %s AS CONTACT_LAST_NAME,
+               %s AS CONTACT_TITLE,
+               %s AS TAX_ID_TYPE,
+               %s AS TAX_ID_LAST4,
+               %s AS TAX_WITHHOLDING_STATUS
+    ) AS source
+    ON target.EMAIL = source.EMAIL
+    WHEN MATCHED THEN UPDATE SET
+        OWNER_TYPE = source.OWNER_TYPE,
+        FIRST_NAME = source.FIRST_NAME,
+        LAST_NAME = source.LAST_NAME,
+        DISPLAY_NAME = source.DISPLAY_NAME,
+        PHONE_NUMBER = source.PHONE_NUMBER,
+        ADDRESS_LINE_1 = source.ADDRESS_LINE_1,
+        ADDRESS_LINE_2 = source.ADDRESS_LINE_2,
+        CITY = source.CITY,
+        STATE = source.STATE,
+        POSTAL_CODE = source.POSTAL_CODE,
+        COUNTRY = source.COUNTRY,
+        CONTACT_FIRST_NAME = source.CONTACT_FIRST_NAME,
+        CONTACT_LAST_NAME = source.CONTACT_LAST_NAME,
+        CONTACT_TITLE = source.CONTACT_TITLE,
+        TAX_ID_TYPE = source.TAX_ID_TYPE,
+        TAX_ID_LAST4 = source.TAX_ID_LAST4,
+        TAX_WITHHOLDING_STATUS = source.TAX_WITHHOLDING_STATUS,
+        UPDATED_AT = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (
+        EMAIL,
+        OWNER_TYPE,
+        FIRST_NAME,
+        LAST_NAME,
+        DISPLAY_NAME,
+        PHONE_NUMBER,
+        ADDRESS_LINE_1,
+        ADDRESS_LINE_2,
+        CITY,
+        STATE,
+        POSTAL_CODE,
+        COUNTRY,
+        CONTACT_FIRST_NAME,
+        CONTACT_LAST_NAME,
+        CONTACT_TITLE,
+        TAX_ID_TYPE,
+        TAX_ID_LAST4,
+        TAX_WITHHOLDING_STATUS
+    ) VALUES (
+        source.EMAIL,
+        source.OWNER_TYPE,
+        source.FIRST_NAME,
+        source.LAST_NAME,
+        source.DISPLAY_NAME,
+        source.PHONE_NUMBER,
+        source.ADDRESS_LINE_1,
+        source.ADDRESS_LINE_2,
+        source.CITY,
+        source.STATE,
+        source.POSTAL_CODE,
+        source.COUNTRY,
+        source.CONTACT_FIRST_NAME,
+        source.CONTACT_LAST_NAME,
+        source.CONTACT_TITLE,
+        source.TAX_ID_TYPE,
+        source.TAX_ID_LAST4,
+        source.TAX_WITHHOLDING_STATUS
+    )
+"""
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_snowflake_connection():
@@ -460,143 +555,46 @@ def user_info(request):
     if not user_email:
         return JsonResponse({"detail": "User email unavailable."}, status=400)
 
-    conn = get_snowflake_connection()
-    cur = conn.cursor(DictCursor)
+    columns_sql = ", ".join(["EMAIL"] + OWNER_PROFILE_DB_COLUMNS)
+    select_sql = OWNER_PROFILE_SELECT_SQL.format(columns=columns_sql)
 
-    try:
-        columns_sql = ", ".join(["EMAIL"] + OWNER_PROFILE_DB_COLUMNS)
-
-        if request.method == "GET":
-            cur.execute(
-                f"""
-                SELECT {columns_sql}
-                FROM MINERALS.WELLS.USER_INFO
-                WHERE EMAIL = %s
-                LIMIT 1
-                """,
-                (user_email,),
-            )
-            row = cur.fetchone()
-            profile = _profile_row_to_dict(row, user_email)
-            return JsonResponse({"profile": profile})
-
+    if request.method == "GET":
         try:
-            payload = json.loads(request.body or "{}")
-        except json.JSONDecodeError:
-            return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+            row = snowflake_helpers.fetch_one(select_sql, (user_email,))
+        except snowflake_errors.Error:
+            logger.exception("Failed to load owner profile for %s", user_email)
+            return JsonResponse({"detail": "Unable to load owner profile."}, status=502)
 
-        try:
-            normalized = _normalize_profile_payload(payload, user_email)
-        except ValueError as exc:
-            return JsonResponse({"detail": str(exc)}, status=400)
-
-        params = [normalized["email"]] + [normalized[name] for name in OWNER_PROFILE_FIELD_NAMES]
-
-        cur.execute(
-            """
-            MERGE INTO MINERALS.WELLS.USER_INFO AS target
-            USING (
-                SELECT %s AS EMAIL,
-                       %s AS OWNER_TYPE,
-                       %s AS FIRST_NAME,
-                       %s AS LAST_NAME,
-                       %s AS DISPLAY_NAME,
-                       %s AS PHONE_NUMBER,
-                       %s AS ADDRESS_LINE_1,
-                       %s AS ADDRESS_LINE_2,
-                       %s AS CITY,
-                       %s AS STATE,
-                       %s AS POSTAL_CODE,
-                       %s AS COUNTRY,
-                       %s AS CONTACT_FIRST_NAME,
-                       %s AS CONTACT_LAST_NAME,
-                       %s AS CONTACT_TITLE,
-                       %s AS TAX_ID_TYPE,
-                       %s AS TAX_ID_LAST4,
-                       %s AS TAX_WITHHOLDING_STATUS
-            ) AS source
-            ON target.EMAIL = source.EMAIL
-            WHEN MATCHED THEN UPDATE SET
-                OWNER_TYPE = source.OWNER_TYPE,
-                FIRST_NAME = source.FIRST_NAME,
-                LAST_NAME = source.LAST_NAME,
-                DISPLAY_NAME = source.DISPLAY_NAME,
-                PHONE_NUMBER = source.PHONE_NUMBER,
-                ADDRESS_LINE_1 = source.ADDRESS_LINE_1,
-                ADDRESS_LINE_2 = source.ADDRESS_LINE_2,
-                CITY = source.CITY,
-                STATE = source.STATE,
-                POSTAL_CODE = source.POSTAL_CODE,
-                COUNTRY = source.COUNTRY,
-                CONTACT_FIRST_NAME = source.CONTACT_FIRST_NAME,
-                CONTACT_LAST_NAME = source.CONTACT_LAST_NAME,
-                CONTACT_TITLE = source.CONTACT_TITLE,
-                TAX_ID_TYPE = source.TAX_ID_TYPE,
-                TAX_ID_LAST4 = source.TAX_ID_LAST4,
-                TAX_WITHHOLDING_STATUS = source.TAX_WITHHOLDING_STATUS,
-                UPDATED_AT = CURRENT_TIMESTAMP()
-            WHEN NOT MATCHED THEN INSERT (
-                EMAIL,
-                OWNER_TYPE,
-                FIRST_NAME,
-                LAST_NAME,
-                DISPLAY_NAME,
-                PHONE_NUMBER,
-                ADDRESS_LINE_1,
-                ADDRESS_LINE_2,
-                CITY,
-                STATE,
-                POSTAL_CODE,
-                COUNTRY,
-                CONTACT_FIRST_NAME,
-                CONTACT_LAST_NAME,
-                CONTACT_TITLE,
-                TAX_ID_TYPE,
-                TAX_ID_LAST4,
-                TAX_WITHHOLDING_STATUS
-            ) VALUES (
-                source.EMAIL,
-                source.OWNER_TYPE,
-                source.FIRST_NAME,
-                source.LAST_NAME,
-                source.DISPLAY_NAME,
-                source.PHONE_NUMBER,
-                source.ADDRESS_LINE_1,
-                source.ADDRESS_LINE_2,
-                source.CITY,
-                source.STATE,
-                source.POSTAL_CODE,
-                source.COUNTRY,
-                source.CONTACT_FIRST_NAME,
-                source.CONTACT_LAST_NAME,
-                source.CONTACT_TITLE,
-                source.TAX_ID_TYPE,
-                source.TAX_ID_LAST4,
-                source.TAX_WITHHOLDING_STATUS
-            )
-            """,
-            params,
-        )
-
-        conn.commit()
-
-        cur.execute(
-            f"""
-            SELECT {columns_sql}
-            FROM MINERALS.WELLS.USER_INFO
-            WHERE EMAIL = %s
-            LIMIT 1
-            """,
-            (user_email,),
-        )
-        row = cur.fetchone()
         profile = _profile_row_to_dict(row, user_email)
         return JsonResponse({"profile": profile})
-    finally:
-        try:
-            cur.close()
-        finally:
-            conn.close()
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    try:
+        normalized = _normalize_profile_payload(payload, user_email)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+
+    params = [normalized["email"]] + [normalized[name] for name in OWNER_PROFILE_FIELD_NAMES]
+
+    try:
+        snowflake_helpers.execute(OWNER_PROFILE_MERGE_SQL, params)
+    except snowflake_errors.Error:
+        logger.exception("Failed to upsert owner profile for %s", user_email)
+        return JsonResponse({"detail": "Unable to save owner profile."}, status=502)
+
+    try:
+        row = snowflake_helpers.fetch_one(select_sql, (user_email,))
+    except snowflake_errors.Error:
+        logger.exception("Owner profile saved but reload failed for %s", user_email)
+        profile = normalized
+    else:
+        profile = _profile_row_to_dict(row, user_email)
+
+    return JsonResponse({"profile": profile})
 
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])

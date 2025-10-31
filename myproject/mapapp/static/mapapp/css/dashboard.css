@@ -234,6 +234,20 @@ body {
   padding: 1.75rem;
 }
 
+.profile-modal__logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.profile-modal__logo img {
+  max-height: 56px;
+  width: auto;
+}
+
 .profile-modal__title {
   margin: 0;
   font-size: 1.75rem;

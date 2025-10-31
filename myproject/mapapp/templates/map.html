@@ -50,6 +50,9 @@
       <button type="button" class="profile-modal__close" data-profile-close aria-label="Close owner profile dialog">
         <span aria-hidden="true">&times;</span>
       </button>
+      <div class="profile-modal__logo">
+        <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
+      </div>
       <h2 id="ownerProfileTitle" class="profile-modal__title">Owner Profile</h2>
       <p class="profile-modal__subtitle">Keep your contact and tax information up to date so we can tailor insights for you.</p>
       <form id="ownerProfileForm" class="profile-form" autocomplete="on" data-user-email="{{ request.session.user.email|default:'' }}">
