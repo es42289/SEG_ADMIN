@@ -13,6 +13,45 @@ from django.views.decorators.http import require_http_methods
 from . import snowflake_helpers
 
 
+OWNER_PROFILE_FIELD_MAP = [
+    ("owner_type", "OWNER_TYPE"),
+    ("first_name", "FIRST_NAME"),
+    ("last_name", "LAST_NAME"),
+    ("display_name", "DISPLAY_NAME"),
+    ("phone_number", "PHONE_NUMBER"),
+    ("address_line_1", "ADDRESS_LINE_1"),
+    ("address_line_2", "ADDRESS_LINE_2"),
+    ("city", "CITY"),
+    ("state", "STATE"),
+    ("postal_code", "POSTAL_CODE"),
+    ("country", "COUNTRY"),
+    ("contact_first_name", "CONTACT_FIRST_NAME"),
+    ("contact_last_name", "CONTACT_LAST_NAME"),
+    ("contact_title", "CONTACT_TITLE"),
+    ("tax_id_type", "TAX_ID_TYPE"),
+    ("tax_id_last4", "TAX_ID_LAST4"),
+    ("tax_withholding_status", "TAX_WITHHOLDING_STATUS"),
+]
+
+OWNER_PROFILE_FIELD_NAMES = [name for name, _ in OWNER_PROFILE_FIELD_MAP]
+OWNER_PROFILE_DB_COLUMNS = [column for _, column in OWNER_PROFILE_FIELD_MAP]
+
+OWNER_TYPE_CANONICAL = {
+    "INDIVIDUAL": "Individual",
+    "ENTITY": "Entity",
+    "TRUST": "Trust",
+    "CORPORATION": "Corporation",
+}
+
+TAX_ID_CANONICAL = {"EIN": "EIN", "SSN": "SSN", "ITIN": "ITIN"}
+
+WITHHOLDING_CANONICAL = {
+    "STANDARD": "Standard",
+    "EXEMPT": "Exempt",
+    "BACKUP": "Backup",
+}
+
+
 def get_snowflake_connection():
     return snowflake_helpers.connect()
 
@@ -49,9 +88,88 @@ def _parse_iso_timestamp(value):
             return None
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
     return None
+
+
+def _owner_profile_defaults(email=None):
+    defaults = {name: None for name in OWNER_PROFILE_FIELD_NAMES}
+    defaults["owner_type"] = "Individual"
+    defaults["email"] = email or ""
+    return defaults
+
+
+def _normalize_profile_field(field, value, *, strict=False):
+    if value is None:
+        return "Individual" if field == "owner_type" else None
+
+    if isinstance(value, str):
+        value = value.strip()
+        if not value:
+            return "Individual" if field == "owner_type" else None
+
+    if field == "owner_type":
+        key = str(value).strip().upper()
+        if not key:
+            return "Individual"
+        try:
+            return OWNER_TYPE_CANONICAL[key]
+        except KeyError as exc:
+            if strict:
+                raise ValueError("Invalid owner type") from exc
+            return "Individual"
+
+    if field == "tax_id_type":
+        key = str(value).strip().upper()
+        if not key:
+            return None
+        try:
+            return TAX_ID_CANONICAL[key]
+        except KeyError as exc:
+            if strict:
+                raise ValueError("Invalid tax ID type") from exc
+            return None
+
+    if field == "tax_withholding_status":
+        key = str(value).strip().upper()
+        if not key:
+            return None
+        try:
+            return WITHHOLDING_CANONICAL[key]
+        except KeyError as exc:
+            if strict:
+                raise ValueError("Invalid tax withholding status") from exc
+            return None
+
+    if field == "tax_id_last4":
+        digits = "".join(ch for ch in str(value) if ch.isdigit())
+        return digits[-4:] if digits else None
+
+    if isinstance(value, str):
+        return value
+
+    return value
+
+
+def _normalize_profile_payload(payload, email):
+    normalized = _owner_profile_defaults(email)
+    for field in OWNER_PROFILE_FIELD_NAMES:
+        normalized[field] = _normalize_profile_field(field, payload.get(field), strict=True)
+    normalized["email"] = email or ""
+    return normalized
+
+
+def _profile_row_to_dict(row, email):
+    profile = _owner_profile_defaults(email)
+    if not row:
+        return profile
+
+    for field, column in OWNER_PROFILE_FIELD_MAP:
+        profile[field] = _normalize_profile_field(field, row.get(column))
+
+    profile["email"] = row.get("EMAIL") or email or ""
+    return profile
 
 def _snowflake_points():
     conn = get_snowflake_connection()
@@ -328,6 +446,157 @@ def user_wells_data(request):
         "owner_interest": [r["owner_interest"] for r in rows],
         "owner_name": [r["owner_name"] for r in rows],
     })
+
+
+
+@require_http_methods(["GET", "PUT"])
+def user_info(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    session_user = request.session.get("user") or {}
+    user_email = session_user.get("email")
+
+    if not user_email:
+        return JsonResponse({"detail": "User email unavailable."}, status=400)
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+
+    try:
+        columns_sql = ", ".join(["EMAIL"] + OWNER_PROFILE_DB_COLUMNS)
+
+        if request.method == "GET":
+            cur.execute(
+                f"""
+                SELECT {columns_sql}
+                FROM MINERALS.WELLS.USER_INFO
+                WHERE EMAIL = %s
+                LIMIT 1
+                """,
+                (user_email,),
+            )
+            row = cur.fetchone()
+            profile = _profile_row_to_dict(row, user_email)
+            return JsonResponse({"profile": profile})
+
+        try:
+            payload = json.loads(request.body or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+        try:
+            normalized = _normalize_profile_payload(payload, user_email)
+        except ValueError as exc:
+            return JsonResponse({"detail": str(exc)}, status=400)
+
+        params = [normalized["email"]] + [normalized[name] for name in OWNER_PROFILE_FIELD_NAMES]
+
+        cur.execute(
+            """
+            MERGE INTO MINERALS.WELLS.USER_INFO AS target
+            USING (
+                SELECT %s AS EMAIL,
+                       %s AS OWNER_TYPE,
+                       %s AS FIRST_NAME,
+                       %s AS LAST_NAME,
+                       %s AS DISPLAY_NAME,
+                       %s AS PHONE_NUMBER,
+                       %s AS ADDRESS_LINE_1,
+                       %s AS ADDRESS_LINE_2,
+                       %s AS CITY,
+                       %s AS STATE,
+                       %s AS POSTAL_CODE,
+                       %s AS COUNTRY,
+                       %s AS CONTACT_FIRST_NAME,
+                       %s AS CONTACT_LAST_NAME,
+                       %s AS CONTACT_TITLE,
+                       %s AS TAX_ID_TYPE,
+                       %s AS TAX_ID_LAST4,
+                       %s AS TAX_WITHHOLDING_STATUS
+            ) AS source
+            ON target.EMAIL = source.EMAIL
+            WHEN MATCHED THEN UPDATE SET
+                OWNER_TYPE = source.OWNER_TYPE,
+                FIRST_NAME = source.FIRST_NAME,
+                LAST_NAME = source.LAST_NAME,
+                DISPLAY_NAME = source.DISPLAY_NAME,
+                PHONE_NUMBER = source.PHONE_NUMBER,
+                ADDRESS_LINE_1 = source.ADDRESS_LINE_1,
+                ADDRESS_LINE_2 = source.ADDRESS_LINE_2,
+                CITY = source.CITY,
+                STATE = source.STATE,
+                POSTAL_CODE = source.POSTAL_CODE,
+                COUNTRY = source.COUNTRY,
+                CONTACT_FIRST_NAME = source.CONTACT_FIRST_NAME,
+                CONTACT_LAST_NAME = source.CONTACT_LAST_NAME,
+                CONTACT_TITLE = source.CONTACT_TITLE,
+                TAX_ID_TYPE = source.TAX_ID_TYPE,
+                TAX_ID_LAST4 = source.TAX_ID_LAST4,
+                TAX_WITHHOLDING_STATUS = source.TAX_WITHHOLDING_STATUS,
+                UPDATED_AT = CURRENT_TIMESTAMP()
+            WHEN NOT MATCHED THEN INSERT (
+                EMAIL,
+                OWNER_TYPE,
+                FIRST_NAME,
+                LAST_NAME,
+                DISPLAY_NAME,
+                PHONE_NUMBER,
+                ADDRESS_LINE_1,
+                ADDRESS_LINE_2,
+                CITY,
+                STATE,
+                POSTAL_CODE,
+                COUNTRY,
+                CONTACT_FIRST_NAME,
+                CONTACT_LAST_NAME,
+                CONTACT_TITLE,
+                TAX_ID_TYPE,
+                TAX_ID_LAST4,
+                TAX_WITHHOLDING_STATUS
+            ) VALUES (
+                source.EMAIL,
+                source.OWNER_TYPE,
+                source.FIRST_NAME,
+                source.LAST_NAME,
+                source.DISPLAY_NAME,
+                source.PHONE_NUMBER,
+                source.ADDRESS_LINE_1,
+                source.ADDRESS_LINE_2,
+                source.CITY,
+                source.STATE,
+                source.POSTAL_CODE,
+                source.COUNTRY,
+                source.CONTACT_FIRST_NAME,
+                source.CONTACT_LAST_NAME,
+                source.CONTACT_TITLE,
+                source.TAX_ID_TYPE,
+                source.TAX_ID_LAST4,
+                source.TAX_WITHHOLDING_STATUS
+            )
+            """,
+            params,
+        )
+
+        conn.commit()
+
+        cur.execute(
+            f"""
+            SELECT {columns_sql}
+            FROM MINERALS.WELLS.USER_INFO
+            WHERE EMAIL = %s
+            LIMIT 1
+            """,
+            (user_email,),
+        )
+        row = cur.fetchone()
+        profile = _profile_row_to_dict(row, user_email)
+        return JsonResponse({"profile": profile})
+    finally:
+        try:
+            cur.close()
+        finally:
+            conn.close()
 
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])

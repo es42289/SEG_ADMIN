@@ -28,7 +28,7 @@
         </svg>
         <span class="login-action__label">Docs</span>
       </button>
-      <button type="button" class="login-action" title="Owner profile (coming soon)">
+      <button type="button" id="ownerProfileButton" class="login-action" title="Manage owner profile">
         <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M12 12.5a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 1.5c-4.07 0-7.5 2.78-7.5 6.02 0 .76.62 1.48 1.64 1.48h11.72c1.02 0 1.64-.72 1.64-1.48 0-3.24-3.43-6.02-7.5-6.02Z"/>
         </svg>
@@ -44,6 +44,121 @@
   </div>
 </div>
 <div class="page-content">
+  <div id="ownerProfileModal" class="profile-modal" aria-hidden="true">
+    <div class="profile-modal__overlay" data-profile-close></div>
+    <div class="profile-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ownerProfileTitle">
+      <button type="button" class="profile-modal__close" data-profile-close aria-label="Close owner profile dialog">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <h2 id="ownerProfileTitle" class="profile-modal__title">Owner Profile</h2>
+      <p class="profile-modal__subtitle">Keep your contact and tax information up to date so we can tailor insights for you.</p>
+      <form id="ownerProfileForm" class="profile-form" autocomplete="on" data-user-email="{{ request.session.user.email|default:'' }}">
+        <div class="profile-form-grid">
+          <label class="profile-field">
+            <span class="profile-field__label">Owner type<span aria-hidden="true">*</span></span>
+            <select name="owner_type" class="profile-field__input" required>
+              <option value="Individual">Individual</option>
+              <option value="Entity">Entity</option>
+              <option value="Trust">Trust</option>
+              <option value="Corporation">Corporation</option>
+            </select>
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Display name</span>
+            <input name="display_name" type="text" class="profile-field__input" maxlength="120" placeholder="e.g., Skeans Family Minerals" />
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Email</span>
+            <input name="email" type="email" class="profile-field__input" value="{{ request.session.user.email|default:'' }}" readonly />
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Phone number</span>
+            <input name="phone_number" type="tel" class="profile-field__input" maxlength="30" placeholder="(555) 555-5555" />
+          </label>
+        </div>
+
+        <div class="profile-form-grid profile-form-grid--individual" data-owner-type="Individual">
+          <label class="profile-field">
+            <span class="profile-field__label">First name</span>
+            <input name="first_name" type="text" class="profile-field__input" maxlength="80" />
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Last name</span>
+            <input name="last_name" type="text" class="profile-field__input" maxlength="80" />
+          </label>
+        </div>
+
+        <div class="profile-form-grid profile-form-grid--entity" data-owner-type="Entity" data-owner-type-alt="Trust" data-owner-type-alt-2="Corporation">
+          <label class="profile-field">
+            <span class="profile-field__label">Main contact first name</span>
+            <input name="contact_first_name" type="text" class="profile-field__input" maxlength="80" />
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Main contact last name</span>
+            <input name="contact_last_name" type="text" class="profile-field__input" maxlength="80" />
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Contact title</span>
+            <input name="contact_title" type="text" class="profile-field__input" maxlength="80" placeholder="Trustee, Manager, etc." />
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Tax ID type</span>
+            <select name="tax_id_type" class="profile-field__input">
+              <option value=""></option>
+              <option value="EIN">EIN</option>
+              <option value="SSN">SSN</option>
+              <option value="ITIN">ITIN</option>
+            </select>
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Tax ID last 4</span>
+            <input name="tax_id_last4" type="text" inputmode="numeric" pattern="[0-9]*" class="profile-field__input" maxlength="4" placeholder="1234" />
+          </label>
+          <label class="profile-field">
+            <span class="profile-field__label">Tax withholding status</span>
+            <select name="tax_withholding_status" class="profile-field__input">
+              <option value=""></option>
+              <option value="Standard">Standard</option>
+              <option value="Exempt">Exempt</option>
+              <option value="Backup">Backup</option>
+            </select>
+          </label>
+        </div>
+
+        <fieldset class="profile-fieldset">
+          <legend class="profile-fieldset__title">Mailing address</legend>
+          <div class="profile-form-grid">
+            <label class="profile-field profile-field--wide">
+              <span class="profile-field__label">Address line 1</span>
+              <input name="address_line_1" type="text" class="profile-field__input" maxlength="120" />
+            </label>
+            <label class="profile-field profile-field--wide">
+              <span class="profile-field__label">Address line 2</span>
+              <input name="address_line_2" type="text" class="profile-field__input" maxlength="120" />
+            </label>
+            <label class="profile-field">
+              <span class="profile-field__label">City</span>
+              <input name="city" type="text" class="profile-field__input" maxlength="80" />
+            </label>
+            <label class="profile-field">
+              <span class="profile-field__label">State / Province</span>
+              <input name="state" type="text" class="profile-field__input" maxlength="60" />
+            </label>
+            <label class="profile-field">
+              <span class="profile-field__label">Postal code</span>
+              <input name="postal_code" type="text" class="profile-field__input" maxlength="20" />
+            </label>
+            <label class="profile-field">
+              <span class="profile-field__label">Country</span>
+              <input name="country" type="text" class="profile-field__input" maxlength="60" />
+            </label>
+          </div>
+        </fieldset>
+      </form>
+      <div id="ownerProfileMessage" class="profile-modal__message" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
   <div class="dashboard-layout">
     <aside class="metrics-sidebar">
       <div class="sidebar-logo">

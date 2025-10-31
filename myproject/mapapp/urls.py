@@ -21,6 +21,7 @@ urlpatterns = [
     path('price-decks/', views.price_decks, name='price_decks'),
     path('econ-data/', views.economics_data, name='economics_data'),
     path('feedback/', views.user_feedback_entries, name='user_feedback_entries'),
+    path('api/user-info/', views.user_info, name='user_info'),
     path('api/uploads/start', StartUpload.as_view(), name='start_upload'),
     path('api/uploads/finalize', FinalizeUpload.as_view(), name='finalize_upload'),
     path('api/files', ListMyFiles.as_view(), name='list_files'),

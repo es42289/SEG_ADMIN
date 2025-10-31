@@ -115,6 +115,446 @@ const yearInput = document.getElementById('year');
       return match ? decodeURIComponent(match[1]) : '';
     }
 
+    const OWNER_PROFILE_FIELDS = [
+      'owner_type',
+      'first_name',
+      'last_name',
+      'display_name',
+      'phone_number',
+      'address_line_1',
+      'address_line_2',
+      'city',
+      'state',
+      'postal_code',
+      'country',
+      'contact_first_name',
+      'contact_last_name',
+      'contact_title',
+      'tax_id_type',
+      'tax_id_last4',
+      'tax_withholding_status'
+    ];
+
+    const OWNER_TYPE_MAP = {
+      INDIVIDUAL: 'Individual',
+      ENTITY: 'Entity',
+      TRUST: 'Trust',
+      CORPORATION: 'Corporation'
+    };
+
+    const TAX_ID_TYPES = {
+      EIN: 'EIN',
+      SSN: 'SSN',
+      ITIN: 'ITIN'
+    };
+
+    const WITHHOLDING_STATUSES = {
+      STANDARD: 'Standard',
+      EXEMPT: 'Exempt',
+      BACKUP: 'Backup'
+    };
+
+    const ownerProfileButton = document.getElementById('ownerProfileButton');
+    const ownerProfileModal = document.getElementById('ownerProfileModal');
+    const ownerProfileForm = document.getElementById('ownerProfileForm');
+    const ownerProfileMessage = document.getElementById('ownerProfileMessage');
+
+    const ownerProfileState = {
+      original: null,
+      data: null,
+      isOpen: false,
+      saving: false,
+      loading: false,
+      fetchPromise: null,
+      userEmail:
+        (ownerProfileForm && ownerProfileForm.dataset.userEmail) ||
+        (ownerProfileForm && ownerProfileForm.elements && ownerProfileForm.elements.email
+          ? ownerProfileForm.elements.email.value
+          : '')
+    };
+
+    function canonicalizeOwnerType(value) {
+      if (!value && value !== '') return 'Individual';
+      const cleaned = String(value || '').trim();
+      if (!cleaned) return 'Individual';
+      const key = cleaned.toUpperCase();
+      return OWNER_TYPE_MAP[key] || (() => { throw new Error('Invalid owner type'); })();
+    }
+
+    function canonicalizeTaxIdType(value) {
+      if (value === null || value === undefined) return null;
+      const cleaned = String(value).trim();
+      if (!cleaned) return null;
+      const key = cleaned.toUpperCase();
+      if (!TAX_ID_TYPES[key]) {
+        throw new Error('Invalid tax ID type');
+      }
+      return TAX_ID_TYPES[key];
+    }
+
+    function canonicalizeWithholding(value) {
+      if (value === null || value === undefined) return null;
+      const cleaned = String(value).trim();
+      if (!cleaned) return null;
+      const key = cleaned.toUpperCase();
+      if (!WITHHOLDING_STATUSES[key]) {
+        throw new Error('Invalid withholding status');
+      }
+      return WITHHOLDING_STATUSES[key];
+    }
+
+    function normalizeTaxIdLast4(value) {
+      if (value === null || value === undefined) return null;
+      const digits = String(value).replace(/\D+/g, '');
+      if (!digits) return null;
+      return digits.slice(-4);
+    }
+
+    function createOwnerProfileDefaults(email) {
+      const defaults = { email: email || '', owner_type: 'Individual' };
+      for (const field of OWNER_PROFILE_FIELDS) {
+        if (!(field in defaults)) {
+          defaults[field] = null;
+        }
+      }
+      return defaults;
+    }
+
+    function normalizeOwnerProfile(rawProfile) {
+      const normalized = createOwnerProfileDefaults(ownerProfileState.userEmail);
+      if (!rawProfile || typeof rawProfile !== 'object') {
+        return normalized;
+      }
+
+      const working = { ...rawProfile };
+      if (Object.prototype.hasOwnProperty.call(working, 'email')) {
+        normalized.email = String(working.email || '').trim();
+      }
+
+      for (const field of OWNER_PROFILE_FIELDS) {
+        const value = working[field];
+        if (value === undefined) {
+          continue;
+        }
+
+        if (value === null) {
+          normalized[field] = null;
+          continue;
+        }
+
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          normalized[field] = trimmed ? trimmed : null;
+          continue;
+        }
+
+        normalized[field] = value;
+      }
+
+      try {
+        normalized.owner_type = canonicalizeOwnerType(working.owner_type ?? normalized.owner_type);
+      } catch (err) {
+        console.warn('Owner profile owner_type normalization failed:', err);
+        normalized.owner_type = 'Individual';
+      }
+
+      try {
+        normalized.tax_id_type = canonicalizeTaxIdType(working.tax_id_type ?? normalized.tax_id_type);
+      } catch (err) {
+        console.warn('Owner profile tax_id_type normalization failed:', err);
+        normalized.tax_id_type = null;
+      }
+
+      try {
+        normalized.tax_withholding_status = canonicalizeWithholding(
+          working.tax_withholding_status ?? normalized.tax_withholding_status
+        );
+      } catch (err) {
+        console.warn('Owner profile withholding normalization failed:', err);
+        normalized.tax_withholding_status = null;
+      }
+
+      normalized.tax_id_last4 = normalizeTaxIdLast4(working.tax_id_last4 ?? normalized.tax_id_last4);
+
+      return normalized;
+    }
+
+    function ownerProfilesEqual(a, b) {
+      if (!a || !b) return false;
+      for (const field of OWNER_PROFILE_FIELDS) {
+        const left = a[field] ?? null;
+        const right = b[field] ?? null;
+        if (left !== right) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function setOwnerProfileMessage(message, intent) {
+      if (!ownerProfileMessage) return;
+      ownerProfileMessage.textContent = message || '';
+      ownerProfileMessage.className = 'profile-modal__message';
+      if (intent) {
+        ownerProfileMessage.classList.add(`profile-modal__message--${intent}`);
+      }
+    }
+
+    function toggleOwnerProfileSections(ownerType) {
+      const canonicalType = (() => {
+        try {
+          return canonicalizeOwnerType(ownerType);
+        } catch {
+          return 'Individual';
+        }
+      })();
+
+      if (!ownerProfileForm) return;
+
+      const individualGrid = ownerProfileForm.querySelector('.profile-form-grid--individual');
+      const entityGrid = ownerProfileForm.querySelector('.profile-form-grid--entity');
+
+      if (individualGrid) {
+        if (canonicalType === 'Individual') {
+          individualGrid.classList.remove('is-hidden');
+        } else {
+          individualGrid.classList.add('is-hidden');
+        }
+      }
+
+      if (entityGrid) {
+        if (canonicalType === 'Individual') {
+          entityGrid.classList.add('is-hidden');
+        } else {
+          entityGrid.classList.remove('is-hidden');
+        }
+      }
+    }
+
+    function populateOwnerProfileForm(profile) {
+      if (!ownerProfileForm) return;
+      const normalized = normalizeOwnerProfile(profile);
+
+      for (const field of OWNER_PROFILE_FIELDS) {
+        const input = ownerProfileForm.elements[field];
+        if (!input) continue;
+        const value = normalized[field];
+        input.value = value === null || value === undefined ? '' : value;
+      }
+
+      if (ownerProfileForm.elements.email) {
+        ownerProfileForm.elements.email.value = normalized.email || ownerProfileState.userEmail || '';
+      }
+
+      toggleOwnerProfileSections(normalized.owner_type);
+    }
+
+    function readOwnerProfileForm() {
+      if (!ownerProfileForm) return createOwnerProfileDefaults(ownerProfileState.userEmail);
+      const formData = new FormData(ownerProfileForm);
+      const raw = { email: ownerProfileState.userEmail || '' };
+      for (const field of OWNER_PROFILE_FIELDS) {
+        raw[field] = formData.get(field);
+      }
+      if (formData.has('email')) {
+        raw.email = formData.get('email');
+      }
+      return normalizeOwnerProfile(raw);
+    }
+
+    function disableOwnerProfileForm(disabled) {
+      if (!ownerProfileForm) return;
+      ownerProfileForm.classList.toggle('is-disabled', Boolean(disabled));
+    }
+
+    async function fetchOwnerProfileData() {
+      if (ownerProfileState.fetchPromise) {
+        return ownerProfileState.fetchPromise;
+      }
+      if (!ownerProfileForm) {
+        ownerProfileState.fetchPromise = Promise.resolve(createOwnerProfileDefaults(ownerProfileState.userEmail));
+        return ownerProfileState.fetchPromise;
+      }
+
+      ownerProfileState.loading = true;
+      disableOwnerProfileForm(true);
+      setOwnerProfileMessage('Loading owner profile…', 'warning');
+
+      ownerProfileState.fetchPromise = (async () => {
+        try {
+          const resp = await fetch('/api/user-info/', { headers: { Accept: 'application/json' } });
+          if (!resp.ok) {
+            throw new Error(`Failed to load owner profile (${resp.status})`);
+          }
+          const payload = await resp.json();
+          const profile = normalizeOwnerProfile(payload.profile || payload);
+          ownerProfileState.original = profile;
+          ownerProfileState.data = profile;
+          populateOwnerProfileForm(profile);
+          setOwnerProfileMessage('Profile loaded.', 'success');
+          return profile;
+        } catch (error) {
+          console.error('Unable to fetch owner profile:', error);
+          const fallback = createOwnerProfileDefaults(ownerProfileState.userEmail);
+          ownerProfileState.original = fallback;
+          ownerProfileState.data = fallback;
+          populateOwnerProfileForm(fallback);
+          setOwnerProfileMessage('Unable to load owner profile. You can still make updates.', 'error');
+          return fallback;
+        } finally {
+          ownerProfileState.loading = false;
+          disableOwnerProfileForm(false);
+        }
+      })();
+
+      return ownerProfileState.fetchPromise;
+    }
+
+    async function saveOwnerProfile(profile) {
+      const normalized = normalizeOwnerProfile(profile);
+      const payload = { ...normalized };
+      delete payload.email;
+
+      try {
+        ownerProfileState.saving = true;
+        disableOwnerProfileForm(true);
+        setOwnerProfileMessage('Saving changes…', 'saving');
+
+        const resp = await fetch('/api/user-info/', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await resp.text();
+        if (!resp.ok) {
+          throw new Error(text || `Failed to save owner profile (${resp.status})`);
+        }
+
+        let responseData = {};
+        try {
+          responseData = JSON.parse(text);
+        } catch (err) {
+          console.warn('Unable to parse owner profile save response:', err);
+        }
+
+        const savedProfile = normalizeOwnerProfile(responseData.profile || responseData || normalized);
+        ownerProfileState.original = savedProfile;
+        ownerProfileState.data = savedProfile;
+        populateOwnerProfileForm(savedProfile);
+        setOwnerProfileMessage('Profile saved successfully.', 'success');
+        return true;
+      } catch (error) {
+        console.error('Unable to save owner profile:', error);
+        setOwnerProfileMessage('We could not save your updates. Please try again.', 'error');
+        return false;
+      } finally {
+        ownerProfileState.saving = false;
+        disableOwnerProfileForm(false);
+      }
+    }
+
+    function showOwnerProfileModal() {
+      if (!ownerProfileModal || !ownerProfileButton) return;
+      ownerProfileModal.classList.add('is-visible');
+      ownerProfileModal.setAttribute('aria-hidden', 'false');
+      ownerProfileState.isOpen = true;
+      setOwnerProfileMessage('', null);
+      if (ownerProfileForm && ownerProfileForm.elements.owner_type) {
+        ownerProfileForm.elements.owner_type.focus();
+      }
+    }
+
+    function hideOwnerProfileModal() {
+      if (!ownerProfileModal) return;
+      ownerProfileModal.classList.remove('is-visible');
+      ownerProfileModal.setAttribute('aria-hidden', 'true');
+      ownerProfileState.isOpen = false;
+      setTimeout(() => setOwnerProfileMessage('', null), 200);
+      if (ownerProfileButton) {
+        ownerProfileButton.focus({ preventScroll: true });
+      }
+    }
+
+    async function attemptCloseOwnerProfileModal() {
+      if (!ownerProfileForm) {
+        hideOwnerProfileModal();
+        return;
+      }
+      if (ownerProfileState.saving) {
+        return;
+      }
+
+      const current = readOwnerProfileForm();
+      ownerProfileState.data = current;
+
+      if (!ownerProfileState.original) {
+        ownerProfileState.original = createOwnerProfileDefaults(ownerProfileState.userEmail);
+      }
+
+      const hasChanges = !ownerProfilesEqual(current, ownerProfileState.original);
+      if (!hasChanges) {
+        hideOwnerProfileModal();
+        return;
+      }
+
+      if (!current.owner_type) {
+        setOwnerProfileMessage('Owner type is required.', 'error');
+        return;
+      }
+
+      const saved = await saveOwnerProfile(current);
+      if (saved) {
+        hideOwnerProfileModal();
+      }
+    }
+
+    function handleOwnerProfileFieldChange(event) {
+      if (!ownerProfileForm) return;
+      if (event && event.target && event.target.name === 'owner_type') {
+        toggleOwnerProfileSections(event.target.value);
+      }
+
+      const current = readOwnerProfileForm();
+      const changed = ownerProfileState.original
+        ? !ownerProfilesEqual(current, ownerProfileState.original)
+        : true;
+      if (!changed) {
+        setOwnerProfileMessage('', null);
+      }
+    }
+
+    if (ownerProfileModal && ownerProfileForm && ownerProfileButton) {
+      ownerProfileForm.addEventListener('submit', (event) => event.preventDefault());
+      ownerProfileForm.addEventListener('change', handleOwnerProfileFieldChange, true);
+      ownerProfileForm.addEventListener('input', handleOwnerProfileFieldChange, true);
+
+      ownerProfileModal
+        .querySelectorAll('[data-profile-close]')
+        .forEach((el) => el.addEventListener('click', (event) => {
+          event.preventDefault();
+          attemptCloseOwnerProfileModal();
+        }));
+
+      ownerProfileButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        await fetchOwnerProfileData();
+        showOwnerProfileModal();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && ownerProfileState.isOpen) {
+          event.preventDefault();
+          attemptCloseOwnerProfileModal();
+        }
+      });
+
+      fetchOwnerProfileData();
+    }
+
     // Global variables to store all data
     let allWellData = null;
     let userWellData = null;

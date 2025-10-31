@@ -200,6 +200,200 @@ body {
   margin-bottom: 0.35rem;
 }
 
+/* Owner profile modal */
+.profile-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+.profile-modal.is-visible {
+  display: flex;
+}
+
+.profile-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 48, 71, 0.78);
+}
+
+.profile-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(880px, 92vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: linear-gradient(160deg, #0d3a52, #0f4b64);
+  border: 1px solid rgba(158, 224, 255, 0.45);
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(4, 24, 33, 0.45);
+  color: #ffffff;
+  padding: 1.75rem;
+}
+
+.profile-modal__title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.profile-modal__subtitle {
+  margin-top: 0.35rem;
+  margin-bottom: 1.5rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1.05rem;
+}
+
+.profile-modal__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.profile-modal__close:hover,
+.profile-modal__close:focus {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.profile-form-grid--individual,
+.profile-form-grid--entity {
+  transition: opacity 0.2s ease;
+}
+
+.profile-form-grid.is-hidden {
+  display: none;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.profile-field--wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+  .profile-field--wide {
+    grid-column: span 1;
+  }
+}
+
+.profile-field__label {
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+
+.profile-field__input {
+  font: inherit;
+  background: rgba(255, 255, 255, 0.92);
+  color: #05344c;
+  border: 1px solid rgba(3, 59, 81, 0.45);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-field__input:focus {
+  outline: none;
+  border-color: rgba(158, 224, 255, 0.9);
+  box-shadow: 0 0 0 3px rgba(158, 224, 255, 0.35);
+}
+
+.profile-fieldset {
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid rgba(158, 224, 255, 0.25);
+  border-radius: 12px;
+  background: rgba(8, 56, 76, 0.65);
+}
+
+.profile-fieldset__title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.profile-modal__message {
+  margin-top: 1rem;
+  min-height: 1.25rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.profile-modal__message--success {
+  color: #9fe5ba;
+}
+
+.profile-modal__message--error {
+  color: #ffb8b8;
+}
+
+.profile-modal__message--warning {
+  color: #ffd17a;
+}
+
+.profile-modal__message--saving {
+  color: #9ee0ff;
+}
+
+.profile-form.is-disabled .profile-field__input {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.profile-form__spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.profile-form__spinner::before {
+  content: "";
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  border: 2px solid rgba(158, 224, 255, 0.3);
+  border-top-color: rgba(158, 224, 255, 0.9);
+  animation: profile-spinner 0.9s linear infinite;
+}
+
+@keyframes profile-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .support-docs-button .button-subtitle {
   font-size: 0.95rem;
   font-style: italic;
