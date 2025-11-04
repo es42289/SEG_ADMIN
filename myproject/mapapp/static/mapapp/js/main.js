@@ -1768,7 +1768,7 @@ const yearInput = document.getElementById('year');
 
     // ===== Supporting documents =====
     const supportDocButtons = Array.from(
-      document.querySelectorAll('.support-docs-button, #topDocsButton')
+      document.querySelectorAll('.support-docs-button')
     );
     const supportDocsStatus = document.getElementById('support-docs-status');
     const supportDocsTableBody = document.querySelector('#support-docs-table tbody');
