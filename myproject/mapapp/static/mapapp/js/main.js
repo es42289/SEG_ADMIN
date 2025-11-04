@@ -1767,7 +1767,9 @@ const yearInput = document.getElementById('year');
     }
 
     // ===== Supporting documents =====
-    const supportDocButtons = Array.from(document.querySelectorAll('.support-docs-button'));
+    const supportDocButtons = Array.from(
+      document.querySelectorAll('.support-docs-button, #topDocsButton')
+    );
     const supportDocsStatus = document.getElementById('support-docs-status');
     const supportDocsTableBody = document.querySelector('#support-docs-table tbody');
     const supportDocsEmptyState = document.getElementById('support-docs-empty');
