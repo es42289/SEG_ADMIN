@@ -29,6 +29,53 @@ const yearInput = document.getElementById('year');
     };
 
     const rootElement = document.documentElement;
+    window.syncRoyaltyPanelHeight = () => {
+      const cumChart = document.getElementById('cashflowSummaryChart');
+      const royaltyCard = document.querySelector('.econ-card--match-cashflow');
+      const royaltyChart = document.getElementById('royaltyValueChart');
+      if (!cumChart || !royaltyCard || !royaltyChart) return;
+
+      const cumCard = cumChart.closest('.econ-card');
+      if (!cumCard) return;
+
+      const cumRect = cumCard.getBoundingClientRect();
+      if (!cumRect.height) return;
+
+      royaltyCard.style.height = `${cumRect.height}px`;
+
+      const cardStyle = getComputedStyle(royaltyCard);
+      const paddingY = parseFloat(cardStyle.paddingTop || '0') + parseFloat(cardStyle.paddingBottom || '0');
+      const titleEl = royaltyCard.querySelector('.econ-card-title');
+      const titleHeight = titleEl?.getBoundingClientRect().height || 0;
+      const available = Math.max(240, cumRect.height - paddingY - titleHeight - 8);
+      royaltyChart.style.height = `${available}px`;
+      if (window.Plotly && royaltyChart.data) {
+        Plotly.relayout(royaltyChart, { height: available });
+        Plotly.Plots.resize(royaltyChart);
+      }
+    };
+    const getResponsivePlotHeight = (el, options = {}) => {
+      const { min = 320, max = 520, ratio = 0.65, matchHeightEl } = options;
+      const getMatchHeight = () => {
+        if (!matchHeightEl) return null;
+        const rect = matchHeightEl.getBoundingClientRect?.();
+        if (rect && rect.height > 0) {
+          return Math.round(rect.height);
+        }
+        return null;
+      };
+
+      const matched = getMatchHeight();
+      if (matched) {
+        return Math.max(min, Math.min(max, matched));
+      }
+
+      if (!el) return min;
+      const width = el.getBoundingClientRect ? el.getBoundingClientRect().width : el.clientWidth || 0;
+      if (!width) return min;
+      const target = Math.round(width * ratio);
+      return Math.max(min, Math.min(max, target));
+    };
     const updateLayoutOffsets = () => {
       const banner = document.querySelector('.top-banner');
       if (!banner || !rootElement) return;
@@ -1376,6 +1423,17 @@ const yearInput = document.getElementById('year');
         else zoom = 12;
       }
 
+      const prodChartEl = document.getElementById('prodChart');
+      const prodChartSection = document.getElementById('prod-chart');
+      const mapSection = document.getElementById('user-wells-map');
+      const syncMapHeight = () => getResponsivePlotHeight(mapDiv, { matchHeightEl: prodChartEl });
+      const syncContainerHeight = () => {
+        if (!mapSection || !prodChartSection) return;
+        const prodRect = prodChartSection.getBoundingClientRect();
+        if (prodRect && prodRect.height > 0) {
+          mapSection.style.height = `${prodRect.height}px`;
+        }
+      };
       const layout = {
         paper_bgcolor: '#156082',
         plot_bgcolor: '#156082',
@@ -1387,12 +1445,33 @@ const yearInput = document.getElementById('year');
           zoom: zoom
         },
         margin: { t: 5, r: 10, b: 10, l: 10 },
-        height: 400,
+        height: syncMapHeight(),
         // title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
         showlegend: false
       };
 
-      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false });
+      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false, responsive: true });
+      syncContainerHeight();
+
+      if (mapDiv._segResizeHandler) {
+        window.removeEventListener('resize', mapDiv._segResizeHandler);
+      }
+      const handleResize = () => {
+        const nextHeight = syncMapHeight();
+        Plotly.relayout(mapDivId, { height: nextHeight });
+        Plotly.Plots.resize(mapDiv);
+        syncContainerHeight();
+      };
+      mapDiv._segResizeHandler = handleResize;
+      window.addEventListener('resize', handleResize);
+      requestAnimationFrame(handleResize);
+      setTimeout(handleResize, 200);
+      if (window.ResizeObserver && prodChartEl) {
+        const ro = new ResizeObserver(handleResize);
+        ro.observe(prodChartEl);
+        mapDiv._segResizeObserver = ro;
+      }
+      window.syncRoyaltyPanelHeight();
 
       const markerTraceIndex = traces.length - 1;
       mapDiv.on('plotly_hover', e => {

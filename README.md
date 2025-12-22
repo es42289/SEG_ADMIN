@@ -4,6 +4,18 @@ Routes:
 - `/map/` — page with Plotly map and year slider
 - `/map-data/?date=YYYY-01-01` — JSON endpoint fetching points from `WELLS.MINERALS.RAW_WELL_DATA`
 
+### UI build tooling
+
+- Tailwind/PostCSS build scaffold added for future UI refactor.
+- Files touched and why:
+  - `.gitignore` — ignore `node_modules/` artifacts from build-time installs.
+  - `package.json` — defines Tailwind/PostCSS dev dependencies and `build:css` script outputting `static/mapapp/css/tailwind.css`.
+  - `postcss.config.js` — enables Tailwind + Autoprefixer during CSS build.
+  - `tailwind.config.js` — configures content paths for Django templates/JS and purge.
+  - `myproject/mapapp/static/src/tailwind.css` — Tailwind entry point (base/components/utilities).
+  - `myproject/mapapp/static/mapapp/css/tailwind.css` — built CSS (temporary inline subset checked in to keep responsive shell working when registry access is blocked).
+- `myproject/mapapp/templates/base.html` — updated to a Tailwind-driven responsive shell (header, collapsible navigation, footer, responsive container) without touching page-specific content.
+
 Environment variables expected:
 ```
 SF_ACCOUNT=CMZNSCB-MU47932
@@ -192,6 +204,101 @@ The bind mount keeps your local file changes in sync with the running container,
 while the `--rm` flag ensures that stopped containers do not accumulate. Stop the
 server with `Ctrl+C` when you are done.
 
+# AWS Fargate Deployment Guide
+
+## Prerequisites
+
+- AWS CLI configured with appropriate profile
+- Docker installed and running
+- ECR repository created: `seg-user-app`
+- ECS cluster created: `seg-user-app-cluster`
+- Task definition family: `seg-user-app`
+
+## Deployment Steps
+
+### 1. Build Docker Image
+
+```bash
+docker build -t seg-user-app .
+```
+
+### 2. Tag for ECR
+
+```bash
+docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+```
+
+### 3. Authenticate with ECR
+
+```bash
+aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
+```
+
+### 4. Push to ECR
+
+```bash
+docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+```
+
+### 5. Stop Current Running Task (if any)
+
+First, get the current task ID:
+```bash
+aws ecs list-tasks --cluster seg-user-app-cluster --region us-east-1 --profile myaws
+```
+
+Then stop the task (replace TASK_ID with actual ID):
+```bash
+aws ecs stop-task --cluster seg-user-app-cluster --task TASK_ID --region us-east-1 --profile myaws
+```
+
+### 6. Start New Task
+
+```bash
+aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app:4 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
+```
+
+### 7. Get New Public IP Address
+
+Get the new task ID from step 6 output, then:
+
+```bash
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks NEW_TASK_ID --region us-east-1 --profile myaws
+```
+
+Extract the `networkInterfaceId` from the output, then:
+
+```bash
+aws ec2 describe-network-interfaces --network-interface-ids NETWORK_INTERFACE_ID --region us-east-1 --profile myaws
+```
+
+The public IP will be in the `Association.PublicIp` field.
+
+### 8. Update External Configurations
+
+When the public IP changes, update:
+
+1. **Snowflake Network Policy**:
+   ```sql
+   ALTER NETWORK POLICY streamlit_policy
+     SET ALLOWED_IP_LIST = ('existing_ips', 'NEW_PUBLIC_IP');
+   ```
+
+2. **Auth0 Callback URLs**:
+   Add `http://NEW_PUBLIC_IP:8000/callback/` to allowed callback URLs
+
+## Troubleshooting
+
+### Check Task Status
+```bash
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks TASK_ID --region us-east-1 --profile myaws
+```
+
+### View Application Logs
+```bash
+aws logs get-log-events --log-group-name "/ecs/seg-user-app" --log-stream-name "ecs/seg-user-app/TASK_ID" --region us-east-1 --profile myaws
+```
+
 ### Common Issues
 
 - **Out of Memory**: Task definition uses 1024MB memory. If still getting OOM errors, increase memory in task definition.
@@ -219,25 +326,26 @@ server with `Ctrl+C` when you are done.
 - **Port**: 8000 (HTTP)
 - **Secrets**: RSA key stored in AWS Secrets Manager (`seg-user-app/snowflake-rsa-key`)
 
-# How to Redeploy
-## run this first to redeploy
-   # 1. Build and tag your Docker image
-   docker build -t seg-user-app .
-   docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
 
-   # 2. Login to ECR
-   aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
-
-   # 3. Push to ECR
-   docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
-
-   # 4. Force new deployment (this pulls the latest image)
-   aws ecs update-service `
-   --cluster seg-user-app-cluster `
-   --service seg-user-app-service `
-   --force-new-deployment `
-   --region us-east-1 `
-   --profile myaws
-
-## then get the new ip address and update snowflake network policy
-aws ecs describe-tasks --cluster seg-user-app-cluster --tasks $(aws ecs list-tasks --cluster seg-user-app-cluster --service-name seg-user-app-service --region us-east-1 --profile myaws --query 'taskArns[0]' --output text) --region us-east-1 --profile myaws --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' --output text | %{aws ec2 describe-network-interfaces --network-interface-ids $_ --region us-east-1 --profile myaws --query 'NetworkInterfaces[0].Association.PublicIp' --output text}
+- Fast
+```bash
+docker build -t seg-user-app .
+docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
+docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+aws ecs list-tasks --cluster seg-user-app-cluster --region us-east-1 --profile myaws
+```
+Then stop the task (replace TASK_ID with actual ID):
+```bash
+aws ecs stop-task --cluster seg-user-app-cluster --task TASK_ID --region us-east-1 --profile myaws
+```
+```bash
+aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
+```
+Get the new task ID from step 6 output, then:
+```bash
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks NEW_TASK_ID --region us-east-1 --profile myaws
+```
+Extract the `networkInterfaceId` from the output, then:
+```bash
+aws ec2 describe-network-interfaces --network-interface-ids NETWORK_INTERFACE_ID --region us-east-1 --profile myaws

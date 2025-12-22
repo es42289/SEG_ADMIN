@@ -68,6 +68,10 @@
     if (data.stats || data.royalty_curve) {
       renderStats(statsEl, data.stats, data.royalty_curve);
     }
+    if (typeof window.syncRoyaltyPanelHeight === 'function') {
+      window.syncRoyaltyPanelHeight();
+      setTimeout(window.syncRoyaltyPanelHeight, 150);
+    }
     if (typeof window.updateCashflowMetrics === 'function' && data.stats) {
       window.updateCashflowMetrics(data.stats.ltm_cf, data.stats.ntm_cf);
     }
@@ -228,6 +232,9 @@
     };
 
     Plotly.newPlot(target, [trace], layout, {responsive: true});
+    if (typeof window.syncRoyaltyPanelHeight === 'function') {
+      window.syncRoyaltyPanelHeight();
+    }
   }
 
   function renderStats(el, stats, royaltyCurve){
@@ -283,6 +290,10 @@
     }
 
     renderRoyaltyChart('royaltyValueChart', royaltyCurve);
+    if (typeof window.syncRoyaltyPanelHeight === 'function') {
+      window.syncRoyaltyPanelHeight();
+      setTimeout(window.syncRoyaltyPanelHeight, 100);
+    }
   }
 
   function renderRoyaltyChart(el, curve){
