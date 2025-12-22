@@ -13,7 +13,8 @@ Routes:
   - `postcss.config.js` — enables Tailwind + Autoprefixer during CSS build.
   - `tailwind.config.js` — configures content paths for Django templates/JS and purge.
   - `myproject/mapapp/static/src/tailwind.css` — Tailwind entry point (base/components/utilities).
-  - `myproject/mapapp/static/mapapp/css/tailwind.css` — build target placeholder to keep collectstatic happy.
+  - `myproject/mapapp/static/mapapp/css/tailwind.css` — built CSS (temporary inline subset checked in to keep responsive shell working when registry access is blocked).
+- `myproject/mapapp/templates/base.html` — updated to a Tailwind-driven responsive shell (header, collapsible navigation, footer, responsive container) without touching page-specific content.
 
 Environment variables expected:
 ```
