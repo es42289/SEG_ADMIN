@@ -30,7 +30,13 @@ const yearInput = document.getElementById('year');
 
     const rootElement = document.documentElement;
     const getResponsivePlotHeight = (el, options = {}) => {
-      const { min = 320, max = 520, ratio = 0.65 } = options;
+      const { min = 320, max = 520, ratio = 0.65, matchHeightEl } = options;
+      if (matchHeightEl) {
+        const matchRect = matchHeightEl.getBoundingClientRect();
+        if (matchRect?.height) {
+          return Math.max(min, Math.min(max, Math.round(matchRect.height)));
+        }
+      }
       if (!el) return min;
       const width = el.getBoundingClientRect ? el.getBoundingClientRect().width : el.clientWidth || 0;
       if (!width) return min;
@@ -1384,6 +1390,7 @@ const yearInput = document.getElementById('year');
         else zoom = 12;
       }
 
+      const prodChartEl = document.getElementById('prodChart');
       const layout = {
         paper_bgcolor: '#156082',
         plot_bgcolor: '#156082',
@@ -1395,7 +1402,7 @@ const yearInput = document.getElementById('year');
           zoom: zoom
         },
         margin: { t: 5, r: 10, b: 10, l: 10 },
-        height: getResponsivePlotHeight(mapDiv),
+        height: getResponsivePlotHeight(mapDiv, { matchHeightEl: prodChartEl }),
         // title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
         showlegend: false
       };
@@ -1406,7 +1413,7 @@ const yearInput = document.getElementById('year');
         window.removeEventListener('resize', mapDiv._segResizeHandler);
       }
       const handleResize = () => {
-        const nextHeight = getResponsivePlotHeight(mapDiv);
+        const nextHeight = getResponsivePlotHeight(mapDiv, { matchHeightEl: prodChartEl });
         Plotly.relayout(mapDivId, { height: nextHeight });
         Plotly.Plots.resize(mapDiv);
       };
