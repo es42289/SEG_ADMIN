@@ -1399,7 +1399,16 @@ const yearInput = document.getElementById('year');
       }
 
       const prodChartEl = document.getElementById('prodChart');
+      const prodChartSection = document.getElementById('prod-chart');
+      const mapSection = document.getElementById('user-wells-map');
       const syncMapHeight = () => getResponsivePlotHeight(mapDiv, { matchHeightEl: prodChartEl });
+      const syncContainerHeight = () => {
+        if (!mapSection || !prodChartSection) return;
+        const prodRect = prodChartSection.getBoundingClientRect();
+        if (prodRect && prodRect.height > 0) {
+          mapSection.style.height = `${prodRect.height}px`;
+        }
+      };
       const layout = {
         paper_bgcolor: '#156082',
         plot_bgcolor: '#156082',
@@ -1417,6 +1426,7 @@ const yearInput = document.getElementById('year');
       };
 
       Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false, responsive: true });
+      syncContainerHeight();
 
       if (mapDiv._segResizeHandler) {
         window.removeEventListener('resize', mapDiv._segResizeHandler);
@@ -1425,6 +1435,7 @@ const yearInput = document.getElementById('year');
         const nextHeight = syncMapHeight();
         Plotly.relayout(mapDivId, { height: nextHeight });
         Plotly.Plots.resize(mapDiv);
+        syncContainerHeight();
       };
       mapDiv._segResizeHandler = handleResize;
       window.addEventListener('resize', handleResize);
