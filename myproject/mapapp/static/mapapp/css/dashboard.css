@@ -1091,7 +1091,7 @@ body {
 }
 
 .econ-card--match-cashflow {
-  min-height: 460px;
+  min-height: 0;
 }
 
 .econ-card--match-cashflow .econ-card-title {

@@ -29,6 +29,31 @@ const yearInput = document.getElementById('year');
     };
 
     const rootElement = document.documentElement;
+    window.syncRoyaltyPanelHeight = () => {
+      const cumChart = document.getElementById('cashflowSummaryChart');
+      const royaltyCard = document.querySelector('.econ-card--match-cashflow');
+      const royaltyChart = document.getElementById('royaltyValueChart');
+      if (!cumChart || !royaltyCard || !royaltyChart) return;
+
+      const cumCard = cumChart.closest('.econ-card');
+      if (!cumCard) return;
+
+      const cumRect = cumCard.getBoundingClientRect();
+      if (!cumRect.height) return;
+
+      royaltyCard.style.height = `${cumRect.height}px`;
+
+      const cardStyle = getComputedStyle(royaltyCard);
+      const paddingY = parseFloat(cardStyle.paddingTop || '0') + parseFloat(cardStyle.paddingBottom || '0');
+      const titleEl = royaltyCard.querySelector('.econ-card-title');
+      const titleHeight = titleEl?.getBoundingClientRect().height || 0;
+      const available = Math.max(240, cumRect.height - paddingY - titleHeight - 8);
+      royaltyChart.style.height = `${available}px`;
+      if (window.Plotly && royaltyChart.data) {
+        Plotly.relayout(royaltyChart, { height: available });
+        Plotly.Plots.resize(royaltyChart);
+      }
+    };
     const getResponsivePlotHeight = (el, options = {}) => {
       const { min = 320, max = 520, ratio = 0.65, matchHeightEl } = options;
       const getMatchHeight = () => {
@@ -1446,6 +1471,7 @@ const yearInput = document.getElementById('year');
         ro.observe(prodChartEl);
         mapDiv._segResizeObserver = ro;
       }
+      window.syncRoyaltyPanelHeight();
 
       const markerTraceIndex = traces.length - 1;
       mapDiv.on('plotly_hover', e => {
