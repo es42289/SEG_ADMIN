@@ -47,6 +47,14 @@ body {
   color: #ffffff; /* Ensure chart/map cards match the white text styling of other dashboard cards */
 }
 
+.card-title {
+  margin: 0 0 0.5rem 0;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: left;
+}
+
 .support-feedback-row {
   margin-top: 1rem;
   display: flex;
