@@ -587,11 +587,11 @@ body {
 }
 
 #prodChart {
-  height: 400px;
+  height: clamp(320px, 60vw, 520px);
 }
 
 #userWellsMap {
-  height: 400px;
+  height: clamp(320px, 60vw, 520px);
 }
 
 .top-banner {

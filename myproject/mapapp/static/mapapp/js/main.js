@@ -29,6 +29,14 @@ const yearInput = document.getElementById('year');
     };
 
     const rootElement = document.documentElement;
+    const getResponsivePlotHeight = (el, options = {}) => {
+      const { min = 320, max = 520, ratio = 0.65 } = options;
+      if (!el) return min;
+      const width = el.getBoundingClientRect ? el.getBoundingClientRect().width : el.clientWidth || 0;
+      if (!width) return min;
+      const target = Math.round(width * ratio);
+      return Math.max(min, Math.min(max, target));
+    };
     const updateLayoutOffsets = () => {
       const banner = document.querySelector('.top-banner');
       if (!banner || !rootElement) return;
@@ -1387,12 +1395,24 @@ const yearInput = document.getElementById('year');
           zoom: zoom
         },
         margin: { t: 5, r: 10, b: 10, l: 10 },
-        height: 400,
+        height: getResponsivePlotHeight(mapDiv),
         // title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
         showlegend: false
       };
 
-      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false });
+      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false, responsive: true });
+
+      if (mapDiv._segResizeHandler) {
+        window.removeEventListener('resize', mapDiv._segResizeHandler);
+      }
+      const handleResize = () => {
+        const nextHeight = getResponsivePlotHeight(mapDiv);
+        Plotly.relayout(mapDivId, { height: nextHeight });
+        Plotly.Plots.resize(mapDiv);
+      };
+      mapDiv._segResizeHandler = handleResize;
+      window.addEventListener('resize', handleResize);
+      handleResize();
 
       const markerTraceIndex = traces.length - 1;
       mapDiv.on('plotly_hover', e => {
