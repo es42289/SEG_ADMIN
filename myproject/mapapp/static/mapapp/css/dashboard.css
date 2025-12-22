@@ -635,10 +635,12 @@ body {
   color: #1e293a;
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
   box-sizing: border-box;
   width: 100%;
   overflow: hidden;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .top-banner-row {
@@ -660,7 +662,7 @@ body {
   gap: 1rem;
   font-size: 0.85rem;
   min-width: 0;
-  flex: 1 1 220px;
+  flex: 1 1 240px;
   overflow-wrap: anywhere;
   width: 100%;
 }
@@ -687,7 +689,7 @@ body {
   gap: 0.65rem;
   flex-wrap: wrap;
   min-width: 0;
-  width: 100%;
+  width: auto;
 }
 
 .login-action {
@@ -845,12 +847,12 @@ body {
   }
 
   .top-banner-row .login-actions {
-    margin-left: 0;
+    margin-left: auto;
     flex-wrap: wrap;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 0.5rem;
     min-width: 0;
-    width: 100%;
+    width: auto;
   }
 
   .well-count-header {
