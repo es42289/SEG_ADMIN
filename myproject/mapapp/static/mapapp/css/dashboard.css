@@ -30,6 +30,15 @@ body {
   align-items: start;
 }
 
+@media (max-width: 1024px) {
+  .chart-map-grid {
+    grid-template-columns: 1fr;
+  }
+  .chart-map-grid > section {
+    width: 100%;
+  }
+}
+
 .chart-map-grid > section {
   min-width: 0;
   display: flex;

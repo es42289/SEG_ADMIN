@@ -29,6 +29,10 @@ body {
   padding-right: 1rem;
 }
 
+.container.w-full {
+  max-width: none;
+}
+
 @media (min-width: 640px) {
   .container {
     max-width: 640px;
