@@ -1,0 +1,4 @@
+/* Tailwind base build entry. Existing CSS remains untouched. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

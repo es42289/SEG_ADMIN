@@ -4,6 +4,17 @@ Routes:
 - `/map/` — page with Plotly map and year slider
 - `/map-data/?date=YYYY-01-01` — JSON endpoint fetching points from `WELLS.MINERALS.RAW_WELL_DATA`
 
+### UI build tooling
+
+- Tailwind/PostCSS build scaffold added for future UI refactor.
+- Files touched and why:
+  - `.gitignore` — ignore `node_modules/` artifacts from build-time installs.
+  - `package.json` — defines Tailwind/PostCSS dev dependencies and `build:css` script outputting `static/mapapp/css/tailwind.css`.
+  - `postcss.config.js` — enables Tailwind + Autoprefixer during CSS build.
+  - `tailwind.config.js` — configures content paths for Django templates/JS and purge.
+  - `myproject/mapapp/static/src/tailwind.css` — Tailwind entry point (base/components/utilities).
+  - `myproject/mapapp/static/mapapp/css/tailwind.css` — build target placeholder to keep collectstatic happy.
+
 Environment variables expected:
 ```
 SF_ACCOUNT=CMZNSCB-MU47932

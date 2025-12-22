@@ -1,0 +1,13 @@
+{
+  "name": "mapapp-tailwind",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i ./myproject/mapapp/static/src/tailwind.css -o ./myproject/mapapp/static/mapapp/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.11",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38"
+  }
+}
