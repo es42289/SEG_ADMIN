@@ -31,12 +31,20 @@ const yearInput = document.getElementById('year');
     const rootElement = document.documentElement;
     const getResponsivePlotHeight = (el, options = {}) => {
       const { min = 320, max = 520, ratio = 0.65, matchHeightEl } = options;
-      if (matchHeightEl) {
-        const matchRect = matchHeightEl.getBoundingClientRect();
-        if (matchRect?.height) {
-          return Math.max(min, Math.min(max, Math.round(matchRect.height)));
+      const getMatchHeight = () => {
+        if (!matchHeightEl) return null;
+        const rect = matchHeightEl.getBoundingClientRect?.();
+        if (rect && rect.height > 0) {
+          return Math.round(rect.height);
         }
+        return null;
+      };
+
+      const matched = getMatchHeight();
+      if (matched) {
+        return matched;
       }
+
       if (!el) return min;
       const width = el.getBoundingClientRect ? el.getBoundingClientRect().width : el.clientWidth || 0;
       if (!width) return min;
@@ -1419,7 +1427,8 @@ const yearInput = document.getElementById('year');
       };
       mapDiv._segResizeHandler = handleResize;
       window.addEventListener('resize', handleResize);
-      handleResize();
+      requestAnimationFrame(handleResize);
+      setTimeout(handleResize, 200);
 
       const markerTraceIndex = traces.length - 1;
       mapDiv.on('plotly_hover', e => {
