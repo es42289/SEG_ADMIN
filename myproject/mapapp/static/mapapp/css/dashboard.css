@@ -44,6 +44,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  color: #ffffff; /* Ensure chart/map cards match the white text styling of other dashboard cards */
 }
 
 .support-feedback-row {
@@ -56,6 +57,10 @@ body {
 
 .support-feedback-row > section {
   flex: 1 1 320px;
+}
+
+#user-wells {
+  color: #ffffff; /* Align the well table card text styling with other dashboard cards */
 }
 
 .dashboard-panel {
@@ -1212,10 +1217,12 @@ input#year[type="range"] {
       width: max-content;
       border-collapse: collapse;
       white-space: nowrap;
+      color: #ffffff; /* Keep the well table text consistent with other cards */
     }
     #userWellsTable th, #userWellsTable td {
       padding: .5rem;
       border-bottom: 1px solid white;
+      color: inherit;
     }
     #userWellsTable th {
       text-align: left;
