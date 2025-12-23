@@ -243,7 +243,8 @@
       xaxis: {title: 'Period', type: 'category'},
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
-      height: 400
+      height: 400,
+      margin: { l: 60, r: 20, t: 60, b: 60 }
     };
 
     Plotly.newPlot(target, [trace], layout, {responsive: true});
@@ -342,7 +343,7 @@
     const layout = {
       height: 400,
       title: {text: 'Value Loss Through Time', font: {size: 16, color: '#156082'}},
-      margin: {l: 70, r: 10, t: 50, b: 60},
+      margin: { l: 60, r: 20, t: 60, b: 60 },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
       xaxis: {
