@@ -31,6 +31,9 @@
     });
   }
 
+  const PRICE_DECK_RANGE_START = new Date(Date.UTC(2020, 0, 1));
+  const PRICE_DECK_RANGE_END = new Date(Date.UTC(2032, 11, 1));
+
   async function loadPriceDeck(name){
     const resp = await fetchJSON('/price-decks/?deck='+encodeURIComponent(name));
     if(resp.data){
@@ -42,19 +45,24 @@
   function renderPriceDeck(rows){
     const chartEl = document.getElementById('priceDeckChart');
     if (!chartEl) return;
-    const dates = rows.map(r=>r.MONTH_DATE);
+    const withinRange = rows.filter(r => {
+      const d = new Date(r.MONTH_DATE);
+      return !Number.isNaN(d.getTime()) && d >= PRICE_DECK_RANGE_START && d <= PRICE_DECK_RANGE_END;
+    });
+    const dates = withinRange.map(r=>r.MONTH_DATE);
     const toPos = v=>{
       const num = Number(v);
       return isFinite(num) && num > 0 ? num : null;
     };
-    const oil = rows.map(r=>toPos(r.OIL));
-    const gas = rows.map(r=>toPos(r.GAS));
+    const oil = withinRange.map(r=>toPos(r.OIL));
+    const gas = withinRange.map(r=>toPos(r.GAS));
     const fig = [
       {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'}},
       {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}}
     ];
     Plotly.newPlot(chartEl,fig,{showlegend: false,
                                             yaxis:{type:'log', title:'Gas Price / Oil Price, $'},
+                                            xaxis:{range:[PRICE_DECK_RANGE_START, PRICE_DECK_RANGE_END]},
                                             title:'Price Deck',
                                             margin:{ l: 40, r: 5, t: 40, b: 40 }},
                                             {responsive:true});
