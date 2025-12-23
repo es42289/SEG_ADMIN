@@ -1406,3 +1406,13 @@ input#year[type="range"] {
       font-weight: 700;
       color: #22c55e !important;
     }
+
+    #userWellsTable .well-select-cell {
+      text-align: center;
+    }
+
+    #userWellsTable .well-select-input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }

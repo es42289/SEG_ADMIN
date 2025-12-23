@@ -679,6 +679,33 @@ window.syncRoyaltyPanelHeight = () => {
     // Global variables to store all data
     let allWellData = null;
     let userWellData = null;
+    const selectedWellApis = new Set();
+    let selectionInitialized = false;
+
+    function pruneSelectedApis(validApis) {
+      const validSet = new Set((validApis || []).filter(Boolean));
+      for (const api of Array.from(selectedWellApis)) {
+        if (!validSet.has(api)) {
+          selectedWellApis.delete(api);
+        }
+      }
+    }
+
+    function ensureDefaultSelections(validApis) {
+      if (selectionInitialized) return;
+      (validApis || []).forEach(api => {
+        if (api) selectedWellApis.add(api);
+      });
+      selectionInitialized = true;
+    }
+
+    window.getSelectedWellApis = function getSelectedWellApis() {
+      return Array.from(selectedWellApis);
+    };
+
+    window.hasUserWellSelection = function hasUserWellSelection() {
+      return selectionInitialized;
+    };
 
     // ===== One-time loader for user production (fetches once, caches forever) =====
     window.productionByApi = window.productionByApi || {};
@@ -1323,10 +1350,14 @@ window.syncRoyaltyPanelHeight = () => {
       tbody.innerHTML = '';
       window.wellPvCells = {};
 
+      const validApis = (data.api_uwi || []).filter(Boolean);
+      pruneSelectedApis(validApis);
+      ensureDefaultSelections(validApis);
+
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 15;
+        cell.colSpan = 16;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -1354,6 +1385,21 @@ window.syncRoyaltyPanelHeight = () => {
         if (apiValue) {
           row.dataset.api = apiValue;
         }
+
+        const selectionCell = document.createElement('td');
+        selectionCell.classList.add('well-select-cell');
+        const selectionInput = document.createElement('input');
+        selectionInput.type = 'checkbox';
+        selectionInput.classList.add('well-select-input');
+        selectionInput.dataset.api = apiValue;
+        const isSelected = !selectionInitialized || selectedWellApis.has(apiValue);
+        selectionInput.checked = !!apiValue && isSelected;
+        selectionInput.disabled = !apiValue;
+        if (selectionInput.checked && apiValue) {
+          selectedWellApis.add(apiValue);
+        }
+        selectionCell.appendChild(selectionInput);
+        row.appendChild(selectionCell);
 
         const rowValues = [
           { key: 'api_uwi', value: apiValue },
@@ -1397,6 +1443,26 @@ window.syncRoyaltyPanelHeight = () => {
 
       if (window.latestPerWellPvMap) {
         applyPerWellPvMap(window.latestPerWellPvMap);
+      }
+
+      if (!table._selectionListenerAttached) {
+        table.addEventListener('change', (event) => {
+          const target = event.target;
+          if (!target || !target.classList || !target.classList.contains('well-select-input')) {
+            return;
+          }
+          const api = target.dataset.api;
+          if (!api) return;
+          if (target.checked) {
+            selectedWellApis.add(api);
+          } else {
+            selectedWellApis.delete(api);
+          }
+          if (typeof window.reloadEconomicsWithSelection === 'function') {
+            window.reloadEconomicsWithSelection();
+          }
+        });
+        table._selectionListenerAttached = true;
       }
     }
 

@@ -865,6 +865,19 @@ def price_decks(request):
 
 
 def fetch_forecasts_for_apis(apis):
+    base_columns = [
+        "API_UWI",
+        "PRODUCINGMONTH",
+        "LIQUIDSPROD_BBL",
+        "GASPROD_MCF",
+        "OilFcst_BBL",
+        "GasFcst_MCF",
+        "API_NODASH",
+    ]
+
+    if not apis:
+        return pd.DataFrame(columns=base_columns)
+
     conn = get_snowflake_connection()
     cur = conn.cursor()
     apis_clean = [a.replace("-", "") for a in apis]
@@ -879,7 +892,7 @@ def fetch_forecasts_for_apis(apis):
     cols = [c[0] for c in cur.description]
     conn.close()
 
-    df = pd.DataFrame(rows, columns=cols)
+    df = pd.DataFrame(rows, columns=cols or base_columns)
     # Ensure we have a proper datetime column for monthly aggregation
     df["PRODUCINGMONTH"] = pd.to_datetime(df["PRODUCINGMONTH"], errors="coerce")
     df = df.dropna(subset=["PRODUCINGMONTH"])
@@ -912,6 +925,15 @@ def economics_data(request):
     user_email = request.session["user"].get("email", "")
     owner_name = get_user_owner_name(user_email)
     wells = _snowflake_user_wells(owner_name)
+    selected_param = request.GET.get("apis", "")
+    selected_apis = [a.strip() for a in selected_param.split(",") if a.strip()]
+    if selected_apis:
+        selected_clean = {api.replace("-", "") for api in selected_apis}
+        wells = [
+            w
+            for w in wells
+            if w.get("api_uwi") and w["api_uwi"].replace("-", "") in selected_clean
+        ]
     # Ensure each well is only processed once
     wells_by_api = {w["api_uwi"]: w for w in wells}
     apis = list(wells_by_api.keys())

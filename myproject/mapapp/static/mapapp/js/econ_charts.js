@@ -42,6 +42,24 @@
     }
   }
 
+  function buildEconomicsQuery(deck){
+    const params = new URLSearchParams();
+    if (deck) params.set('deck', deck);
+    const selectionInitialized = typeof window.hasUserWellSelection === 'function'
+      ? window.hasUserWellSelection()
+      : false;
+    if (typeof window.getSelectedWellApis === 'function') {
+      const apis = (window.getSelectedWellApis() || []).filter(Boolean);
+      if (apis.length) {
+        params.set('apis', apis.join(','));
+      } else if (selectionInitialized) {
+        params.set('apis', '__none__');
+      }
+    }
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  }
+
   function renderPriceDeck(rows){
     const chartEl = document.getElementById('priceDeckChart');
     if (!chartEl) return;
@@ -75,7 +93,8 @@
     const summaryEl = document.getElementById('cashflowSummaryChart');
     const statsEl = document.getElementById('summaryStats');
     if(!npvEl && !cumEl && !windowEl && !summaryEl && !statsEl) return;
-    const data = await fetchJSON('/econ-data/?deck='+encodeURIComponent(deck));
+    const query = buildEconomicsQuery(deck);
+    const data = await fetchJSON('/econ-data/' + query);
     if (npvEl && data.npv) renderNPV(npvEl, data.npv);
     if (cumEl && data.cum) renderCum(cumEl, data.cum);
     if (windowEl && data.window) renderWindow(windowEl, data.window);
@@ -94,6 +113,14 @@
       window.updateWellPvValues(data.per_well_pv);
     }
   }
+
+  window.reloadEconomicsWithSelection = function reloadEconomicsWithSelection(){
+    const sel = document.getElementById('priceDeckSelect');
+    const deck = sel && sel.value ? sel.value : null;
+    if (deck) {
+      loadEconomics(deck);
+    }
+  };
 
   function resolveEl(el){
     return typeof el === 'string' ? document.getElementById(el) : el;
