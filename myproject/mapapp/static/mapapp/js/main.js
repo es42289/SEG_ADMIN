@@ -1461,6 +1461,9 @@ window.syncRoyaltyPanelHeight = () => {
           if (typeof window.reloadEconomicsWithSelection === 'function') {
             window.reloadEconomicsWithSelection();
           }
+          if (typeof window.reloadProductionChartWithSelection === 'function') {
+            window.reloadProductionChartWithSelection();
+          }
         });
         table._selectionListenerAttached = true;
       }

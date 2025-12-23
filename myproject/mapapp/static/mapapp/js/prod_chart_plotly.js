@@ -91,9 +91,42 @@
     }
   }
 
-  function aggregate(byApi) {
-    const rows = Array.isArray(byApi) ? byApi : Object.values(byApi || {}).flat();
-    console.log('[prod-chart] aggregate: input rows=%d', rows.length);
+  function getSelectionContext() {
+    const selectionInitialized =
+      typeof window.hasUserWellSelection === 'function' && window.hasUserWellSelection();
+    const selectedApis =
+      typeof window.getSelectedWellApis === 'function'
+        ? (window.getSelectedWellApis() || []).filter(Boolean)
+        : [];
+    return { selectedApis, selectionInitialized };
+  }
+
+  function aggregate(byApi, selectionContext = {}) {
+    const selectedApis = Array.isArray(selectionContext.selectedApis)
+      ? selectionContext.selectedApis
+      : [];
+    const selectionInitialized = !!selectionContext.selectionInitialized;
+
+    let rows;
+    if (Array.isArray(byApi)) {
+      rows = byApi;
+    } else if (selectedApis.length) {
+      const allow = new Set(selectedApis.map(String));
+      rows = Object.entries(byApi || {})
+        .filter(([api]) => allow.has(String(api)))
+        .flatMap(([, arr]) => arr || []);
+    } else if (selectionInitialized) {
+      rows = [];
+    } else {
+      rows = Object.values(byApi || {}).flat();
+    }
+
+    console.log(
+      '[prod-chart] aggregate: input rows=%d (selected=%d, init=%s)',
+      rows.length,
+      selectedApis.length,
+      selectionInitialized
+    );
 
     const monthly = new Map(); // monthKey -> agg bucket
     for (const r of rows) {
@@ -222,6 +255,115 @@
     return el;
   }
 
+  let latestByApi = null;
+
+  function renderProductionChart(byApi) {
+    const el = ensureContainer();
+    if (!el) return;
+
+    const selectionContext = getSelectionContext();
+    const agg = aggregate(byApi, selectionContext);
+    // Build x as 'YYYY-MM' categories, but derive ticks from full keys 'YYYY-MM-01'
+    const months = agg.keys; // e.g., ['2019-01-01','2019-02-01',...]
+    const x = months.map((k) => k.slice(0, 7)); // 'YYYY-MM'
+
+    // Keep only Januaries (sorted already), then take every 3rd one
+    const janMonths = months.filter((k) => k.slice(5, 7) === '01');
+    const janEvery3 = janMonths.filter((_, i) => i % 3 === 0); // 0,3,6,...
+
+    const yearTicks = janEvery3.map((k) => k.slice(0, 7)); // ['YYYY-01', ...]
+    const yearText = janEvery3.map((k) => k.slice(0, 4)); // ['YYYY', ...]
+
+    const traces = [
+      {
+        name: 'Oil (BBL)',
+        x,
+        y: agg.oil,
+        mode: 'markers',
+        marker: { size: 6, color: OIL_COLOR, opacity: 0.7 },
+        hovertemplate: '%{x}<br>Oil: %{y:,}<extra></extra>',
+        yaxis: 'y',
+      },
+      {
+        name: 'Gas (MCF)',
+        x,
+        y: agg.gas,
+        mode: 'markers',
+        marker: { size: 6, color: GAS_COLOR, opacity: 0.7 },
+        hovertemplate: '%{x}<br>Gas: %{y:,}<extra></extra>',
+        yaxis: 'y',
+      },
+      {
+        name: 'Oil Forecast (BBL)',
+        x,
+        y: agg.oilFc,
+        mode: 'lines',
+        line: { color: OIL_COLOR, width: 2 },
+        hovertemplate: '%{x}<br>Oil Fcst: %{y:,}<extra></extra>',
+        yaxis: 'y',
+      },
+      {
+        name: 'Gas Forecast (MCF)',
+        x,
+        y: agg.gasFc,
+        mode: 'lines',
+        line: { color: GAS_COLOR, width: 2 },
+        hovertemplate: '%{x}<br>Gas Fcst: %{y:,}<extra></extra>',
+        yaxis: 'y',
+      },
+      {
+        name: 'Well Count',
+        x,
+        y: agg.wc,
+        mode: 'lines',
+        line: { color: COUNT_COLOR, width: 1.5, dash: 'dash' },
+        hovertemplate: '%{x}<br>Wells: %{y}<extra></extra>',
+        yaxis: 'y2',
+      },
+    ];
+
+    const layout = {
+      height: (el && (el.clientHeight || parseInt(getComputedStyle(el).height))) || 300,
+      margin: { l: 50, r: 60, t: 10, b: 60 }, // extra bottom margin for angled labels
+      showlegend: true,
+      legend: {
+        x: 0.98, // right edge
+        y: 0.9, // a touch below the top (lower = more down)
+        xanchor: 'right',
+        yanchor: 'top',
+        orientation: 'v',
+        bgcolor: '#fff',
+        bordercolor: '#1f293aff',
+        borderwidth: 1,
+        font: { size: 12 }, // optional: tweak as you like
+      },
+      xaxis: {
+        title: 'Production Month',
+        type: 'category',
+        tickmode: 'array',
+        tickvals: yearTicks, // only January points
+        ticktext: yearText, // show "YYYY" only
+        tickangle: -45, // rotate labels 45° (use -45 for down-right)
+        automargin: true, // avoid clipping when rotated
+      },
+      yaxis: {
+        title: 'MCF or BBL per Month',
+        type: 'log',
+        range: [Math.log10(agg.yMin), Math.log10(agg.yMax)],
+        gridcolor: '#1f293a1f',
+      },
+      yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: '#1f293a02' },
+      paper_bgcolor: '#fff',
+      plot_bgcolor: '#fff',
+      font: { color: '#1f293a' },
+    };
+
+    console.log('[prod-chart] plotting with %d months, Plotly=%s', agg.keys.length, typeof window.Plotly);
+    Plotly.newPlot(el, traces, layout, { displayModeBar: false, responsive: true })
+      .then(() => console.log('[prod-chart] Chart rendered (Plotly)'))
+      .catch((e) => console.error('[prod-chart] Plotly.newPlot error:', e));
+  }
+
   async function init() {
     try {
       const el = ensureContainer();
@@ -235,70 +377,25 @@
 
       const byApi = await ensureProductionData();
       const apiCount =
-        byApi && typeof byApi === 'object' ? Object.keys(byApi).length : (Array.isArray(byApi) ? byApi.length : 0);
+        byApi && typeof byApi === 'object' ? Object.keys(byApi).length : Array.isArray(byApi) ? byApi.length : 0;
       console.log('[prod-chart] data ready: api keys/len=%d', apiCount);
-
-      const agg = aggregate(byApi);
-      // Build x as 'YYYY-MM' categories, but derive ticks from full keys 'YYYY-MM-01'
-      const months = agg.keys; // e.g., ['2019-01-01','2019-02-01',...]
-      const x = months.map(k => k.slice(0, 7)); // 'YYYY-MM'
-
-      // Keep only Januaries (sorted already), then take every 3rd one
-      const janMonths = months.filter(k => k.slice(5, 7) === '01');
-      const janEvery3 = janMonths.filter((_, i) => i % 3 === 0); // 0,3,6,...
-
-      const yearTicks = janEvery3.map(k => k.slice(0, 7)); // ['YYYY-01', ...]
-      const yearText  = janEvery3.map(k => k.slice(0, 4)); // ['YYYY', ...]
-
-
-
-      const traces = [
-        { name: 'Oil (BBL)', x, y: agg.oil, mode: 'markers', marker: { size: 6, color: OIL_COLOR, opacity: 0.7 }, hovertemplate: '%{x}<br>Oil: %{y:,}<extra></extra>', yaxis: 'y' },
-        { name: 'Gas (MCF)', x, y: agg.gas, mode: 'markers', marker: { size: 6, color: GAS_COLOR, opacity: 0.7 }, hovertemplate: '%{x}<br>Gas: %{y:,}<extra></extra>', yaxis: 'y' },
-        { name: 'Oil Forecast (BBL)', x, y: agg.oilFc, mode: 'lines', line: { color: OIL_COLOR, width: 2 }, hovertemplate: '%{x}<br>Oil Fcst: %{y:,}<extra></extra>', yaxis: 'y' },
-        { name: 'Gas Forecast (MCF)', x, y: agg.gasFc, mode: 'lines', line: { color: GAS_COLOR, width: 2 }, hovertemplate: '%{x}<br>Gas Fcst: %{y:,}<extra></extra>', yaxis: 'y' },
-        { name: 'Well Count', x, y: agg.wc, mode: 'lines', line: { color: COUNT_COLOR, width: 1.5, dash: 'dash' }, hovertemplate: '%{x}<br>Wells: %{y}<extra></extra>', yaxis: 'y2' },
-      ];
-
-      const layout = {
-        height: (el && (el.clientHeight || parseInt(getComputedStyle(el).height))) || 300,
-        margin: { l: 50, r: 60, t: 10, b: 60 }, // extra bottom margin for angled labels
-        showlegend: true,
-        legend: {
-          x: 0.98,               // right edge
-          y: 0.9,            // a touch below the top (lower = more down)
-          xanchor: 'right',
-          yanchor: 'top',
-          orientation: 'v',
-          bgcolor: '#fff',
-          bordercolor: '#1f293aff',
-          borderwidth: 1,
-          font: { size: 12 }  // optional: tweak as you like
-        },
-        xaxis: {
-          title: 'Production Month',
-          type: 'category',
-          tickmode: 'array',
-          tickvals: yearTicks,   // only January points
-          ticktext: yearText,    // show "YYYY" only
-          tickangle: -45,         // rotate labels 45° (use -45 for down-right)
-          automargin: true       // avoid clipping when rotated
-        },
-        yaxis: { title: 'MCF or BBL per Month', type: 'log', range: [Math.log10(agg.yMin), Math.log10(agg.yMax)], gridcolor: '#1f293a1f' },
-        yaxis2: { title: 'Well Count', overlaying: 'y', side: 'right', gridcolor: '#1f293a02' },
-        paper_bgcolor: '#fff',
-        plot_bgcolor: '#fff',
-        font: { color: '#1f293a' },
-      };
-
-      console.log('[prod-chart] plotting with %d months, Plotly=%s', agg.keys.length, typeof window.Plotly);
-      Plotly.newPlot(el, traces, layout, { displayModeBar: false, responsive: true })
-        .then(() => console.log('[prod-chart] Chart rendered (Plotly)'))
-        .catch((e) => console.error('[prod-chart] Plotly.newPlot error:', e));
+      latestByApi = byApi;
+      renderProductionChart(byApi);
     } catch (err) {
       console.error('[prod-chart] init error:', err);
     }
   }
+
+  window.reloadProductionChartWithSelection = function reloadProductionChartWithSelection() {
+    if (!latestByApi) {
+      ensureProductionData().then((data) => {
+        latestByApi = data;
+        renderProductionChart(data);
+      });
+      return;
+    }
+    renderProductionChart(latestByApi);
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
