@@ -91,6 +91,17 @@ window.syncRoyaltyPanelHeight = () => {
     };
     const getResponsivePlotHeight = (el, options = {}) => {
       const { min = 320, max = 520, ratio = 0.65, matchHeightEl } = options;
+      const docEl = document.documentElement;
+      const docWidth = docEl && docEl.clientWidth ? docEl.clientWidth : Number.POSITIVE_INFINITY;
+      const viewportWidth = Math.min(
+        Number.isFinite(window.innerWidth) ? window.innerWidth : Number.POSITIVE_INFINITY,
+        docWidth
+      );
+      const isNarrow = Number.isFinite(viewportWidth) && viewportWidth < 900;
+      const minHeight = isNarrow ? 260 : min;
+      const maxHeight = isNarrow ? Math.min(max, 480) : max;
+      const targetRatio = isNarrow ? Math.max(ratio, 0.72) : ratio;
+      const clampHeight = (value) => Math.max(minHeight, Math.min(maxHeight, value));
       const getMatchHeight = () => {
         if (!matchHeightEl) return null;
         const rect = matchHeightEl.getBoundingClientRect?.();
@@ -102,14 +113,14 @@ window.syncRoyaltyPanelHeight = () => {
 
       const matched = getMatchHeight();
       if (matched) {
-        return Math.max(min, Math.min(max, matched));
+        return clampHeight(matched);
       }
 
-      if (!el) return min;
+      if (!el) return minHeight;
       const width = el.getBoundingClientRect ? el.getBoundingClientRect().width : el.clientWidth || 0;
-      if (!width) return min;
-      const target = Math.round(width * ratio);
-      return Math.max(min, Math.min(max, target));
+      if (!width) return minHeight;
+      const target = Math.round(width * targetRatio);
+      return clampHeight(target);
     };
     const updateLayoutOffsets = () => {
       const banner = document.querySelector('.top-banner');
