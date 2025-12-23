@@ -335,7 +335,7 @@
         bgcolor: '#fff',
         bordercolor: '#1f293aff',
         borderwidth: 1,
-        font: { size: 12 }, // optional: tweak as you like
+        font: { size: 8 }, // reduced by 4pt for a smaller legend
       },
       xaxis: {
         title: 'Production Month',
