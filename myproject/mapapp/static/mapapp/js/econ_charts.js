@@ -243,7 +243,7 @@
       xaxis: {title: 'Period', type: 'category'},
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
-      height: 400,
+      height: target.clientHeight || 400,
       margin: { l: 60, r: 20, t: 60, b: 60 }
     };
 
@@ -341,7 +341,7 @@
     };
 
     const layout = {
-      height: 400,
+      height: target.clientHeight || 400,
       title: {text: 'Value Loss Through Time', font: {size: 16, color: '#156082'}},
       margin: { l: 60, r: 20, t: 60, b: 60 },
       paper_bgcolor: '#ffffff',
