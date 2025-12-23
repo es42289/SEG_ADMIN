@@ -1361,6 +1361,7 @@ window.syncRoyaltyPanelHeight = () => {
           { key: 'operator', value: data.operator && data.operator[i] ? data.operator[i] : '' },
           { key: 'trajectory', value: data.trajectory && data.trajectory[i] ? data.trajectory[i] : '' },
           { key: 'owner_interest', value: data.owner_interest && data.owner_interest[i] != null ? formatInterest(data.owner_interest[i]) : '' },
+          { key: ROYALTY_RATE_KEY, value: data[ROYALTY_RATE_KEY] && data[ROYALTY_RATE_KEY][i] != null ? formatCurrencyNoCents(data[ROYALTY_RATE_KEY][i]) : '' },
           { key: 'permit_date', value: data.permit_date && data.permit_date[i] ? data.permit_date[i] : '' },
           { key: 'first_prod_date', value: data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '' },
           { key: 'last_prod_date', value: data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : '' },
@@ -1370,7 +1371,6 @@ window.syncRoyaltyPanelHeight = () => {
           { key: 'net_gas_eur', value: data.net_gas_eur && data.net_gas_eur[i] != null ? formatVolume(data.net_gas_eur[i]) : '' },
           { key: 'remaining_net_oil', value: data.remaining_net_oil && data.remaining_net_oil[i] != null ? formatVolume(data.remaining_net_oil[i]) : '' },
           { key: 'remaining_net_gas', value: data.remaining_net_gas && data.remaining_net_gas[i] != null ? formatVolume(data.remaining_net_gas[i]) : '' },
-          { key: ROYALTY_RATE_KEY, value: data[ROYALTY_RATE_KEY] && data[ROYALTY_RATE_KEY][i] != null ? formatCurrencyNoCents(data[ROYALTY_RATE_KEY][i]) : '' },
         ];
 
         let pvCellStore = null;
