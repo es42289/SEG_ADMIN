@@ -16,23 +16,58 @@ const yearInput = document.getElementById('year');
     // Removed references to totalNearby elements as they were removed from the HTML
 
     const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
-    const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
-    const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
-    const mapStyles = {
-      userWellsMap: MAPBOX_STYLE_TERRAIN,
-      map: MAPBOX_STYLE_TERRAIN
-    };
+const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
+const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
+const mapStyles = {
+  userWellsMap: MAPBOX_STYLE_TERRAIN,
+  map: MAPBOX_STYLE_TERRAIN
+};
 
-    const getMapStyle = (mapId) => mapStyles[mapId] || MAPBOX_STYLE_TERRAIN;
-    const setMapStyle = (mapId, style) => {
-      mapStyles[mapId] = style;
-    };
+const getMapStyle = (mapId) => mapStyles[mapId] || MAPBOX_STYLE_TERRAIN;
+const setMapStyle = (mapId, style) => {
+  mapStyles[mapId] = style;
+};
 
-    const rootElement = document.documentElement;
-    window.syncRoyaltyPanelHeight = () => {
-      const cumChart = document.getElementById('cashflowSummaryChart');
-      const royaltyCard = document.querySelector('.econ-card--match-cashflow');
-      const royaltyChart = document.getElementById('royaltyValueChart');
+const initCollapsibleCard = () => {
+  const toggle = document.getElementById('map-analysis-toggle');
+  const content = document.getElementById('map-analysis-content');
+  if (!toggle || !content) return;
+
+  const setExpanded = (expanded) => {
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    toggle.textContent = expanded ? 'Collapse' : 'Expand';
+    if (expanded) {
+      content.removeAttribute('hidden');
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+    } else {
+      content.setAttribute('hidden', 'hidden');
+    }
+  };
+
+  // Ensure default collapsed state and synced label.
+  setExpanded(false);
+
+  toggle.addEventListener('click', () => {
+    const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+    setExpanded(!isExpanded);
+  });
+};
+
+const initCollapsibleCardWhenReady = () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCollapsibleCard, { once: true });
+  } else {
+    initCollapsibleCard();
+  }
+};
+
+initCollapsibleCardWhenReady();
+
+const rootElement = document.documentElement;
+window.syncRoyaltyPanelHeight = () => {
+  const cumChart = document.getElementById('cashflowSummaryChart');
+  const royaltyCard = document.querySelector('.econ-card--match-cashflow');
+  const royaltyChart = document.getElementById('royaltyValueChart');
       if (!cumChart || !royaltyCard || !royaltyChart) return;
 
       const cumCard = cumChart.closest('.econ-card');
