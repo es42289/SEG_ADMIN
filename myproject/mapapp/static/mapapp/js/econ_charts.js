@@ -189,7 +189,7 @@
         {
           x:ltmCenter,
           y:yMax*1.05,
-          text:'(Last 12 Months)',
+          text:'Last 12 Months',
           showarrow:false,
           font:{size:14},
           xanchor:'center',
@@ -198,7 +198,7 @@
         {
           x:ntmCenter,
           y:yMax*1.05,
-          text:'(Next 12 Months)',
+          text:'Next 12 Months',
           showarrow:false,
           font:{size:14},
           xanchor:'center',
