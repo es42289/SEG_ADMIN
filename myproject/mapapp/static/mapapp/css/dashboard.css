@@ -1003,8 +1003,8 @@ body {
   max-width: 252px;
   position: sticky;
   top: calc(var(--top-banner-height) + var(--top-banner-gap));
-  height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
-  max-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
+  height: calc(120vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
+  max-height: calc(120vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
   overflow-y: auto;
   padding-right: 0.15rem;
   min-height: 0;
@@ -1400,4 +1400,9 @@ input#year[type="range"] {
     #userWellsTable tbody tr:hover {
       background: white;
       color: black;
+    }
+
+    #userWellsTable .est-nri-value {
+      font-weight: 700;
+      color: #22c55e !important;
     }

@@ -5,6 +5,13 @@
     return r.json();
   }
 
+  function getDefaultPriceDeck(options){
+    const normalizedTarget = "livestrip";
+    return options.find(opt =>
+      opt && opt.toLowerCase().replace(/[\s_-]+/g, "") === normalizedTarget
+    ) || options[0];
+  }
+
   async function loadPriceDeckOptions(){
     const sel = document.getElementById('priceDeckSelect');
     if (!sel) return;
@@ -16,13 +23,16 @@
       sel.appendChild(opt);
     });
     if(data.options.length){
-      sel.value = data.options[0];
+      sel.value = getDefaultPriceDeck(data.options);
       loadPriceDeck(sel.value);
     }
     sel.addEventListener('change',()=>{
       loadPriceDeck(sel.value);
     });
   }
+
+  const PRICE_DECK_RANGE_START = new Date(Date.UTC(2020, 0, 1));
+  const PRICE_DECK_RANGE_END = new Date(Date.UTC(2032, 11, 1));
 
   async function loadPriceDeck(name){
     const resp = await fetchJSON('/price-decks/?deck='+encodeURIComponent(name));
@@ -35,19 +45,24 @@
   function renderPriceDeck(rows){
     const chartEl = document.getElementById('priceDeckChart');
     if (!chartEl) return;
-    const dates = rows.map(r=>r.MONTH_DATE);
+    const withinRange = rows.filter(r => {
+      const d = new Date(r.MONTH_DATE);
+      return !Number.isNaN(d.getTime()) && d >= PRICE_DECK_RANGE_START && d <= PRICE_DECK_RANGE_END;
+    });
+    const dates = withinRange.map(r=>r.MONTH_DATE);
     const toPos = v=>{
       const num = Number(v);
       return isFinite(num) && num > 0 ? num : null;
     };
-    const oil = rows.map(r=>toPos(r.OIL));
-    const gas = rows.map(r=>toPos(r.GAS));
+    const oil = withinRange.map(r=>toPos(r.OIL));
+    const gas = withinRange.map(r=>toPos(r.GAS));
     const fig = [
       {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'}},
       {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}}
     ];
     Plotly.newPlot(chartEl,fig,{showlegend: false,
                                             yaxis:{type:'log', title:'Gas Price / Oil Price, $'},
+                                            xaxis:{range:[PRICE_DECK_RANGE_START, PRICE_DECK_RANGE_END]},
                                             title:'Price Deck',
                                             margin:{ l: 40, r: 5, t: 40, b: 40 }},
                                             {responsive:true});
@@ -228,7 +243,8 @@
       xaxis: {title: 'Period', type: 'category'},
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
-      height: 400
+      height: target.clientHeight || 400,
+      margin: { l: 60, r: 20, t: 60, b: 60 }
     };
 
     Plotly.newPlot(target, [trace], layout, {responsive: true});
@@ -325,9 +341,9 @@
     };
 
     const layout = {
-      height: 400,
+      height: target.clientHeight || 400,
       title: {text: 'Value Loss Through Time', font: {size: 16, color: '#156082'}},
-      margin: {l: 70, r: 10, t: 50, b: 60},
+      margin: { l: 60, r: 20, t: 60, b: 60 },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
       xaxis: {
