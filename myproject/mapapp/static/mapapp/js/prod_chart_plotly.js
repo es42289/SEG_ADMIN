@@ -145,9 +145,13 @@
       }
     }
 
-    const currentIdx = currentMonthIndex();
-    const minIdx = currentIdx - 10 * 12;
-    const maxIdx = currentIdx + 15 * 12;
+    // Limit view to Jan 2020 through Dec 2032
+    const minIdx = monthKeyToIndex('2020-01-01');
+    const maxIdx = monthKeyToIndex('2032-12-01');
+    if (minIdx === null || maxIdx === null) {
+      console.error('[prod-chart] invalid range indices for 2020-2032');
+      return { keys: [], oil: [], gas: [], oilFc: [], gasFc: [], wc: [], yMin: 1, yMax: 1 };
+    }
     const keys = allKeys.filter((k) => {
       const idx = monthKeyToIndex(k);
       return idx !== null && idx >= minIdx && idx <= maxIdx;
