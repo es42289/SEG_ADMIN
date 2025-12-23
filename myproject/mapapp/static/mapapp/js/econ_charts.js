@@ -5,6 +5,13 @@
     return r.json();
   }
 
+  function getDefaultPriceDeck(options){
+    const normalizedTarget = "livestrip";
+    return options.find(opt =>
+      opt && opt.toLowerCase().replace(/[\s_-]+/g, "") === normalizedTarget
+    ) || options[0];
+  }
+
   async function loadPriceDeckOptions(){
     const sel = document.getElementById('priceDeckSelect');
     if (!sel) return;
@@ -16,7 +23,7 @@
       sel.appendChild(opt);
     });
     if(data.options.length){
-      sel.value = data.options[0];
+      sel.value = getDefaultPriceDeck(data.options);
       loadPriceDeck(sel.value);
     }
     sel.addEventListener('change',()=>{
