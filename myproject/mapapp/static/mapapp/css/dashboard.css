@@ -1230,6 +1230,10 @@ body {
   gap: 0.5rem;
 }
 
+.collapsible-card__body[hidden] {
+  display: none !important;
+}
+
 input#year[type="range"] {
   accent-color: #1f293b;     /* replace with your preferred color */
   /* Optional vendor tweaks: 

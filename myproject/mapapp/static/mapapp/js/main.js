@@ -44,13 +44,24 @@ const initCollapsibleCard = () => {
     }
   };
 
+  // Ensure default collapsed state and synced label.
+  setExpanded(false);
+
   toggle.addEventListener('click', () => {
     const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
     setExpanded(!isExpanded);
   });
 };
 
-initCollapsibleCard();
+const initCollapsibleCardWhenReady = () => {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCollapsibleCard, { once: true });
+  } else {
+    initCollapsibleCard();
+  }
+};
+
+initCollapsibleCardWhenReady();
 
 const rootElement = document.documentElement;
 window.syncRoyaltyPanelHeight = () => {
