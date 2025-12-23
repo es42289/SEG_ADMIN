@@ -1385,8 +1385,11 @@ window.syncRoyaltyPanelHeight = () => {
           const td = document.createElement('td');
           td.textContent = value;
           row.appendChild(td);
-          if (pvCellStore && key === ROYALTY_RATE_KEY) {
-            pvCellStore[key] = td;
+          if (key === ROYALTY_RATE_KEY) {
+            td.classList.add('est-nri-value');
+            if (pvCellStore) {
+              pvCellStore[key] = td;
+            }
           }
         });
         tbody.appendChild(row);

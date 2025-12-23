@@ -1401,3 +1401,8 @@ input#year[type="range"] {
       background: white;
       color: black;
     }
+
+    #userWellsTable .est-nri-value {
+      font-weight: 700;
+      color: #22c55e !important;
+    }
