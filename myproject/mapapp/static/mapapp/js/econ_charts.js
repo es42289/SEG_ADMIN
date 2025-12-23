@@ -157,7 +157,7 @@
 
     const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#156082'},name:'Net Cash Flow'}];
     const layout = {
-      title:'Net Cash Flow: 12 Months Backward & 24 Months Forward',
+      title:'Net Cash Flow:<br>12 Months Backward & 24 Months Forward',
       template:'plotly_white',
       height:400,
       xaxis:{
@@ -189,18 +189,20 @@
         {
           x:ltmCenter,
           y:yMax*1.05,
-          text:'Last 12 Months',
+          text:'(Last 12 Months)',
           showarrow:false,
           font:{size:14},
-          xanchor:'center'
+          xanchor:'center',
+          textangle:45
         },
         {
           x:ntmCenter,
           y:yMax*1.05,
-          text:'Next 24 Months',
+          text:'(Next 12 Months)',
           showarrow:false,
           font:{size:14},
-          xanchor:'center'
+          xanchor:'center',
+          textangle:45
         }
       ]
     };
