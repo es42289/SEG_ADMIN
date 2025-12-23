@@ -234,8 +234,8 @@
     </section>
   </div>
 
-<div style="margin-top:10px; display:flex; gap:1rem; align-items:flex-start;">
-  <div style="flex:3; min-width:0; display:flex; flex-direction:column; gap:10px;">
+<div class="econ-grid">
+  <div class="econ-grid__primary">
     <div class="econ-card">
       <h4 class="econ-card-title">Net Cash Flow</h4>
       <div id="cashflowWindowChart" style="width:100%; height:400px;"></div>
@@ -245,7 +245,7 @@
       <div id="cashflowSummaryChart" style="width:100%; height:440px;"></div>
     </div>
   </div>
-  <div style="flex:2; min-width:0; display:flex; flex-direction:column; gap:10px;">
+  <div class="econ-grid__secondary">
     <div class="econ-card">
       <h4 class="econ-card-title">Price Deck</h4>
       <div style="display:flex; align-items:center; margin-bottom:0.5rem; gap:0.5rem;">
@@ -265,7 +265,7 @@
 
 <section id="user-wells" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
   <h3 class="card-title">Well Summary Table</h3>
-  <div style="overflow-x:auto;">
+  <div class="table-scroll">
   <table id="userWellsTable" style="width:100%; border-collapse:collapse;">
     <thead>
       <tr>

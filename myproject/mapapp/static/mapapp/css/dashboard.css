@@ -12,16 +12,26 @@
   --top-banner-gap: 15px;
 }
 
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: "Aptos Narrow", system-ui, sans-serif;
   margin: 0;
   background: white;
   color: white;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .page-content {
   padding: 1rem;
   margin-top: calc(max(0px, var(--top-banner-height) - var(--site-header-height)) + var(--top-banner-gap));
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chart-map-grid {
@@ -611,11 +621,18 @@ body {
 }
 
 #prodChart {
-  height: clamp(320px, 60vw, 520px);
+  height: clamp(280px, 55vw, 500px);
 }
 
 #userWellsMap {
-  height: clamp(320px, 60vw, 520px);
+  height: clamp(280px, 55vw, 500px);
+}
+
+@media (max-width: 768px) {
+  #prodChart,
+  #userWellsMap {
+    height: clamp(240px, 70vw, 420px);
+  }
 }
 
 .top-banner {
@@ -966,6 +983,8 @@ body {
   display: flex;
   gap: 1.5rem;
   align-items: flex-start;
+  width: 100%;
+  max-width: 100%;
 }
 
 .metrics-sidebar {
@@ -1103,6 +1122,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 @media (max-width: 1024px) {
@@ -1241,7 +1262,7 @@ input#year[type="range"] {
      ::-webkit-slider-runnable-track { background: #333; } */
 }
 
-#main-container { display: flex; gap: 1rem; height: 75vh; margin-top: 0; }
+#main-container { display: flex; gap: 1rem; height: 75vh; margin-top: 0; width: 100%; max-width: 100%; }
 #map-container { flex: 2; position: relative; display:flex; flex-direction:column; min-height:0; }
 #chart-container {
   flex: 1;
@@ -1250,6 +1271,15 @@ input#year[type="range"] {
   gap: 1rem;
   padding: 1rem;
   min-height: 0;
+}
+@media (max-width: 1024px) {
+  #main-container {
+    flex-direction: column;
+    height: auto;
+  }
+  #chart-container {
+    padding: 0;
+  }
 }
 .nearby-chart-block {
   flex: 1;
@@ -1267,6 +1297,37 @@ input#year[type="range"] {
   width: 100%;
   min-height: 0;
   height: 100%;
+}
+.econ-grid {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  width: 100%;
+}
+.econ-grid__primary {
+  flex: 3 1 480px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.econ-grid__secondary {
+  flex: 2 1 360px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+@media (max-width: 1024px) {
+  .econ-grid {
+    gap: 0.75rem;
+  }
+  .econ-grid__primary,
+  .econ-grid__secondary {
+    flex-basis: 100%;
+  }
 }
 .map-controls { display:flex; gap:1rem; align-items:center; justify-content:center; flex-wrap:wrap; padding:0.75rem 1rem; background:rgba(21,96,130,0.85); border-radius:12px; margin:0 auto 0.75rem; max-width:fit-content; }
 .map-controls .slider-group { display:flex; gap:1rem; align-items:center; justify-content:center; flex-wrap:wrap; text-align:center; }
@@ -1315,8 +1376,17 @@ input#year[type="range"] {
     .metric-label { color: #1f293b; }
     .metric-value { color: #1f293b; font-weight: bold; }
 
+    .table-scroll {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .table-scroll table {
+      min-width: 720px;
+    }
     #userWellsTable {
-      width: max-content;
+      width: 100%;
+      min-width: 720px;
       border-collapse: collapse;
       white-space: nowrap;
       color: #ffffff; /* Keep the well table text consistent with other cards */
