@@ -1192,6 +1192,44 @@ body {
   background: #1b6f96;
 }
 
+.collapsible-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.collapsible-card__title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.collapsible-card__toggle {
+  background: #ffffff;
+  color: #156082;
+  border: 1px solid #dbe7f0;
+  border-radius: 8px;
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.collapsible-card__toggle:hover,
+.collapsible-card__toggle:focus-visible {
+  background: #e9f5fb;
+  box-shadow: 0 4px 12px rgba(21, 96, 130, 0.2);
+}
+
+.collapsible-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 input#year[type="range"] {
   accent-color: #1f293b;     /* replace with your preferred color */
   /* Optional vendor tweaks: 
