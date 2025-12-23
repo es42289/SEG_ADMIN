@@ -217,33 +217,6 @@
       </div>
     </aside>
     <div class="main-content">
-      <section id="user-wells" style="margin-bottom:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-        <h3 class="card-title">Well Summary Table</h3>
-        <div style="overflow-x:auto;">
-        <table id="userWellsTable" style="width:100%; border-collapse:collapse;">
-          <thead>
-            <tr>
-              <th>Well API</th>
-              <th>Name</th>
-              <th>Operator</th>
-              <th>Trajectory</th>
-              <th>NRI</th>
-              <th>Permit Date</th>
-              <th>1st Prod Date</th>
-              <th>Last Prod Date</th>
-              <th>Gross Oil EUR</th>
-              <th>Gross Gas EUR</th>
-              <th>Net Oil EUR</th>
-              <th>Net Gas EUR</th>
-              <th>Remaining Net Oil</th>
-              <th>Remaining Net Gas</th>
-              <th>Est. NRI Value</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        </div>
-      </section>
       <div class="chart-map-grid">
     <!-- Production chart (Plotly target) -->
     <section id="prod-chart" style="min-width:0; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
@@ -289,6 +262,34 @@
     </div>
   </div>
 </div>
+
+<section id="user-wells" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
+  <h3 class="card-title">Well Summary Table</h3>
+  <div style="overflow-x:auto;">
+  <table id="userWellsTable" style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th>Well API</th>
+        <th>Name</th>
+        <th>Operator</th>
+        <th>Trajectory</th>
+        <th>NRI</th>
+        <th>Permit Date</th>
+        <th>1st Prod Date</th>
+        <th>Last Prod Date</th>
+        <th>Gross Oil EUR</th>
+        <th>Gross Gas EUR</th>
+        <th>Net Oil EUR</th>
+        <th>Net Gas EUR</th>
+        <th>Remaining Net Oil</th>
+        <th>Remaining Net Gas</th>
+        <th>Est. NRI Value</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  </div>
+  </section>
 
   <section id="map-analysis" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
   <h3 style="color: #ffff; margin:0 0 .5rem 0; text-align:center;">Proximity Map</h3>
