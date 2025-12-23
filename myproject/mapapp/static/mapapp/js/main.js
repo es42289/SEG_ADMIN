@@ -1464,6 +1464,9 @@ window.syncRoyaltyPanelHeight = () => {
           if (typeof window.reloadProductionChartWithSelection === 'function') {
             window.reloadProductionChartWithSelection();
           }
+          if (typeof window.reloadUserWellsMapWithSelection === 'function') {
+            window.reloadUserWellsMapWithSelection();
+          }
         });
         table._selectionListenerAttached = true;
       }
@@ -1475,30 +1478,77 @@ window.syncRoyaltyPanelHeight = () => {
       applyPerWellPvMap(pvMap);
     };
 
+    function applySelectionToWellData(data) {
+      if (!data || !Array.isArray(data.api_uwi)) return data;
+
+      const indices = [];
+      const apis = data.api_uwi;
+      for (let i = 0; i < apis.length; i++) {
+        const api = apis[i];
+        if (!selectionInitialized || selectedWellApis.has(api)) {
+          indices.push(i);
+        }
+      }
+
+      if (indices.length === apis.length) return data;
+
+      const filtered = {};
+      Object.entries(data).forEach(([key, value]) => {
+        filtered[key] = Array.isArray(value) ? indices.map((i) => value[i]) : value;
+      });
+      return filtered;
+    }
+
     function renderUserWellsMap(data) {
       const mapDivId = 'userWellsMap';
       const mapDiv = document.getElementById(mapDivId);
-      if (!mapDiv || !data || !data.lat || data.lat.length === 0) return;
+      if (!mapDiv || !data) return;
 
-      const hoverText = data.api_uwi.map((api, i) => {
-        const name = data.name && data.name[i] ? data.name[i] : '';
-        const fp = data.first_prod_date && data.first_prod_date[i] ? data.first_prod_date[i] : '';
-        const comp = data.completion_date && data.completion_date[i] ? data.completion_date[i] : '';
+      const filteredData = applySelectionToWellData(data);
+      const hasWellPoints = Array.isArray(filteredData.lat) && filteredData.lat.length > 0;
+      if (!hasWellPoints) {
+        if (mapDiv._segResizeHandler) {
+          window.removeEventListener('resize', mapDiv._segResizeHandler);
+          mapDiv._segResizeHandler = null;
+        }
+        if (mapDiv._segResizeObserver) {
+          mapDiv._segResizeObserver.disconnect();
+          mapDiv._segResizeObserver = null;
+        }
+        Plotly.react(mapDivId, [], {
+          paper_bgcolor: '#156082',
+          plot_bgcolor: '#156082',
+          mapbox: {
+            accesstoken: MAPBOX_TOKEN,
+            style: getMapStyle(mapDivId),
+            center: { lat: 31.0, lon: -99.0 },
+            zoom: 6
+          },
+          margin: { t: 5, r: 10, b: 10, l: 10 },
+          height: getResponsivePlotHeight(mapDiv)
+        }, { scrollZoom: false, responsive: true });
+        return;
+      }
+
+      const hoverText = filteredData.api_uwi.map((api, i) => {
+        const name = filteredData.name && filteredData.name[i] ? filteredData.name[i] : '';
+        const fp = filteredData.first_prod_date && filteredData.first_prod_date[i] ? filteredData.first_prod_date[i] : '';
+        const comp = filteredData.completion_date && filteredData.completion_date[i] ? filteredData.completion_date[i] : '';
         return `API: ${api}<br>Name: ${name}<br>First Prod: ${fp}<br>Completion: ${comp}`;
       });
 
       const traces = [];
       const lineTraceIndices = {};
       const traceToWellIndex = {};
-      for (let i = 0; i < data.lat.length; i++) {
-        if (data.lat_bh[i] && data.lon_bh[i]) {
+      for (let i = 0; i < filteredData.lat.length; i++) {
+        if (filteredData.lat_bh[i] && filteredData.lon_bh[i]) {
           const traceIndex = traces.length;
           lineTraceIndices[i] = traceIndex;
           traceToWellIndex[traceIndex] = i;
           traces.push({
             type: 'scattermapbox',
-            lat: [data.lat[i], data.lat_bh[i]],
-            lon: [data.lon[i], data.lon_bh[i]],
+            lat: [filteredData.lat[i], filteredData.lat_bh[i]],
+            lon: [filteredData.lon[i], filteredData.lon_bh[i]],
             mode: 'lines',
             line: { color: 'red', width: 2 },
             text: [hoverText[i], hoverText[i]],
@@ -1508,11 +1558,11 @@ window.syncRoyaltyPanelHeight = () => {
         }
       }
 
-      const colors = data.lat.map(() => 'red');
+      const colors = filteredData.lat.map(() => 'red');
       traces.push({
         type: 'scattermapbox',
-        lat: data.lat,
-        lon: data.lon,
+        lat: filteredData.lat,
+        lon: filteredData.lon,
         text: hoverText,
         mode: 'markers',
         marker: {
@@ -1524,13 +1574,13 @@ window.syncRoyaltyPanelHeight = () => {
         name: 'User Wells'
       });
 
-      const center = calculateCentroid(data.lat, data.lon) || { lat: 31.0, lon: -99.0 };
+      const center = calculateCentroid(filteredData.lat, filteredData.lon) || { lat: 31.0, lon: -99.0 };
       let zoom = 10;
-      if (data.lat.length > 1) {
-        const latMin = Math.min(...data.lat);
-        const latMax = Math.max(...data.lat);
-        const lonMin = Math.min(...data.lon);
-        const lonMax = Math.max(...data.lon);
+      if (filteredData.lat.length > 1) {
+        const latMin = Math.min(...filteredData.lat);
+        const latMax = Math.max(...filteredData.lat);
+        const lonMin = Math.min(...filteredData.lon);
+        const lonMax = Math.max(...filteredData.lon);
         const maxDiff = Math.max(latMax - latMin, lonMax - lonMin);
         if (maxDiff > 4) zoom = 6;
         else if (maxDiff > 2) zoom = 7;
@@ -1625,6 +1675,11 @@ window.syncRoyaltyPanelHeight = () => {
         }
       });
     }
+
+    window.reloadUserWellsMapWithSelection = function reloadUserWellsMapWithSelection() {
+      if (!userWellData) return;
+      renderUserWellsMap(userWellData);
+    };
 
     // Main draw function with frontend filtering
     async function drawWithFilteredData(year) {
