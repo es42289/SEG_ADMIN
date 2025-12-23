@@ -419,6 +419,7 @@
   <script>
     (() => {
       const banner = document.querySelector('.top-banner');
+      const siteHeader = document.querySelector('header');
       const root = document.documentElement;
       const GAP_PX = 15;
 
@@ -426,7 +427,9 @@
 
       const applyBannerOffset = () => {
         const height = banner.getBoundingClientRect().height;
+        const headerHeight = siteHeader ? siteHeader.getBoundingClientRect().height : 0;
         root.style.setProperty('--top-banner-height', `${height}px`);
+        root.style.setProperty('--site-header-height', `${headerHeight}px`);
         root.style.setProperty('--top-banner-gap', `${GAP_PX}px`);
       };
 

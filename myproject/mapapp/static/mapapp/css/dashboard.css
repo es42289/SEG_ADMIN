@@ -8,6 +8,7 @@
 
 :root {
   --top-banner-height: 120px;
+  --site-header-height: 0px;
   --top-banner-gap: 15px;
 }
 
@@ -20,7 +21,7 @@ body {
 
 .page-content {
   padding: 1rem;
-  margin-top: calc(var(--top-banner-height) + var(--top-banner-gap));
+  margin-top: calc(max(0px, var(--top-banner-height) - var(--site-header-height)) + var(--top-banner-gap));
 }
 
 .chart-map-grid {
