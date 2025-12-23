@@ -8,6 +8,7 @@
 
 :root {
   --top-banner-height: 120px;
+  --top-banner-gap: 15px;
 }
 
 body {
@@ -19,7 +20,7 @@ body {
 
 .page-content {
   padding: 1rem;
-  margin-top: var(--top-banner-height);
+  margin-top: calc(var(--top-banner-height) + var(--top-banner-gap));
 }
 
 .chart-map-grid {
@@ -973,9 +974,9 @@ body {
   min-width: 202px;
   max-width: 252px;
   position: sticky;
-  top: var(--top-banner-height);
-  height: calc(100vh - var(--top-banner-height) - 1rem);
-  max-height: calc(100vh - var(--top-banner-height) - 1rem);
+  top: calc(var(--top-banner-height) + var(--top-banner-gap));
+  height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
+  max-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
   overflow-y: auto;
   padding-right: 0.15rem;
   min-height: 0;

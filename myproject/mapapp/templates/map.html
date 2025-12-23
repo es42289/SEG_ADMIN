@@ -416,6 +416,29 @@
   {% endblock %}
 
 {% block scripts %}
+  <script>
+    (() => {
+      const banner = document.querySelector('.top-banner');
+      const root = document.documentElement;
+      const GAP_PX = 15;
+
+      if (!banner || !root) return;
+
+      const applyBannerOffset = () => {
+        const height = banner.getBoundingClientRect().height;
+        root.style.setProperty('--top-banner-height', `${height}px`);
+        root.style.setProperty('--top-banner-gap', `${GAP_PX}px`);
+      };
+
+      const resizeObserver = window.ResizeObserver ? new ResizeObserver(applyBannerOffset) : null;
+      if (resizeObserver) {
+        resizeObserver.observe(banner);
+      }
+
+      window.addEventListener('resize', applyBannerOffset);
+      applyBannerOffset();
+    })();
+  </script>
   <!-- existing app scripts -->
   <script src="{% static 'mapapp/js/main.js' %}?v=2025-08-25a"></script>
 
