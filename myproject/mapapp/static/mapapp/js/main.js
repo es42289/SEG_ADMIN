@@ -1146,7 +1146,7 @@ window.syncRoyaltyPanelHeight = () => {
       const baseHeight = layout.height ?? 400;
 
       if (window.innerWidth <= 640) {
-        layout.height = Math.max(Math.floor(baseHeight * 0.25), 80);
+        layout.height = Math.max(Math.floor(baseHeight * 0.5), 120);
       }
 
       Plotly.newPlot(chartElement || chartId, data, layout, { displayModeBar: false, responsive: true });
