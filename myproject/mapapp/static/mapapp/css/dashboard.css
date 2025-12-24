@@ -1271,7 +1271,14 @@ input#year[type="range"] {
 }
 
 #main-container { display: flex; gap: 1rem; height: 75vh; margin-top: 0; width: 100%; max-width: 100%; }
-#map-container { flex: 2; position: relative; display:flex; flex-direction:column; min-height:0; }
+#map-container {
+  flex: 2;
+  position: relative;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  min-width: 0;
+}
 #chart-container {
   flex: 1;
   display: flex;
@@ -1279,6 +1286,7 @@ input#year[type="range"] {
   gap: 1rem;
   padding: 1rem;
   min-height: 0;
+  min-width: 0;
 }
 @media (max-width: 1024px) {
   #main-container {
