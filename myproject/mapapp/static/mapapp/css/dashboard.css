@@ -1067,6 +1067,7 @@ body {
   min-height: 42px;
   box-sizing: border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-family: "Aptos Narrow", system-ui, sans-serif;
 }
 
 .sidebar-kpis .stat-box::before {
@@ -1111,12 +1112,15 @@ body {
   letter-spacing: 0.01em;
   display: block;
   text-align: left;
+  font-family: inherit;
 }
 
 .sidebar-kpis .stat-value {
   font-size: 1.0rem;
   display: block;
   text-align: center;
+  font-weight: 700;
+  font-family: inherit;
 }
 
 .sidebar-kpis .stat-box:hover {
