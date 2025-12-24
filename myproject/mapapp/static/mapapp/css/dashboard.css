@@ -1278,6 +1278,8 @@ input#year[type="range"] {
   flex-direction:column;
   min-height:0;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 #chart-container {
   flex: 1;
@@ -1335,11 +1337,11 @@ input#year[type="range"] {
     gap: 0.75rem;
   }
 }
-.map-controls { display:flex; gap:1rem; align-items:center; justify-content:center; flex-wrap:wrap; padding:0.75rem 1rem; background:rgba(21,96,130,0.85); border-radius:12px; margin:0 auto 0.75rem; max-width:fit-content; }
-.map-controls .slider-group { display:flex; gap:1rem; align-items:center; justify-content:center; flex-wrap:wrap; text-align:center; }
-.map-controls input[type="range"] { width: 160px; }
+.map-controls { display:flex; gap:1rem; align-items:center; justify-content:center; flex-wrap:wrap; padding:0.75rem 1rem; background:rgba(21,96,130,0.85); border-radius:12px; margin:0 auto 0.75rem; max-width:100%; width:100%; box-sizing:border-box; }
+.map-controls .slider-group { display:flex; gap:1rem; align-items:center; justify-content:center; flex-wrap:wrap; text-align:center; width:100%; max-width:100%; }
+.map-controls input[type="range"] { width: min(160px, 100%); }
 .map-description { color:#ffffff; line-height:1.4; font-size:0.95rem; width:100%; margin:0 0 1rem; text-align:left; }
-#map { width: 100%; flex:1; min-height:0; background:#111; border-radius: 12px; }
+#map { width: 100%; max-width: 100%; flex:1; min-height:0; background:#111; border-radius: 12px; overflow:hidden; }
 #color-legend {
       position: absolute;
       bottom: 40px;
@@ -1373,7 +1375,7 @@ input#year[type="range"] {
       color: white;
       font-size: 12px;
     }
-    input[type="range"] { width: 320px; }
+    input[type="range"] { width: min(320px, 100%); }
     label { font-weight: 600; }
     .badge { color:#ffff; background:#156082; padding:.25rem .5rem; border-radius:.5rem; font-variant-numeric: tabular-nums; font-weight: bold;}
     .status { background:#1f293b; padding:.5rem 1rem; border-radius:.5rem; margin-bottom:1rem; max-height: 40px; overflow: hidden; }
