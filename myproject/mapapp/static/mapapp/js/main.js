@@ -1816,6 +1816,14 @@ window.syncRoyaltyPanelHeight = () => {
             });
           }
 
+          const mapDiv = document.getElementById('map');
+          if (mapDiv?._segResizeHandler) {
+            window.removeEventListener('resize', mapDiv._segResizeHandler);
+            mapDiv._segResizeHandler = null;
+          }
+
+          const syncMapHeight = () => getResponsivePlotHeight(mapDiv, { max: 640 });
+
           const layout = {
             paper_bgcolor: '#156082',
             plot_bgcolor: '#156082',
@@ -1829,7 +1837,7 @@ window.syncRoyaltyPanelHeight = () => {
               zoom: nearbyAnalysis20.centroid ? 9 : 6
             },
             margin: { t: 40, r: 10, b: 10, l: 10 },
-            height: window.innerHeight * 0.75,
+            height: syncMapHeight(),
             title: {
               text: `Oil Development Proximity Map - Year ${year}`,
               font: { color: '#eaeaea' }
@@ -1842,7 +1850,18 @@ window.syncRoyaltyPanelHeight = () => {
             }
           };
 
-          await Plotly.react('map', traces, layout, {scrollZoom: false});
+          await Plotly.react('map', traces, layout, {scrollZoom: false, responsive: true});
+
+          const handleResize = () => {
+            const nextHeight = syncMapHeight();
+            Plotly.relayout('map', { height: nextHeight });
+            Plotly.Plots.resize(mapDiv);
+          };
+
+          mapDiv._segResizeHandler = handleResize;
+          window.addEventListener('resize', handleResize);
+          requestAnimationFrame(handleResize);
+          setTimeout(handleResize, 200);
           
           // ADD CIRCLE AFTER MAP IS CREATED - separate operation that doesn't affect your trace structure
           if (userWellData && userWellData.lat && userWellData.lat.length > 0) {
