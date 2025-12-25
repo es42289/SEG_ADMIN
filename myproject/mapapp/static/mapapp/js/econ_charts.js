@@ -374,7 +374,7 @@
 
     const layout = {
       height: target.clientHeight || 400,
-      title: {text: 'Value Loss Through Time', font: {size: 16, color: '#156082'}},
+      title: {text: 'Value Loss Through Time', font: {size: 16, color: 'black', family: 'Arial, sans-serif'}},
       margin: { l: 60, r: 20, t: 60, b: 60 },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
