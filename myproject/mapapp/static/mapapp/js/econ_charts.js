@@ -256,7 +256,7 @@
       marker: {color: colors},
       text: ordVals.map(formatCurrency),
       textposition: 'outside',
-      textfont: {size: 18, color: 'black'}
+      textfont: {size: 16, color: 'black'}
     };
 
     const positiveMax = Math.max(0, ...ordVals);
