@@ -372,6 +372,7 @@
       name: 'Royalty Value'
     };
 
+    const axisFont = { family: 'Open Sans, sans-serif', size: 12, color: '#444' };
     const layout = {
       height: target.clientHeight || 400,
       title: {text: 'Value Loss Through Time', font: {size: 16, color: 'black', family: 'Arial, sans-serif'}},
@@ -385,15 +386,15 @@
         tick0: '2000-01-01',
         tickangle: 45,
         showgrid: false,
-        tickfont: {size: 10, color: '#156082'},
+        tickfont: axisFont,
         linecolor: '#156082',
         mirror: true,
-        title: {text: 'Close Date', font: {size: 12, color: '#156082'}},
+        title: {text: 'Close Date', font: axisFont},
       },
       yaxis: {
-        title: {text: 'Royalty Value ($)', font: {size: 10, color: '#156082'}},
+        title: {text: 'Royalty Value ($)', font: axisFont},
         tickprefix: '$',
-        tickfont: {size: 10, color: '#156082'},
+        tickfont: axisFont,
         showgrid: false,
         linecolor: '#156082',
         mirror: true,
