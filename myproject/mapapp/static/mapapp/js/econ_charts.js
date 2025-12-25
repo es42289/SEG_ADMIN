@@ -272,7 +272,7 @@
     const layout = {
       title: 'Cumulative Net Cash Flow Summary',
       yaxis: {title: 'CNCF ($)', range: yRange},
-      xaxis: {title: 'Period', type: 'category'},
+      xaxis: {title: 'Period', type: 'category', tickangle: -45},
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
       height: target.clientHeight || 400,
