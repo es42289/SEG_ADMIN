@@ -137,6 +137,13 @@ body {
   overflow-x: auto;
 }
 
+@media (max-width: 640px) {
+  .support-docs-table-wrapper {
+    max-height: 240px;
+    overflow-y: auto;
+  }
+}
+
 #support-docs-table {
   width: 100%;
   border-collapse: collapse;
