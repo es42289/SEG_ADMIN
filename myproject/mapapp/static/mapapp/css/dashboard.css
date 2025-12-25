@@ -1189,6 +1189,14 @@ body {
   min-height: 0;
 }
 
+.econ-card--fixed-height {
+  height: 468px;
+}
+
+.econ-card--fixed-height .chart-fill {
+  height: 100%;
+}
+
 .econ-card--match-cashflow {
   min-height: 0;
 }
