@@ -135,10 +135,21 @@ body {
   border-radius: 10px;
   padding: 0.75rem;
   overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .support-docs-table-wrapper {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
 }
 
 #support-docs-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   color: #ffffff;
   font-size: 0.95rem;
@@ -150,6 +161,8 @@ body {
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   vertical-align: top;
+  word-break: break-word;
+  white-space: normal;
 }
 
 #support-docs-table tbody tr:last-child td {
@@ -683,7 +696,7 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  font-size: 9pt;
+  font-size: 7pt;
   min-width: 0;
   flex: 1 1 240px;
   overflow-wrap: anywhere;
@@ -792,7 +805,7 @@ body {
 
 .top-banner-disclaimer {
   flex: 1 1 360px;
-  font-size: 9pt;
+  font-size: 7pt;
   font-style: italic;
   color: #1e293a;
   line-height: 1.4;
@@ -1067,6 +1080,9 @@ body {
   min-height: 42px;
   box-sizing: border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-family: "Aptos Narrow", system-ui, sans-serif;
+  align-items: center;
+  text-align: center;
 }
 
 .sidebar-kpis .stat-box::before {
@@ -1089,12 +1105,11 @@ body {
 
 .sidebar-kpis .stat-box--oil,
 .sidebar-kpis .stat-box--gas {
-  padding-left: calc(10% + 1.1rem);
 }
 
 .sidebar-kpis .stat-box--oil::before,
 .sidebar-kpis .stat-box--gas::before {
-  width: 10%;
+  width: 6px;
 }
 
 .sidebar-kpis .stat-box--oil::before {
@@ -1110,13 +1125,16 @@ body {
   font-weight: 600;
   letter-spacing: 0.01em;
   display: block;
-  text-align: left;
+  text-align: center;
+  font-family: inherit;
 }
 
 .sidebar-kpis .stat-value {
   font-size: 1.0rem;
   display: block;
   text-align: center;
+  font-weight: 700;
+  font-family: inherit;
 }
 
 .sidebar-kpis .stat-box:hover {
@@ -1184,6 +1202,14 @@ body {
   min-height: 0;
 }
 
+.econ-card--fixed-height {
+  height: 468px;
+}
+
+.econ-card--fixed-height .chart-fill {
+  height: 100%;
+}
+
 .econ-card--match-cashflow {
   min-height: 0;
 }
@@ -1222,7 +1248,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -1230,16 +1256,19 @@ body {
 
 .price-deck-controls label {
   font-size: 10pt;
-  white-space: normal;
+  white-space: nowrap;
   line-height: 1.3;
-  flex: 1 1 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .price-deck-controls select {
-  flex: 1 1 220px;
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
+  flex: 0 0 200px;
+  min-width: 140px;
+  width: 200px;
+  max-width: 45%;
 }
 
 #summaryStats.econ-card {
@@ -1409,6 +1438,43 @@ input#year[type="range"] {
     .metric { display: flex; justify-content: space-between; margin: 0.5rem 0; }
     .metric-label { color: #1f293b; }
     .metric-value { color: #1f293b; font-weight: bold; }
+
+    .well-table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .well-select-toggle {
+      background: #ffffff;
+      color: #156082;
+      border: 1px solid #ffffff;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    }
+
+    .well-select-toggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .well-select-toggle:focus-visible {
+      outline: 2px solid #ffffff;
+      outline-offset: 2px;
+    }
+
+    .well-select-toggle:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
 
     .table-scroll {
       width: 100%;

@@ -681,6 +681,7 @@ window.syncRoyaltyPanelHeight = () => {
     let userWellData = null;
     const selectedWellApis = new Set();
     let selectionInitialized = false;
+    const WELL_SELECTION_TOGGLE_ID = 'wellSelectionToggle';
 
     function pruneSelectedApis(validApis) {
       const validSet = new Set((validApis || []).filter(Boolean));
@@ -698,6 +699,68 @@ window.syncRoyaltyPanelHeight = () => {
       });
       selectionInitialized = true;
     }
+
+    const notifySelectionChange = () => {
+      if (typeof window.reloadEconomicsWithSelection === 'function') {
+        window.reloadEconomicsWithSelection();
+      }
+      if (typeof window.reloadProductionChartWithSelection === 'function') {
+        window.reloadProductionChartWithSelection();
+      }
+      if (typeof window.reloadUserWellsMapWithSelection === 'function') {
+        window.reloadUserWellsMapWithSelection();
+      }
+    };
+
+    const getWellSelectionInputs = () => {
+      const table = document.getElementById('userWellsTable');
+      if (!table) return [];
+      return Array.from(table.querySelectorAll('.well-select-input'));
+    };
+
+    const updateSelectionToggleButton = () => {
+      const toggle = document.getElementById(WELL_SELECTION_TOGGLE_ID);
+      if (!toggle) return;
+
+      const selectableInputs = getWellSelectionInputs().filter((input) => !input.disabled);
+      const total = selectableInputs.length;
+      const selected = selectableInputs.filter((input) => input.checked).length;
+      const allSelected = total > 0 && selected === total;
+
+      toggle.disabled = total === 0;
+      toggle.textContent = allSelected ? 'Deselect All' : 'Select All';
+      toggle.setAttribute('aria-pressed', allSelected ? 'true' : 'false');
+    };
+
+    const applyBulkWellSelection = (shouldSelect) => {
+      const inputs = getWellSelectionInputs().filter((input) => !input.disabled);
+      if (!inputs.length) {
+        updateSelectionToggleButton();
+        return false;
+      }
+
+      let changed = false;
+
+      inputs.forEach((input) => {
+        const api = input.dataset.api;
+        if (!api) return;
+
+        if (input.checked !== shouldSelect) {
+          input.checked = shouldSelect;
+          changed = true;
+        }
+
+        if (shouldSelect) {
+          selectedWellApis.add(api);
+        } else {
+          selectedWellApis.delete(api);
+        }
+      });
+
+      selectionInitialized = true;
+      updateSelectionToggleButton();
+      return changed;
+    };
 
     window.getSelectedWellApis = function getSelectedWellApis() {
       return Array.from(selectedWellApis);
@@ -1367,6 +1430,7 @@ window.syncRoyaltyPanelHeight = () => {
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
+        updateSelectionToggleButton();
         return;
       }
 
@@ -1451,6 +1515,8 @@ window.syncRoyaltyPanelHeight = () => {
         applyPerWellPvMap(window.latestPerWellPvMap);
       }
 
+      updateSelectionToggleButton();
+
       if (!table._selectionListenerAttached) {
         table.addEventListener('change', (event) => {
           const target = event.target;
@@ -1464,17 +1530,27 @@ window.syncRoyaltyPanelHeight = () => {
           } else {
             selectedWellApis.delete(api);
           }
-          if (typeof window.reloadEconomicsWithSelection === 'function') {
-            window.reloadEconomicsWithSelection();
-          }
-          if (typeof window.reloadProductionChartWithSelection === 'function') {
-            window.reloadProductionChartWithSelection();
-          }
-          if (typeof window.reloadUserWellsMapWithSelection === 'function') {
-            window.reloadUserWellsMapWithSelection();
-          }
+          updateSelectionToggleButton();
+          notifySelectionChange();
         });
         table._selectionListenerAttached = true;
+      }
+
+      if (!table._bulkSelectionListenerAttached) {
+        const toggle = document.getElementById(WELL_SELECTION_TOGGLE_ID);
+        if (toggle) {
+          toggle.addEventListener('click', () => {
+            const selectableInputs = getWellSelectionInputs().filter((input) => !input.disabled);
+            const total = selectableInputs.length;
+            const selectedCount = selectableInputs.filter((input) => input.checked).length;
+            const shouldSelectAll = total === 0 ? false : selectedCount !== total;
+            const changed = applyBulkWellSelection(shouldSelectAll);
+            if (changed) {
+              notifySelectionChange();
+            }
+          });
+        }
+        table._bulkSelectionListenerAttached = true;
       }
     }
 

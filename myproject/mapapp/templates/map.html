@@ -235,7 +235,10 @@
   </div>
 
 <section id="user-wells" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-  <h3 class="card-title">Well Summary Table</h3>
+  <div class="well-table-toolbar">
+    <h3 class="card-title">Well Summary Table</h3>
+    <button type="button" id="wellSelectionToggle" class="well-select-toggle">Select All</button>
+  </div>
   <div class="table-scroll">
   <table id="userWellsTable" style="width:100%; border-collapse:collapse;">
     <thead>
@@ -269,9 +272,9 @@
       <h4 class="econ-card-title">Net Cash Flow</h4>
       <div id="cashflowWindowChart" style="width:100%; height:400px;"></div>
     </div>
-    <div class="econ-card">
+    <div class="econ-card econ-card--fixed-height">
       <h4 class="econ-card-title">Cumulative Net Cash Flow</h4>
-      <div id="cashflowSummaryChart" style="width:100%; height:440px;"></div>
+      <div id="cashflowSummaryChart" class="chart-fill" style="width:100%; height:100%;"></div>
     </div>
   </div>
   <div class="econ-grid__secondary">
@@ -284,7 +287,7 @@
       <div id="priceDeckChart" style="width:100%; height:371px;"></div>
     </div>
     <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:stretch;">
-      <div class="econ-card econ-card--match-cashflow" style="flex:1 1 100%; min-width:0; height:468px;">
+      <div class="econ-card econ-card--match-cashflow econ-card--fixed-height" style="flex:1 1 100%; min-width:0;">
         <h4 class="econ-card-title">Royalty Interest Value</h4>
         <div id="royaltyValueChart" class="chart-fill" style="width:100%; height:100%; min-height:0;"></div>
       </div>

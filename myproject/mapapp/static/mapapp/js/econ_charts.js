@@ -256,7 +256,7 @@
       marker: {color: colors},
       text: ordVals.map(formatCurrency),
       textposition: 'outside',
-      textfont: {size: 18, color: 'black'}
+      textfont: {size: 16, color: 'black'}
     };
 
     const positiveMax = Math.max(0, ...ordVals);
@@ -272,7 +272,7 @@
     const layout = {
       title: 'Cumulative Net Cash Flow Summary',
       yaxis: {title: 'CNCF ($)', range: yRange},
-      xaxis: {title: 'Period', type: 'category'},
+      xaxis: {title: 'Period', type: 'category', tickangle: -45},
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
       height: target.clientHeight || 400,
@@ -372,9 +372,10 @@
       name: 'Royalty Value'
     };
 
+    const axisFont = { family: 'Open Sans, sans-serif', size: 12, color: '#444' };
     const layout = {
       height: target.clientHeight || 400,
-      title: {text: 'Value Loss Through Time', font: {size: 16, color: '#156082'}},
+      title: {text: 'Value Loss Through Time', font: {size: 16, color: 'black', family: 'Arial, sans-serif'}},
       margin: { l: 60, r: 20, t: 60, b: 60 },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
@@ -385,15 +386,15 @@
         tick0: '2000-01-01',
         tickangle: 45,
         showgrid: false,
-        tickfont: {size: 10, color: '#156082'},
+        tickfont: axisFont,
         linecolor: '#156082',
         mirror: true,
-        title: {text: 'Close Date', font: {size: 12, color: '#156082'}},
+        title: {text: 'Close Date', font: axisFont},
       },
       yaxis: {
-        title: {text: 'Royalty Value ($)', font: {size: 10, color: '#156082'}},
+        title: {text: 'Royalty Value ($)', font: axisFont},
         tickprefix: '$',
-        tickfont: {size: 10, color: '#156082'},
+        tickfont: axisFont,
         showgrid: false,
         linecolor: '#156082',
         mirror: true,
