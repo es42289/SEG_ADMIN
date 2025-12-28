@@ -1353,6 +1353,18 @@ input#year[type="range"] {
     padding: 0;
   }
 }
+
+@media (orientation: portrait) and (max-width: 768px) {
+  #map-analysis,
+  #cashflow-window-card,
+  #cashflow-summary-card,
+  #supporting-docs,
+  #user-wells-map,
+  #prod-chart,
+  #royalty-value-card {
+    display: none;
+  }
+}
 .nearby-chart-block {
   flex: 1;
   display: flex;
@@ -1495,6 +1507,7 @@ input#year[type="range"] {
       padding: .5rem;
       border-bottom: 1px solid white;
       color: inherit;
+      font-size: 10pt;
     }
     #userWellsTable th {
       text-align: left;
