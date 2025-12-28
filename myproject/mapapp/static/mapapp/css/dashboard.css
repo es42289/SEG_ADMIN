@@ -1357,7 +1357,11 @@ input#year[type="range"] {
 @media (orientation: portrait) and (max-width: 768px) {
   #map-analysis,
   #cashflow-window-card,
-  #cashflow-summary-card {
+  #cashflow-summary-card,
+  #supporting-docs,
+  #user-wells-map,
+  #prod-chart,
+  #royalty-value-card {
     display: none;
   }
 }
