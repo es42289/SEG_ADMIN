@@ -1355,7 +1355,9 @@ input#year[type="range"] {
 }
 
 @media (orientation: portrait) and (max-width: 768px) {
-  #map-analysis {
+  #map-analysis,
+  #cashflow-window-card,
+  #cashflow-summary-card {
     display: none;
   }
 }
