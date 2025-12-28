@@ -1353,6 +1353,12 @@ input#year[type="range"] {
     padding: 0;
   }
 }
+
+@media (orientation: portrait) and (max-width: 768px) {
+  #map-analysis {
+    display: none;
+  }
+}
 .nearby-chart-block {
   flex: 1;
   display: flex;
