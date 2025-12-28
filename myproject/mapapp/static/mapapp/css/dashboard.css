@@ -1507,6 +1507,7 @@ input#year[type="range"] {
       padding: .5rem;
       border-bottom: 1px solid white;
       color: inherit;
+      font-size: 10pt;
     }
     #userWellsTable th {
       text-align: left;
