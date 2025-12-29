@@ -122,6 +122,24 @@ window.syncRoyaltyPanelHeight = () => {
       const target = Math.round(width * targetRatio);
       return clampHeight(target);
     };
+    const syncChartAndMapContainers = () => {
+      const prodChartSection = document.getElementById('prod-chart');
+      const mapSection = document.getElementById('user-wells-map');
+      if (!mapSection || !prodChartSection) return;
+
+      const prodRect = prodChartSection.getBoundingClientRect();
+      if (prodRect && prodRect.height > 0) {
+        mapSection.style.height = `${prodRect.height}px`;
+      }
+    };
+    const primeChartMapHeightSync = () => {
+      syncChartAndMapContainers();
+      requestAnimationFrame(syncChartAndMapContainers);
+      setTimeout(syncChartAndMapContainers, 250);
+    };
+    document.addEventListener('DOMContentLoaded', primeChartMapHeightSync, {
+      once: true
+    });
     const updateLayoutOffsets = () => {
       const banner = document.querySelector('.top-banner');
       if (!banner || !rootElement) return;
@@ -1663,16 +1681,7 @@ window.syncRoyaltyPanelHeight = () => {
       }
 
       const prodChartEl = document.getElementById('prodChart');
-      const prodChartSection = document.getElementById('prod-chart');
-      const mapSection = document.getElementById('user-wells-map');
       const syncMapHeight = () => getResponsivePlotHeight(mapDiv, { matchHeightEl: prodChartEl });
-      const syncContainerHeight = () => {
-        if (!mapSection || !prodChartSection) return;
-        const prodRect = prodChartSection.getBoundingClientRect();
-        if (prodRect && prodRect.height > 0) {
-          mapSection.style.height = `${prodRect.height}px`;
-        }
-      };
       const layout = {
         paper_bgcolor: '#156082',
         plot_bgcolor: '#156082',
@@ -1690,7 +1699,7 @@ window.syncRoyaltyPanelHeight = () => {
       };
 
       Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false, responsive: true });
-      syncContainerHeight();
+      syncChartAndMapContainers();
 
       if (mapDiv._segResizeHandler) {
         window.removeEventListener('resize', mapDiv._segResizeHandler);
@@ -1699,7 +1708,7 @@ window.syncRoyaltyPanelHeight = () => {
         const nextHeight = syncMapHeight();
         Plotly.relayout(mapDivId, { height: nextHeight });
         Plotly.Plots.resize(mapDiv);
-        syncContainerHeight();
+        syncChartAndMapContainers();
       };
       mapDiv._segResizeHandler = handleResize;
       window.addEventListener('resize', handleResize);
