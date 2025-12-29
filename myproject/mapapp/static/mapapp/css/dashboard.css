@@ -83,6 +83,23 @@ body {
   flex: 1 1 320px;
 }
 
+@media (max-width: 1200px) {
+  .support-feedback-row {
+    flex-direction: column;
+  }
+
+  .support-feedback-row > section {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) and (orientation: portrait) {
+  #feedback-section {
+    display: none;
+  }
+}
+
 #user-wells {
   color: #ffffff; /* Align the well table card text styling with other dashboard cards */
 }
