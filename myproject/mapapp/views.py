@@ -856,7 +856,9 @@ def price_decks(request):
         return redirect("/login/")
     deck = request.GET.get("deck")
     df = fetch_price_decks()
-    options = sorted(df["PRICE_DECK_NAME"].unique())
+    options = sorted(
+        name for name in df["PRICE_DECK_NAME"].unique() if name != "HIST"
+    )
     if deck:
         blended = get_blended_price_deck(deck, df)
         data = json.loads(blended.to_json(orient="records", date_format="iso"))
