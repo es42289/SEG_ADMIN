@@ -183,7 +183,7 @@ body {
 }
 
 #support-docs-table th {
-  font-size: calc(0.95rem - 2pt);
+  font-size: 0.95rem;
 }
 
 #support-docs-table tbody tr:last-child td {

@@ -2238,7 +2238,7 @@ window.syncRoyaltyPanelHeight = () => {
         const editButton = document.createElement('button');
         editButton.type = 'button';
         editButton.className = 'support-docs-action support-docs-action--primary';
-        editButton.textContent = 'Edit Note';
+        editButton.textContent = 'Edit';
         editButton.addEventListener('click', () => {
           handleSupportDocEdit(doc);
         });
