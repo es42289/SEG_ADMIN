@@ -2549,7 +2549,6 @@ window.syncRoyaltyPanelHeight = () => {
     const feedbackStatus = document.getElementById('feedback-status');
     const feedbackTableBody = document.querySelector('#feedback-table tbody');
     const feedbackEmptyState = document.getElementById('feedback-empty');
-    const feedbackRefreshButton = document.getElementById('feedback-refresh');
 
     const feedbackDateFormatter = new Intl.DateTimeFormat('en-US', {
       dateStyle: 'medium',
@@ -2703,15 +2702,9 @@ window.syncRoyaltyPanelHeight = () => {
       renderFeedbackEntries();
     };
 
-    const loadFeedbackEntries = async (showStatus = false) => {
+    const loadFeedbackEntries = async () => {
       if (!feedbackTableBody || isFeedbackLoading) return;
       isFeedbackLoading = true;
-      if (showStatus) {
-        setFeedbackStatus('Refreshing feedback history...');
-      }
-      if (feedbackRefreshButton) {
-        feedbackRefreshButton.disabled = true;
-      }
 
       try {
         const response = await fetch('/feedback/');
@@ -2720,19 +2713,12 @@ window.syncRoyaltyPanelHeight = () => {
         }
         const payload = await response.json();
         hydrateFeedbackEntries(payload.entries || []);
-        if (showStatus) {
-          setFeedbackStatus('Feedback history updated.', 'success');
-        } else {
-          setFeedbackStatus('');
-        }
+        setFeedbackStatus('');
       } catch (error) {
         console.error('Failed to load feedback entries:', error);
         setFeedbackStatus('Unable to load feedback history right now.', 'error');
       } finally {
         isFeedbackLoading = false;
-        if (feedbackRefreshButton) {
-          feedbackRefreshButton.disabled = false;
-        }
       }
     };
 
@@ -2808,12 +2794,6 @@ window.syncRoyaltyPanelHeight = () => {
 
     if (feedbackTableBody) {
       toggleFeedbackEmptyState();
-    }
-
-    if (feedbackRefreshButton) {
-      feedbackRefreshButton.addEventListener('click', () => {
-        loadFeedbackEntries(true);
-      });
     }
 
     if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
