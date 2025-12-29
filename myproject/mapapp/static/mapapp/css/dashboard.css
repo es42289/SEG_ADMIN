@@ -269,7 +269,7 @@ body {
 }
 
 .support-docs-button .button-title {
-  font-size: 1.2rem;
+  font-size: 0.875rem;
   font-weight: 700;
   margin-bottom: 0.35rem;
 }
@@ -483,7 +483,7 @@ body {
 }
 
 .support-docs-button .button-subtitle {
-  font-size: 0.95rem;
+  font-size: 0.65rem;
   font-style: italic;
   line-height: 1.4;
 }
