@@ -126,16 +126,15 @@ body {
 }
 
 .support-docs-status {
-  margin-top: 1rem;
-  min-height: 1.25rem;
+  display: none;
   color: #ffffff;
   font-size: 0.9rem;
-  opacity: 0;
-  transition: opacity 0.2s ease;
 }
 
 .support-docs-status.is-visible {
-  opacity: 1;
+  display: block;
+  margin-top: 1rem;
+  min-height: 1.25rem;
 }
 
 .support-docs-status--success {
