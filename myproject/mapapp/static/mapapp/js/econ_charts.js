@@ -48,25 +48,10 @@
       .filter(r => !Number.isNaN(r.parsedDate.getTime()));
   }
 
-  function computeAverageSeries(rows, years){
-    if (!rows.length) return {oil: null, gas: null};
-    const latest = rows.reduce((max, r) => r.parsedDate > max ? r.parsedDate : max, rows[0].parsedDate);
-    const cutoff = new Date(latest);
-    cutoff.setFullYear(cutoff.getFullYear() - years);
-    const windowed = rows.filter(r => r.parsedDate >= cutoff && r.parsedDate <= latest);
-    const validOil = windowed.map(r => r.oil).filter(v => Number.isFinite(v));
-    const validGas = windowed.map(r => r.gas).filter(v => Number.isFinite(v));
-    const mean = values => values.length ? values.reduce((a,b)=>a+b,0) / values.length : null;
-    return {
-      oil: mean(validOil),
-      gas: mean(validGas)
-    };
-  }
-
   async function loadPriceDeck(name){
     const resp = await fetchJSON('/price-decks/?deck='+encodeURIComponent(name));
     if(resp.data){
-      renderPriceDeck(resp.data);
+      renderPriceDeck(resp.data, resp.trailing_averages);
       loadEconomics(name);
     }
   }
@@ -89,10 +74,11 @@
     return qs ? `?${qs}` : '';
   }
 
-  function renderPriceDeck(rows){
+  function renderPriceDeck(rows, trailingAverages){
     const chartEl = document.getElementById('priceDeckChart');
     if (!chartEl) return;
     const parsed = parsePriceDeckRows(rows);
+    const trailing10 = (trailingAverages && trailingAverages['10_year']) || {};
     const withinRange = parsed.filter(r => r.parsedDate >= PRICE_DECK_RANGE_START && r.parsedDate <= PRICE_DECK_RANGE_END);
     const dates = withinRange.map(r=>r.MONTH_DATE);
     const toPos = v=>{
@@ -101,7 +87,6 @@
     };
     const oil = withinRange.map(r=>toPos(r.OIL));
     const gas = withinRange.map(r=>toPos(r.GAS));
-    const trailing10 = computeAverageSeries(parsed, 10);
     const averageTraces = [];
     if (Number.isFinite(trailing10.oil)) {
       averageTraces.push({
