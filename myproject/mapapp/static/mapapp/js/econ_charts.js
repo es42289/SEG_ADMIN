@@ -126,12 +126,21 @@
       {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}},
       ...averageTraces
     ];
-    Plotly.newPlot(chartEl,fig,{showlegend: true,
-                                            yaxis:{type:'log', title:'Gas Price / Oil Price, $'},
-                                            xaxis:{range:[PRICE_DECK_RANGE_START, PRICE_DECK_RANGE_END]},
-                                            title:'Price Deck',
-                                            margin:{ l: 40, r: 5, t: 40, b: 40 }},
-                                            {responsive:true});
+    Plotly.newPlot(chartEl, fig, {
+      showlegend: true,
+      legend: {
+        x: 0.02,
+        y: 0.98,
+        xanchor: 'left',
+        yanchor: 'top',
+        bgcolor: 'rgba(255,255,255,0.8)',
+        orientation: 'v'
+      },
+      yaxis: {type:'log', title:'Gas Price / Oil Price, $'},
+      xaxis: {range:[PRICE_DECK_RANGE_START, PRICE_DECK_RANGE_END]},
+      title: 'Price Deck',
+      margin: { l: 40, r: 5, t: 40, b: 40 }
+    }, {responsive:true});
   }
 
   async function loadEconomics(deck){
