@@ -222,10 +222,7 @@ window.syncRoyaltyPanelHeight = () => {
       'country',
       'contact_first_name',
       'contact_last_name',
-      'contact_title',
-      'tax_id_type',
-      'tax_id_last4',
-      'tax_withholding_status'
+      'contact_title'
     ];
 
     const OWNER_TYPE_MAP = {
@@ -233,18 +230,6 @@ window.syncRoyaltyPanelHeight = () => {
       ENTITY: 'Entity',
       TRUST: 'Trust',
       CORPORATION: 'Corporation'
-    };
-
-    const TAX_ID_TYPES = {
-      EIN: 'EIN',
-      SSN: 'SSN',
-      ITIN: 'ITIN'
-    };
-
-    const WITHHOLDING_STATUSES = {
-      STANDARD: 'Standard',
-      EXEMPT: 'Exempt',
-      BACKUP: 'Backup'
     };
 
     const ownerProfileButton = document.getElementById('ownerProfileButton');
@@ -272,35 +257,6 @@ window.syncRoyaltyPanelHeight = () => {
       if (!cleaned) return 'Individual';
       const key = cleaned.toUpperCase();
       return OWNER_TYPE_MAP[key] || (() => { throw new Error('Invalid owner type'); })();
-    }
-
-    function canonicalizeTaxIdType(value) {
-      if (value === null || value === undefined) return null;
-      const cleaned = String(value).trim();
-      if (!cleaned) return null;
-      const key = cleaned.toUpperCase();
-      if (!TAX_ID_TYPES[key]) {
-        throw new Error('Invalid tax ID type');
-      }
-      return TAX_ID_TYPES[key];
-    }
-
-    function canonicalizeWithholding(value) {
-      if (value === null || value === undefined) return null;
-      const cleaned = String(value).trim();
-      if (!cleaned) return null;
-      const key = cleaned.toUpperCase();
-      if (!WITHHOLDING_STATUSES[key]) {
-        throw new Error('Invalid withholding status');
-      }
-      return WITHHOLDING_STATUSES[key];
-    }
-
-    function normalizeTaxIdLast4(value) {
-      if (value === null || value === undefined) return null;
-      const digits = String(value).replace(/\D+/g, '');
-      if (!digits) return null;
-      return digits.slice(-4);
     }
 
     function createOwnerProfileDefaults(email) {
@@ -350,24 +306,6 @@ window.syncRoyaltyPanelHeight = () => {
         console.warn('Owner profile owner_type normalization failed:', err);
         normalized.owner_type = 'Individual';
       }
-
-      try {
-        normalized.tax_id_type = canonicalizeTaxIdType(working.tax_id_type ?? normalized.tax_id_type);
-      } catch (err) {
-        console.warn('Owner profile tax_id_type normalization failed:', err);
-        normalized.tax_id_type = null;
-      }
-
-      try {
-        normalized.tax_withholding_status = canonicalizeWithholding(
-          working.tax_withholding_status ?? normalized.tax_withholding_status
-        );
-      } catch (err) {
-        console.warn('Owner profile withholding normalization failed:', err);
-        normalized.tax_withholding_status = null;
-      }
-
-      normalized.tax_id_last4 = normalizeTaxIdLast4(working.tax_id_last4 ?? normalized.tax_id_last4);
 
       return normalized;
     }

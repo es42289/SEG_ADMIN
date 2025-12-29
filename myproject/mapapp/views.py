@@ -828,6 +828,25 @@ def fetch_price_decks():
     return pd.DataFrame(rows, columns=cols)
 
 
+def _price_deck_trailing_average(price_decks, years=10):
+    hist = price_decks[price_decks["PRICE_DECK_NAME"] == "HIST"].copy()
+    if hist.empty:
+        return {"oil": None, "gas": None}
+
+    hist["MONTH_DATE"] = pd.to_datetime(hist["MONTH_DATE"], errors="coerce")
+    hist[["OIL", "GAS"]] = hist[["OIL", "GAS"]].apply(pd.to_numeric, errors="coerce")
+    today = pd.Timestamp.today().normalize()
+    cutoff = today - pd.DateOffset(years=years)
+    window = hist[(hist["MONTH_DATE"] >= cutoff) & (hist["MONTH_DATE"] <= today)]
+    if window.empty:
+        return {"oil": None, "gas": None}
+
+    return {
+        "oil": float(window["OIL"].mean(skipna=True)) if window["OIL"].notna().any() else None,
+        "gas": float(window["GAS"].mean(skipna=True)) if window["GAS"].notna().any() else None,
+    }
+
+
 def get_blended_price_deck(active_name, price_decks):
     hist = price_decks[price_decks["PRICE_DECK_NAME"] == "HIST"].copy()
     df = price_decks[price_decks["PRICE_DECK_NAME"] == active_name].copy()
@@ -856,12 +875,15 @@ def price_decks(request):
         return redirect("/login/")
     deck = request.GET.get("deck")
     df = fetch_price_decks()
-    options = sorted(df["PRICE_DECK_NAME"].unique())
+    options = sorted(
+        name for name in df["PRICE_DECK_NAME"].unique() if name != "HIST"
+    )
+    trailing_avg = {"10_year": _price_deck_trailing_average(df, years=10)}
     if deck:
         blended = get_blended_price_deck(deck, df)
         data = json.loads(blended.to_json(orient="records", date_format="iso"))
-        return JsonResponse({"options": options, "data": data})
-    return JsonResponse({"options": options})
+        return JsonResponse({"options": options, "data": data, "trailing_averages": trailing_avg})
+    return JsonResponse({"options": options, "trailing_averages": trailing_avg})
 
 
 def fetch_forecasts_for_apis(apis):

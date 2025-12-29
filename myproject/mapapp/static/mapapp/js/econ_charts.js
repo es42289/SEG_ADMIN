@@ -34,10 +34,24 @@
   const PRICE_DECK_RANGE_START = new Date(Date.UTC(2020, 0, 1));
   const PRICE_DECK_RANGE_END = new Date(Date.UTC(2032, 11, 1));
 
+  function parsePriceDeckRows(rows){
+    return rows
+      .map(r => {
+        const date = new Date(r.MONTH_DATE);
+        return {
+          ...r,
+          parsedDate: date,
+          oil: Number(r.OIL),
+          gas: Number(r.GAS)
+        };
+      })
+      .filter(r => !Number.isNaN(r.parsedDate.getTime()));
+  }
+
   async function loadPriceDeck(name){
     const resp = await fetchJSON('/price-decks/?deck='+encodeURIComponent(name));
     if(resp.data){
-      renderPriceDeck(resp.data);
+      renderPriceDeck(resp.data, resp.trailing_averages);
       loadEconomics(name);
     }
   }
@@ -60,13 +74,12 @@
     return qs ? `?${qs}` : '';
   }
 
-  function renderPriceDeck(rows){
+  function renderPriceDeck(rows, trailingAverages){
     const chartEl = document.getElementById('priceDeckChart');
     if (!chartEl) return;
-    const withinRange = rows.filter(r => {
-      const d = new Date(r.MONTH_DATE);
-      return !Number.isNaN(d.getTime()) && d >= PRICE_DECK_RANGE_START && d <= PRICE_DECK_RANGE_END;
-    });
+    const parsed = parsePriceDeckRows(rows);
+    const trailing10 = (trailingAverages && trailingAverages['10_year']) || {};
+    const withinRange = parsed.filter(r => r.parsedDate >= PRICE_DECK_RANGE_START && r.parsedDate <= PRICE_DECK_RANGE_END);
     const dates = withinRange.map(r=>r.MONTH_DATE);
     const toPos = v=>{
       const num = Number(v);
@@ -74,16 +87,50 @@
     };
     const oil = withinRange.map(r=>toPos(r.OIL));
     const gas = withinRange.map(r=>toPos(r.GAS));
+    const averageTraces = [];
+    const hoverDate = '%{x|%b %Y}';
+    const hoverCurrency = (label) => `${label}: $%{y:,.2f}<br>Date: ${hoverDate}<extra></extra>`;
+
+    if (Number.isFinite(trailing10.oil)) {
+      averageTraces.push({
+        x: dates,
+        y: dates.map(()=>trailing10.oil),
+        mode:'lines',
+        name:'Average 10-Year (Oil)',
+        line:{color:'green', dash:'dash'},
+        hovertemplate: hoverCurrency('Average 10-Year (Oil)')
+      });
+    }
+    if (Number.isFinite(trailing10.gas)) {
+      averageTraces.push({
+        x: dates,
+        y: dates.map(()=>trailing10.gas),
+        mode:'lines',
+        name:'Average 10-Year (Gas)',
+        line:{color:'red', dash:'dash'},
+        hovertemplate: hoverCurrency('Average 10-Year (Gas)')
+      });
+    }
     const fig = [
-      {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'}},
-      {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}}
+      {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'},hovertemplate: hoverCurrency('Oil')},
+      {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'},hovertemplate: hoverCurrency('Gas')},
+      ...averageTraces
     ];
-    Plotly.newPlot(chartEl,fig,{showlegend: false,
-                                            yaxis:{type:'log', title:'Gas Price / Oil Price, $'},
-                                            xaxis:{range:[PRICE_DECK_RANGE_START, PRICE_DECK_RANGE_END]},
-                                            title:'Price Deck',
-                                            margin:{ l: 40, r: 5, t: 40, b: 40 }},
-                                            {responsive:true});
+    Plotly.newPlot(chartEl, fig, {
+      showlegend: true,
+      legend: {
+        x: 0.98,
+        y: 0.5,
+        xanchor: 'right',
+        yanchor: 'middle',
+        bgcolor: 'rgba(255,255,255,0.8)',
+        orientation: 'v'
+      },
+      yaxis: {type:'log', title:'Gas Price / Oil Price, $'},
+      xaxis: {range:[PRICE_DECK_RANGE_START, PRICE_DECK_RANGE_END]},
+      title: 'Price Deck',
+      margin: { l: 40, r: 5, t: 40, b: 40 }
+    }, {responsive:true});
   }
 
   async function loadEconomics(deck){
@@ -271,8 +318,17 @@
 
     const layout = {
       title: 'Cumulative Net Cash Flow Summary',
-      yaxis: {title: 'CNCF ($)', range: yRange},
-      xaxis: {title: 'Period', type: 'category', tickangle: -45},
+      yaxis: {
+        title: {text: 'CNCF ($)', font: {size: 10}},
+        range: yRange,
+        tickfont: {size: 8}
+      },
+      xaxis: {
+        title: {text: 'Period', font: {size: 10}},
+        type: 'category',
+        tickangle: -45,
+        tickfont: {size: 8}
+      },
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
       height: target.clientHeight || 400,
