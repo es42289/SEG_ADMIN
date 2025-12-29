@@ -102,7 +102,6 @@
     const oil = withinRange.map(r=>toPos(r.OIL));
     const gas = withinRange.map(r=>toPos(r.GAS));
     const trailing10 = computeAverageSeries(parsed, 10);
-    const trailing5 = computeAverageSeries(parsed, 5);
     const averageTraces = [];
     if (Number.isFinite(trailing10.oil)) {
       averageTraces.push({
@@ -120,24 +119,6 @@
         mode:'lines',
         name:'Average 10-Year (Gas)',
         line:{color:'red', dash:'dash'}
-      });
-    }
-    if (Number.isFinite(trailing5.oil)) {
-      averageTraces.push({
-        x: dates,
-        y: dates.map(()=>trailing5.oil),
-        mode:'lines',
-        name:'Average 5-Year (Oil)',
-        line:{color:'green', dash:'dashdot'}
-      });
-    }
-    if (Number.isFinite(trailing5.gas)) {
-      averageTraces.push({
-        x: dates,
-        y: dates.map(()=>trailing5.gas),
-        mode:'lines',
-        name:'Average 5-Year (Gas)',
-        line:{color:'red', dash:'dashdot'}
       });
     }
     const fig = [
