@@ -31,7 +31,10 @@
     });
   }
 
-  const PRICE_DECK_RANGE_START = new Date(Date.UTC(2020, 0, 1));
+  const PRICE_DECK_RANGE_START = (() => {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear() - 10, now.getUTCMonth(), 1));
+  })();
   const PRICE_DECK_RANGE_END = new Date(Date.UTC(2032, 11, 1));
 
   function parsePriceDeckRows(rows){
@@ -79,8 +82,14 @@
     if (!chartEl) return;
     const parsed = parsePriceDeckRows(rows);
     const trailing10 = (trailingAverages && trailingAverages['10_year']) || {};
+    const today = new Date();
+    const tenYearStart = new Date(today);
+    tenYearStart.setFullYear(today.getFullYear() - 10);
     const withinRange = parsed.filter(r => r.parsedDate >= PRICE_DECK_RANGE_START && r.parsedDate <= PRICE_DECK_RANGE_END);
     const dates = withinRange.map(r=>r.MONTH_DATE);
+    const averageDates = parsed
+      .filter(r => r.parsedDate >= tenYearStart && r.parsedDate <= today)
+      .map(r => r.MONTH_DATE);
     const toPos = v=>{
       const num = Number(v);
       return isFinite(num) && num > 0 ? num : null;
@@ -91,20 +100,20 @@
     const hoverDate = '%{x|%b %Y}';
     const hoverCurrency = (label) => `${label}: $%{y:,.2f}<br>Date: ${hoverDate}<extra></extra>`;
 
-    if (Number.isFinite(trailing10.oil)) {
+    if (Number.isFinite(trailing10.oil) && averageDates.length) {
       averageTraces.push({
-        x: dates,
-        y: dates.map(()=>trailing10.oil),
+        x: averageDates,
+        y: averageDates.map(()=>trailing10.oil),
         mode:'lines',
         name:'Average 10-Year (Oil)',
         line:{color:'green', dash:'dash'},
         hovertemplate: hoverCurrency('Average 10-Year (Oil)')
       });
     }
-    if (Number.isFinite(trailing10.gas)) {
+    if (Number.isFinite(trailing10.gas) && averageDates.length) {
       averageTraces.push({
-        x: dates,
-        y: dates.map(()=>trailing10.gas),
+        x: averageDates,
+        y: averageDates.map(()=>trailing10.gas),
         mode:'lines',
         name:'Average 10-Year (Gas)',
         line:{color:'red', dash:'dash'},
@@ -119,9 +128,9 @@
     Plotly.newPlot(chartEl, fig, {
       showlegend: true,
       legend: {
-        x: 0.98,
+        x: 0.95,
         y: 0.5,
-        xanchor: 'right',
+        xanchor: 'center',
         yanchor: 'middle',
         bgcolor: 'rgba(255,255,255,0.8)',
         orientation: 'v'
