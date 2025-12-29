@@ -114,6 +114,11 @@ body {
   min-height: 0;
 }
 
+.dashboard-panel .panel-lead {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 .support-docs-buttons {
   display: flex;
   flex-direction: column;
