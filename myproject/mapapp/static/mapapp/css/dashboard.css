@@ -182,6 +182,10 @@ body {
   white-space: normal;
 }
 
+#support-docs-table th {
+  font-size: calc(0.95rem - 2pt);
+}
+
 #support-docs-table tbody tr:last-child td {
   border-bottom: none;
 }
