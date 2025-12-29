@@ -876,7 +876,9 @@ def price_decks(request):
     deck = request.GET.get("deck")
     df = fetch_price_decks()
     options = sorted(
-        name for name in df["PRICE_DECK_NAME"].unique() if name != "HIST"
+        name
+        for name in df["PRICE_DECK_NAME"].unique()
+        if str(name).upper() != "HIST"
     )
     trailing_avg = {"10_year": _price_deck_trailing_average(df, years=10)}
     if deck:
