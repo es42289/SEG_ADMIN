@@ -329,15 +329,15 @@
     const layout = {
       title: 'Cumulative Net Cash Flow Summary',
       yaxis: {
-        title: {text: 'CNCF ($)', font: {size: 12}},
+        title: {text: 'CNCF ($)', font: {size: 10}},
         range: yRange,
-        tickfont: {size: 10}
+        tickfont: {size: 8}
       },
       xaxis: {
-        title: {text: 'Period', font: {size: 12}},
+        title: {text: 'Period', font: {size: 10}},
         type: 'category',
         tickangle: -45,
-        tickfont: {size: 10}
+        tickfont: {size: 8}
       },
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
