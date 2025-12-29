@@ -165,6 +165,32 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const updateWellSummaryStats = (data) => {
+      if (!data) {
+        setStatValue(userWellsCount, '0');
+        setStatValue(avgWellAge, '0');
+        return;
+      }
+
+      const totalWells = Array.isArray(data.lat) ? data.lat.length : 0;
+      setStatValue(userWellsCount, totalWells.toLocaleString());
+
+      if (avgWellAge && data.year && data.last_producing) {
+        const currentYear = new Date().getUTCFullYear();
+        const ages = [];
+        for (let i = 0; i < data.year.length; i++) {
+          const compYear = parseInt(data.year[i], 10);
+          if (Number.isNaN(compYear)) continue;
+          const last = data.last_producing[i];
+          let endYear = last ? new Date(last).getUTCFullYear() : currentYear;
+          if (Number.isNaN(endYear)) endYear = currentYear;
+          ages.push(endYear - compYear + 1);
+        }
+        const avg = ages.length ? (ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
+        setStatValue(avgWellAge, avg.toFixed(1));
+      }
+    };
+
     const formatCurrencyStat = (value) => {
       if (value === undefined || value === null) return null;
       const num = Number(value);
@@ -638,7 +664,37 @@ window.syncRoyaltyPanelHeight = () => {
       selectionInitialized = true;
     }
 
+    const getSelectedWellData = () => {
+      if (!userWellData) return null;
+      return applySelectionToWellData(userWellData);
+    };
+
+    let latestFilteredGeneralData = null;
+    let latestFilteredUserData = null;
+    let latestStatsExtras = null;
+
+    const rerenderStatsWithSelection = () => {
+      if (!window.Stats || !latestFilteredGeneralData || !latestFilteredUserData) return;
+      const selectedUserData = applySelectionToWellData(latestFilteredUserData);
+      window.Stats.render(latestFilteredGeneralData, selectedUserData, latestStatsExtras);
+    };
+
     const notifySelectionChange = () => {
+      updateWellSummaryStats(getSelectedWellData());
+      if (window.productionByApi) {
+        const selectedProd = {};
+        for (const api of Array.from(selectedWellApis)) {
+          if (window.productionByApi[api]) {
+            selectedProd[api] = window.productionByApi[api];
+          }
+        }
+        updateLastProductionMetrics(selectedProd);
+      } else {
+        updateLastProductionMetrics(null);
+      }
+
+      rerenderStatsWithSelection();
+
       if (typeof window.reloadEconomicsWithSelection === 'function') {
         window.reloadEconomicsWithSelection();
       }
@@ -769,13 +825,23 @@ window.syncRoyaltyPanelHeight = () => {
     }
 
     function updateLastProductionMetrics(prodMap) {
-      if (!lastOil || !lastGas || !lastYearOil || !lastYearGas || !nextYearOil || !nextYearGas) {
+      const resetProductionStats = () => {
+        setStatValue(lastOil, '0');
+        setStatValue(lastGas, '0');
+        setStatValue(lastYearOil, '0');
+        setStatValue(lastYearGas, '0');
+        setStatValue(nextYearOil, '0');
+        setStatValue(nextYearGas, '0');
         setStatValue(lastProductionDate, null, '--');
+      };
+
+      if (!lastOil || !lastGas || !lastYearOil || !lastYearGas || !nextYearOil || !nextYearGas) {
+        resetProductionStats();
         return;
       }
       const rows = Object.values(prodMap || {}).flat();
       if (!rows.length) {
-        setStatValue(lastProductionDate, null, '--');
+        resetProductionStats();
         return;
       }
 
@@ -1211,27 +1277,12 @@ window.syncRoyaltyPanelHeight = () => {
         
         if (!data.lat || data.lat.length === 0) {
           console.log('No user wells found');
-          if (avgWellAge) setStatValue(avgWellAge, '0');
+          updateWellSummaryStats(null);
           return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [], completion_date: [] };
         }
 
         console.log(`Received ${data.lat.length} user wells`);
-        setStatValue(userWellsCount, data.lat.length.toLocaleString());
-
-        if (avgWellAge && data.year && data.last_producing) {
-          const currentYear = new Date().getUTCFullYear();
-          const ages = [];
-          for (let i = 0; i < data.year.length; i++) {
-            const compYear = parseInt(data.year[i], 10);
-            if (isNaN(compYear)) continue;
-            const last = data.last_producing[i];
-            let endYear = last ? new Date(last).getUTCFullYear() : currentYear;
-            if (isNaN(endYear)) endYear = currentYear;
-            ages.push(endYear - compYear + 1);
-          }
-          const avg = ages.length ? (ages.reduce((a, b) => a + b, 0) / ages.length) : 0;
-          setStatValue(avgWellAge, avg.toFixed(1));
-        }
+        updateWellSummaryStats(data);
 
         renderUserWellsTable(data);
         renderUserWellsMap(data);
@@ -1718,17 +1769,23 @@ window.syncRoyaltyPanelHeight = () => {
         const generalData = filterDataByYear(allWellData, year);
         const userData = filterDataByYear(userWellData, year);
 
+        latestFilteredGeneralData = generalData;
+        latestFilteredUserData = userData;
+
         // Table displays all user wells; no need to update here
         
         // Analyze nearby wells and create charts - use unfiltered user wells for centroid
         const nearbyAnalysis20 = analyzeNearbyWells(generalData, userWellData, year, 20);
         const nearbyAnalysis10 = analyzeNearbyWells(generalData, userWellData, year, 10);
 
+        latestStatsExtras = {
+          nearby10: (nearbyAnalysis10.nearbyWells || []).length,
+          nearby20: (nearbyAnalysis20.nearbyWells || []).length
+        };
+
         if (window.Stats) {
-          window.Stats.render(generalData, userData, {
-            nearby10: (nearbyAnalysis10.nearbyWells || []).length,
-            nearby20: (nearbyAnalysis20.nearbyWells || []).length
-          });
+          const statsUserData = applySelectionToWellData(userData);
+          window.Stats.render(generalData, statsUserData, latestStatsExtras);
         }
 
         // Call createNearbyWellsChart with swapped order - 10-mile first, then 20-mile
