@@ -129,10 +129,10 @@
     Plotly.newPlot(chartEl, fig, {
       showlegend: true,
       legend: {
-        x: 0.02,
-        y: 0.98,
-        xanchor: 'left',
-        yanchor: 'top',
+        x: 0.98,
+        y: 0.5,
+        xanchor: 'right',
+        yanchor: 'middle',
         bgcolor: 'rgba(255,255,255,0.8)',
         orientation: 'v'
       },
