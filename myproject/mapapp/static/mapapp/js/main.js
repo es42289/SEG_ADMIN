@@ -122,6 +122,24 @@ window.syncRoyaltyPanelHeight = () => {
       const target = Math.round(width * targetRatio);
       return clampHeight(target);
     };
+    const syncChartAndMapContainers = () => {
+      const prodChartSection = document.getElementById('prod-chart');
+      const mapSection = document.getElementById('user-wells-map');
+      if (!mapSection || !prodChartSection) return;
+
+      const prodRect = prodChartSection.getBoundingClientRect();
+      if (prodRect && prodRect.height > 0) {
+        mapSection.style.height = `${prodRect.height}px`;
+      }
+    };
+    const primeChartMapHeightSync = () => {
+      syncChartAndMapContainers();
+      requestAnimationFrame(syncChartAndMapContainers);
+      setTimeout(syncChartAndMapContainers, 250);
+    };
+    document.addEventListener('DOMContentLoaded', primeChartMapHeightSync, {
+      once: true
+    });
     const updateLayoutOffsets = () => {
       const banner = document.querySelector('.top-banner');
       if (!banner || !rootElement) return;
@@ -1663,16 +1681,7 @@ window.syncRoyaltyPanelHeight = () => {
       }
 
       const prodChartEl = document.getElementById('prodChart');
-      const prodChartSection = document.getElementById('prod-chart');
-      const mapSection = document.getElementById('user-wells-map');
       const syncMapHeight = () => getResponsivePlotHeight(mapDiv, { matchHeightEl: prodChartEl });
-      const syncContainerHeight = () => {
-        if (!mapSection || !prodChartSection) return;
-        const prodRect = prodChartSection.getBoundingClientRect();
-        if (prodRect && prodRect.height > 0) {
-          mapSection.style.height = `${prodRect.height}px`;
-        }
-      };
       const layout = {
         paper_bgcolor: '#156082',
         plot_bgcolor: '#156082',
@@ -1690,7 +1699,7 @@ window.syncRoyaltyPanelHeight = () => {
       };
 
       Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false, responsive: true });
-      syncContainerHeight();
+      syncChartAndMapContainers();
 
       if (mapDiv._segResizeHandler) {
         window.removeEventListener('resize', mapDiv._segResizeHandler);
@@ -1699,7 +1708,7 @@ window.syncRoyaltyPanelHeight = () => {
         const nextHeight = syncMapHeight();
         Plotly.relayout(mapDivId, { height: nextHeight });
         Plotly.Plots.resize(mapDiv);
-        syncContainerHeight();
+        syncChartAndMapContainers();
       };
       mapDiv._segResizeHandler = handleResize;
       window.addEventListener('resize', handleResize);
@@ -2229,7 +2238,7 @@ window.syncRoyaltyPanelHeight = () => {
         const editButton = document.createElement('button');
         editButton.type = 'button';
         editButton.className = 'support-docs-action support-docs-action--primary';
-        editButton.textContent = 'Edit Note';
+        editButton.textContent = 'Edit';
         editButton.addEventListener('click', () => {
           handleSupportDocEdit(doc);
         });
@@ -2540,7 +2549,6 @@ window.syncRoyaltyPanelHeight = () => {
     const feedbackStatus = document.getElementById('feedback-status');
     const feedbackTableBody = document.querySelector('#feedback-table tbody');
     const feedbackEmptyState = document.getElementById('feedback-empty');
-    const feedbackRefreshButton = document.getElementById('feedback-refresh');
 
     const feedbackDateFormatter = new Intl.DateTimeFormat('en-US', {
       dateStyle: 'medium',
@@ -2694,15 +2702,9 @@ window.syncRoyaltyPanelHeight = () => {
       renderFeedbackEntries();
     };
 
-    const loadFeedbackEntries = async (showStatus = false) => {
+    const loadFeedbackEntries = async () => {
       if (!feedbackTableBody || isFeedbackLoading) return;
       isFeedbackLoading = true;
-      if (showStatus) {
-        setFeedbackStatus('Refreshing feedback history...');
-      }
-      if (feedbackRefreshButton) {
-        feedbackRefreshButton.disabled = true;
-      }
 
       try {
         const response = await fetch('/feedback/');
@@ -2711,19 +2713,12 @@ window.syncRoyaltyPanelHeight = () => {
         }
         const payload = await response.json();
         hydrateFeedbackEntries(payload.entries || []);
-        if (showStatus) {
-          setFeedbackStatus('Feedback history updated.', 'success');
-        } else {
-          setFeedbackStatus('');
-        }
+        setFeedbackStatus('');
       } catch (error) {
         console.error('Failed to load feedback entries:', error);
         setFeedbackStatus('Unable to load feedback history right now.', 'error');
       } finally {
         isFeedbackLoading = false;
-        if (feedbackRefreshButton) {
-          feedbackRefreshButton.disabled = false;
-        }
       }
     };
 
@@ -2799,12 +2794,6 @@ window.syncRoyaltyPanelHeight = () => {
 
     if (feedbackTableBody) {
       toggleFeedbackEmptyState();
-    }
-
-    if (feedbackRefreshButton) {
-      feedbackRefreshButton.addEventListener('click', () => {
-        loadFeedbackEntries(true);
-      });
     }
 
     if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
