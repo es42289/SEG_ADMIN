@@ -2181,20 +2181,6 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
-    function formatSupportDocSize(bytes) {
-      const size = Number(bytes);
-      if (!Number.isFinite(size) || size <= 0) return '--';
-      const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-      let value = size;
-      let unitIndex = 0;
-      while (value >= 1024 && unitIndex < units.length - 1) {
-        value /= 1024;
-        unitIndex += 1;
-      }
-      const precision = unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
-      return `${value.toFixed(precision)} ${units[unitIndex]}`;
-    }
-
     function renderSupportDocsTable() {
       if (!supportDocsTableBody) return;
 
@@ -2223,10 +2209,6 @@ window.syncRoyaltyPanelHeight = () => {
           uploadedCell.textContent = '--';
         }
         row.appendChild(uploadedCell);
-
-        const sizeCell = document.createElement('td');
-        sizeCell.textContent = formatSupportDocSize(doc.bytes);
-        row.appendChild(sizeCell);
 
         const noteCell = document.createElement('td');
         noteCell.textContent = doc.note || '--';

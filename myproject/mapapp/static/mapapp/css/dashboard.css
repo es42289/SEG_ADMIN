@@ -226,7 +226,8 @@ body {
   border-radius: 6px;
   color: #ffffff;
   font: inherit;
-  padding: 0.25rem 0.6rem;
+  padding: 0.2rem 0.6rem;
+  font-size: calc(1em - 4pt);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
@@ -547,7 +548,14 @@ body {
 .feedback-history__actions-header,
 #feedback-table tbody td.feedback-actions {
   text-align: right;
-  white-space: nowrap;
+  width: 1%;
+}
+
+#feedback-table tbody td.feedback-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
 }
 
 .feedback-history__empty {
@@ -576,6 +584,10 @@ body {
 }
 
 .feedback-action:first-of-type {
+  margin-left: 0;
+}
+
+#feedback-table tbody td.feedback-actions .feedback-action {
   margin-left: 0;
 }
 
