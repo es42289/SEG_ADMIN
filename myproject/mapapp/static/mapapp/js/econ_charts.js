@@ -88,13 +88,17 @@
     const oil = withinRange.map(r=>toPos(r.OIL));
     const gas = withinRange.map(r=>toPos(r.GAS));
     const averageTraces = [];
+    const hoverDate = '%{x|%b %Y}';
+    const hoverCurrency = (label) => `${label}: $%{y:,.2f}<br>Date: ${hoverDate}<extra></extra>`;
+
     if (Number.isFinite(trailing10.oil)) {
       averageTraces.push({
         x: dates,
         y: dates.map(()=>trailing10.oil),
         mode:'lines',
         name:'Average 10-Year (Oil)',
-        line:{color:'green', dash:'dash'}
+        line:{color:'green', dash:'dash'},
+        hovertemplate: hoverCurrency('Average 10-Year (Oil)')
       });
     }
     if (Number.isFinite(trailing10.gas)) {
@@ -103,12 +107,13 @@
         y: dates.map(()=>trailing10.gas),
         mode:'lines',
         name:'Average 10-Year (Gas)',
-        line:{color:'red', dash:'dash'}
+        line:{color:'red', dash:'dash'},
+        hovertemplate: hoverCurrency('Average 10-Year (Gas)')
       });
     }
     const fig = [
-      {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'}},
-      {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'}},
+      {x:dates,y:oil,mode:'lines',name:'Oil',line:{color:'green'},hovertemplate: hoverCurrency('Oil')},
+      {x:dates,y:gas,mode:'lines',name:'Gas',line:{color:'red'},hovertemplate: hoverCurrency('Gas')},
       ...averageTraces
     ];
     Plotly.newPlot(chartEl, fig, {
