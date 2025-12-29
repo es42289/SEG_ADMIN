@@ -94,6 +94,12 @@ body {
   }
 }
 
+@media (max-width: 640px) and (orientation: portrait) {
+  #feedback-section {
+    display: none;
+  }
+}
+
 #user-wells {
   color: #ffffff; /* Align the well table card text styling with other dashboard cards */
 }
