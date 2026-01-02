@@ -44,8 +44,11 @@ const initCollapsibleCard = () => {
     }
   };
 
-  // Ensure default collapsed state and synced label.
-  setExpanded(false);
+  const mobilePortraitQuery = window.matchMedia('(orientation: portrait) and (max-width: 768px)');
+  const shouldHideForMobilePortrait = mobilePortraitQuery.matches;
+
+  // Default to expanded unless hidden on vertical mobile layouts.
+  setExpanded(!shouldHideForMobilePortrait);
 
   toggle.addEventListener('click', () => {
     const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
