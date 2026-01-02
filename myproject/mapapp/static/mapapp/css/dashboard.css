@@ -1401,6 +1401,18 @@ input#year[type="range"] {
     display: none;
   }
 }
+
+@media (orientation: landscape) and (max-height: 500px) {
+  #map-analysis,
+  #cashflow-window-card,
+  #cashflow-summary-card,
+  #supporting-docs,
+  #user-wells-map,
+  #prod-chart,
+  #royalty-value-card {
+    display: none;
+  }
+}
 .nearby-chart-block {
   flex: 1;
   display: flex;

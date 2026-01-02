@@ -45,10 +45,11 @@ const initCollapsibleCard = () => {
   };
 
   const mobilePortraitQuery = window.matchMedia('(orientation: portrait) and (max-width: 768px)');
-  const shouldHideForMobilePortrait = mobilePortraitQuery.matches;
+  const mobileLandscapeQuery = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const shouldHideForMobile = mobilePortraitQuery.matches || mobileLandscapeQuery.matches;
 
-  // Default to expanded unless hidden on vertical mobile layouts.
-  setExpanded(!shouldHideForMobilePortrait);
+  // Default to expanded unless hidden on constrained mobile layouts.
+  setExpanded(!shouldHideForMobile);
 
   toggle.addEventListener('click', () => {
     const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
