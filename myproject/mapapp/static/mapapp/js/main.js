@@ -276,6 +276,24 @@ window.syncRoyaltyPanelHeight = () => {
       CORPORATION: 'Corporation'
     };
 
+    const OWNER_PROFILE_FIELD_LABELS = {
+      owner_type: 'Owner type',
+      first_name: 'First name',
+      last_name: 'Last name',
+      display_name: 'Display name',
+      phone_number: 'Phone number',
+      address_line_1: 'Address line 1',
+      address_line_2: 'Address line 2',
+      city: 'City',
+      state: 'State / Province',
+      postal_code: 'Postal code',
+      country: 'Country',
+      contact_first_name: 'Main contact first name',
+      contact_last_name: 'Main contact last name',
+      contact_title: 'Contact title',
+      email: 'Email'
+    };
+
     const ownerProfileButton = document.getElementById('ownerProfileButton');
     const ownerProfileModal = document.getElementById('ownerProfileModal');
     const ownerProfileForm = document.getElementById('ownerProfileForm');
@@ -288,6 +306,7 @@ window.syncRoyaltyPanelHeight = () => {
       saving: false,
       loading: false,
       fetchPromise: null,
+      autoOpenChecked: false,
       userEmail:
         (ownerProfileForm && ownerProfileForm.dataset.userEmail) ||
         (ownerProfileForm && ownerProfileForm.elements && ownerProfileForm.elements.email
@@ -364,6 +383,48 @@ window.syncRoyaltyPanelHeight = () => {
         }
       }
       return true;
+    }
+
+    function requiredOwnerProfileFields(profile) {
+      const normalized = normalizeOwnerProfile(profile);
+      const canonicalType = canonicalizeOwnerType(normalized.owner_type);
+      if (canonicalType === 'Individual') {
+        return ['email', 'first_name', 'last_name'];
+      }
+
+      return ['email', 'contact_first_name', 'contact_last_name'];
+    }
+
+    function missingRequiredOwnerProfileFields(profile) {
+      const normalized = normalizeOwnerProfile(profile);
+      return requiredOwnerProfileFields(normalized).filter((field) => {
+        const value = normalized[field];
+        if (value === null || value === undefined) return true;
+        if (typeof value === 'string') return value.trim() === '';
+        return false;
+      });
+    }
+
+    function describeMissingOwnerProfileFields(profile) {
+      const missing = missingRequiredOwnerProfileFields(profile);
+      if (!missing.length) {
+        return '';
+      }
+
+      const labels = missing
+        .map((field) => OWNER_PROFILE_FIELD_LABELS[field] || field)
+        .filter(Boolean);
+
+      if (!labels.length) {
+        return 'Please complete the required fields before closing.';
+      }
+
+      if (labels.length === 1) {
+        return `${labels[0]} is required before closing.`;
+      }
+
+      const last = labels.pop();
+      return `${labels.join(', ')} and ${last} are required before closing.`;
     }
 
     function setOwnerProfileMessage(message, intent) {
@@ -467,6 +528,16 @@ window.syncRoyaltyPanelHeight = () => {
           ownerProfileState.data = profile;
           populateOwnerProfileForm(profile);
           setOwnerProfileMessage('Profile loaded.', 'success');
+          if (!ownerProfileState.autoOpenChecked) {
+            ownerProfileState.autoOpenChecked = true;
+            if (missingRequiredOwnerProfileFields(profile).length > 0) {
+              showOwnerProfileModal();
+              setOwnerProfileMessage(
+                describeMissingOwnerProfileFields(profile),
+                'warning'
+              );
+            }
+          }
           return profile;
         } catch (error) {
           console.error('Unable to fetch owner profile:', error);
@@ -568,6 +639,12 @@ window.syncRoyaltyPanelHeight = () => {
 
       const current = readOwnerProfileForm();
       ownerProfileState.data = current;
+
+      const missingRequired = missingRequiredOwnerProfileFields(current);
+      if (missingRequired.length > 0) {
+        setOwnerProfileMessage(describeMissingOwnerProfileFields(current), 'error');
+        return;
+      }
 
       if (!ownerProfileState.original) {
         ownerProfileState.original = createOwnerProfileDefaults(ownerProfileState.userEmail);
