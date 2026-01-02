@@ -99,7 +99,10 @@ window.syncRoyaltyPanelHeight = () => {
       );
       const isNarrow = Number.isFinite(viewportWidth) && viewportWidth < 900;
       const minHeight = isNarrow ? 260 : min;
-      const maxHeight = isNarrow ? Math.min(max, 480) : max;
+      const resolvedMax = max === null ? Number.POSITIVE_INFINITY : max;
+      const maxHeight = isNarrow
+        ? (max === null ? Number.POSITIVE_INFINITY : Math.min(resolvedMax, 480))
+        : resolvedMax;
       const targetRatio = isNarrow ? Math.max(ratio, 0.72) : ratio;
       const clampHeight = (value) => Math.max(minHeight, Math.min(maxHeight, value));
       const getMatchHeight = () => {
@@ -1985,7 +1988,7 @@ window.syncRoyaltyPanelHeight = () => {
             mapDiv._segResizeHandler = null;
           }
 
-          const syncMapHeight = () => getResponsivePlotHeight(mapDiv, { max: 640 });
+          const syncMapHeight = () => getResponsivePlotHeight(mapDiv, { min: 280, max: null, ratio: 0.78 });
 
           const layout = {
             paper_bgcolor: '#156082',
