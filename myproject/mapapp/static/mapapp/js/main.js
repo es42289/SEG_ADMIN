@@ -44,13 +44,48 @@ const initCollapsibleCard = () => {
     }
   };
 
-  // Ensure default collapsed state and synced label.
-  setExpanded(false);
+  const mobilePortraitQuery = window.matchMedia('(orientation: portrait) and (max-width: 768px)');
+  const mobileLandscapeQuery = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+  const shouldHideForMobile = mobilePortraitQuery.matches || mobileLandscapeQuery.matches;
+
+  // Default to expanded unless hidden on constrained mobile layouts.
+  setExpanded(!shouldHideForMobile);
 
   toggle.addEventListener('click', () => {
     const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
     setExpanded(!isExpanded);
   });
+};
+
+const initViewportReloadOnResize = () => {
+  if (typeof window === 'undefined') return;
+
+  const isFiniteNumber = (value) => Number.isFinite(value) && value >= 0;
+  let lastWidth = isFiniteNumber(window.innerWidth) ? window.innerWidth : null;
+  let lastHeight = isFiniteNumber(window.innerHeight) ? window.innerHeight : null;
+
+  if (lastWidth === null || lastHeight === null) return;
+
+  let reloading = false;
+  const handleViewportChange = () => {
+    const currentWidth = isFiniteNumber(window.innerWidth) ? window.innerWidth : null;
+    const currentHeight = isFiniteNumber(window.innerHeight) ? window.innerHeight : null;
+    if (currentWidth === null || currentHeight === null) return;
+
+    const widthChanged = currentWidth !== lastWidth;
+    const heightChanged = currentHeight !== lastHeight;
+
+    if (!widthChanged && !heightChanged) return;
+    if (reloading) return;
+
+    lastWidth = currentWidth;
+    lastHeight = currentHeight;
+    reloading = true;
+    window.location.reload();
+  };
+
+  window.addEventListener('resize', handleViewportChange);
+  window.addEventListener('orientationchange', handleViewportChange);
 };
 
 const initCollapsibleCardWhenReady = () => {
@@ -62,6 +97,7 @@ const initCollapsibleCardWhenReady = () => {
 };
 
 initCollapsibleCardWhenReady();
+initViewportReloadOnResize();
 
 const rootElement = document.documentElement;
 window.syncRoyaltyPanelHeight = () => {
