@@ -1384,6 +1384,9 @@ input#year[type="range"] {
     flex-direction: column;
     height: auto;
   }
+  #map-container {
+    height: 75vh;
+  }
   #chart-container {
     padding: 0;
     display: none;
