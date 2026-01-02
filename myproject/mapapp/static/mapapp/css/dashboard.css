@@ -1359,7 +1359,7 @@ input#year[type="range"] {
      ::-webkit-slider-runnable-track { background: #333; } */
 }
 
-#main-container { display: flex; gap: 1rem; height: 75vh; margin-top: 0; width: 100%; max-width: 100%; }
+#main-container { display: flex; gap: 1rem; margin-top: 0; width: 100%; max-width: 100%; }
 #map-container {
   flex: 2;
   position: relative;
