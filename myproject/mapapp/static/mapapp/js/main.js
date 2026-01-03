@@ -125,7 +125,7 @@ window.syncRoyaltyPanelHeight = () => {
       const titleEl = royaltyCard.querySelector('.econ-card-title');
       const titleHeight = titleEl?.getBoundingClientRect().height || 0;
       const rawAvailable = Math.max(240, cumRect.height - paddingY - titleHeight - 8);
-      const adjustedHeight = Math.max(216, Math.round(rawAvailable * 0.9));
+      const adjustedHeight = Math.max(216, Math.round(rawAvailable * 0.98));
       royaltyChart.style.height = `${adjustedHeight}px`;
       if (window.Plotly && royaltyChart.data) {
         Plotly.relayout(royaltyChart, { height: adjustedHeight });
