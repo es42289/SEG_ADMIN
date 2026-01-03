@@ -1332,9 +1332,10 @@ body {
 
 .econ-card-title {
   color: #ffffff;
-  margin: 0 0 0.5rem 0;
+  margin: 0;
   font-size: 1rem;
   text-align: left;
+  line-height: 1.15;
 }
 
 .econ-card label {
