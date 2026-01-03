@@ -102,7 +102,8 @@ body {
   text-align: left;
 }
 
-.map-header {
+.map-header,
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -111,14 +112,16 @@ body {
   gap: 0.75rem;
 }
 
-.map-title {
+.map-title,
+.section-title {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   color: #ffffff;
 }
 
-.map-title .card-title {
+.map-title .card-title,
+.section-title .card-title {
   margin: 0;
   line-height: 1.15;
 }
@@ -146,7 +149,8 @@ body {
   height: 100%;
 }
 
-.map-info-box {
+.map-info-box,
+.info-box {
   position: absolute;
   top: calc(100% + 0.5rem);
   left: 0;

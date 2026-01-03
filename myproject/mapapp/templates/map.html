@@ -198,23 +198,35 @@
       <div class="chart-map-grid">
     <!-- Production chart (Plotly target) -->
     <section id="prod-chart" style="min-width:0; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-      <h3 class="card-title">Production History & Forecasts</h3>
-      <div id="prodChart"></div>
-    </section>
-
-    <!-- User Wells Map -->
-    <section id="user-wells-map" style="min-width:0; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-      <div class="map-header">
-        <div class="map-title">
-          <h3 class="card-title">User Wells Map</h3>
-          <button type="button" class="info-icon" aria-label="Show map information" aria-expanded="false" aria-controls="map-info-popup" data-map-info-toggle>
+      <div class="section-header">
+        <div class="section-title">
+          <h3 class="card-title">Production History & Forecasts</h3>
+          <button type="button" class="info-icon" aria-label="Show production chart information" aria-expanded="false" aria-controls="prod-info-popup" data-info-toggle>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
               <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               <circle cx="12" cy="6" r="1" fill="currentColor" />
             </svg>
           </button>
-          <div id="map-info-popup" class="map-info-box" role="note" hidden tabindex="-1">This map shows all producing wells where you're recorded as having a royalty interest.</div>
+          <div id="prod-info-popup" class="info-box" role="note" hidden tabindex="-1">This chart shows historical and forecasted oil and gas production volumes for the assets where you hold a royalty interest. The royalty interests selected in the Well Summary table are combined to show total volumes.</div>
+        </div>
+      </div>
+      <div id="prodChart"></div>
+    </section>
+
+    <!-- User Wells Map -->
+    <section id="user-wells-map" style="min-width:0; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
+      <div class="map-header section-header">
+        <div class="map-title section-title">
+          <h3 class="card-title">User Wells Map</h3>
+          <button type="button" class="info-icon" aria-label="Show map information" aria-expanded="false" aria-controls="map-info-popup" data-info-toggle>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+              <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <circle cx="12" cy="6" r="1" fill="currentColor" />
+            </svg>
+          </button>
+          <div id="map-info-popup" class="map-info-box info-box" role="note" hidden tabindex="-1">This map shows all producing wells where you're recorded as having a royalty interest.</div>
         </div>
         <button id="mapStyleToggle" data-map-target="userWellsMap" style="background:white; color:#156082; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Satellite View</button>
       </div>
@@ -439,41 +451,60 @@
     })();
 
     (() => {
-      const infoButton = document.querySelector('[data-map-info-toggle]');
-      const infoPopup = document.getElementById('map-info-popup');
+      const toggles = Array.from(document.querySelectorAll('[data-info-toggle]'))
+        .map((button) => {
+          const popupId = button.getAttribute('aria-controls');
+          const popup = popupId ? document.getElementById(popupId) : null;
+          return popup ? { button, popup } : null;
+        })
+        .filter(Boolean);
 
-      if (!infoButton || !infoPopup) return;
+      if (!toggles.length) return;
 
-      const openPopup = () => {
-        infoPopup.hidden = false;
-        infoButton.setAttribute('aria-expanded', 'true');
-        infoPopup.focus();
-      };
+      let active = null;
 
-      const closePopup = () => {
-        infoPopup.hidden = true;
-        infoButton.setAttribute('aria-expanded', 'false');
-      };
-
-      infoButton.addEventListener('click', (event) => {
-        event.stopPropagation();
-        if (infoPopup.hidden) {
-          openPopup();
-        } else {
-          closePopup();
+      const closePopup = (pair) => {
+        if (!pair) return;
+        pair.popup.hidden = true;
+        pair.button.setAttribute('aria-expanded', 'false');
+        if (active === pair) {
+          active = null;
         }
+      };
+
+      const openPopup = (pair) => {
+        if (!pair) return;
+        if (active && active !== pair) {
+          closePopup(active);
+        }
+        pair.popup.hidden = false;
+        pair.button.setAttribute('aria-expanded', 'true');
+        active = pair;
+        pair.popup.focus();
+      };
+
+      toggles.forEach((pair) => {
+        pair.button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          if (pair.popup.hidden) {
+            openPopup(pair);
+          } else {
+            closePopup(pair);
+          }
+        });
       });
 
       document.addEventListener('click', (event) => {
-        if (infoPopup.hidden) return;
-        if (infoPopup.contains(event.target) || infoButton.contains(event.target)) return;
-        closePopup();
+        if (!active) return;
+        if (active.popup.contains(event.target) || active.button.contains(event.target)) return;
+        closePopup(active);
       });
 
       document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-          closePopup();
-          infoButton.focus();
+        if (event.key === 'Escape' && active) {
+          const current = active;
+          closePopup(current);
+          current.button.focus();
         }
       });
     })();
