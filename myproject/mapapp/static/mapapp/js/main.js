@@ -124,10 +124,11 @@ window.syncRoyaltyPanelHeight = () => {
       const paddingY = parseFloat(cardStyle.paddingTop || '0') + parseFloat(cardStyle.paddingBottom || '0');
       const titleEl = royaltyCard.querySelector('.econ-card-title');
       const titleHeight = titleEl?.getBoundingClientRect().height || 0;
-      const available = Math.max(240, cumRect.height - paddingY - titleHeight - 8);
-      royaltyChart.style.height = `${available}px`;
+      const rawAvailable = Math.max(240, cumRect.height - paddingY - titleHeight - 8);
+      const adjustedHeight = Math.max(216, Math.round(rawAvailable * 0.9));
+      royaltyChart.style.height = `${adjustedHeight}px`;
       if (window.Plotly && royaltyChart.data) {
-        Plotly.relayout(royaltyChart, { height: available });
+        Plotly.relayout(royaltyChart, { height: adjustedHeight });
         Plotly.Plots.resize(royaltyChart);
       }
     };
@@ -2726,76 +2727,14 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackEntries.forEach((entry) => {
         const row = document.createElement('tr');
         row.dataset.submittedAt = entry.submitted_at;
-        if (entry.isSaving) {
-          row.classList.add('feedback-row--saving');
-        }
 
         const submittedCell = document.createElement('td');
         submittedCell.textContent = formatFeedbackTimestamp(entry.submitted_at);
         row.appendChild(submittedCell);
 
         const feedbackCell = document.createElement('td');
-        if (entry.isEditing) {
-          const textarea = document.createElement('textarea');
-          textarea.className = 'feedback-edit-textarea';
-          textarea.value = entry.editDraft ?? entry.feedback_text ?? '';
-          textarea.addEventListener('input', (event) => {
-            entry.editDraft = event.target.value;
-          });
-          feedbackCell.appendChild(textarea);
-        } else {
-          feedbackCell.textContent = entry.feedback_text || '--';
-        }
+        feedbackCell.textContent = entry.feedback_text || '--';
         row.appendChild(feedbackCell);
-
-        const actionsCell = document.createElement('td');
-        actionsCell.className = 'feedback-actions';
-
-        if (entry.isEditing) {
-          const saveBtn = document.createElement('button');
-          saveBtn.type = 'button';
-          saveBtn.className = 'feedback-action feedback-action--primary';
-          saveBtn.textContent = 'Save';
-          saveBtn.addEventListener('click', () => {
-            saveFeedbackEdit(entry);
-          });
-
-          const cancelBtn = document.createElement('button');
-          cancelBtn.type = 'button';
-          cancelBtn.className = 'feedback-action';
-          cancelBtn.textContent = 'Cancel';
-          cancelBtn.addEventListener('click', () => {
-            entry.isEditing = false;
-            entry.editDraft = undefined;
-            renderFeedbackEntries();
-          });
-
-          actionsCell.appendChild(saveBtn);
-          actionsCell.appendChild(cancelBtn);
-        } else {
-          const editBtn = document.createElement('button');
-          editBtn.type = 'button';
-          editBtn.className = 'feedback-action';
-          editBtn.textContent = 'Edit';
-          editBtn.addEventListener('click', () => {
-            entry.isEditing = true;
-            entry.editDraft = entry.feedback_text;
-            renderFeedbackEntries();
-          });
-
-          const deleteBtn = document.createElement('button');
-          deleteBtn.type = 'button';
-          deleteBtn.className = 'feedback-action feedback-action--danger';
-          deleteBtn.textContent = 'Delete';
-          deleteBtn.addEventListener('click', () => {
-            deleteFeedbackEntry(entry);
-          });
-
-          actionsCell.appendChild(editBtn);
-          actionsCell.appendChild(deleteBtn);
-        }
-
-        row.appendChild(actionsCell);
         feedbackTableBody.appendChild(row);
       });
 
@@ -2826,76 +2765,6 @@ window.syncRoyaltyPanelHeight = () => {
         setFeedbackStatus('Unable to load feedback history right now.', 'error');
       } finally {
         isFeedbackLoading = false;
-      }
-    };
-
-    const saveFeedbackEdit = async (entry) => {
-      const newText = (entry.editDraft ?? '').trim();
-      if (!newText) {
-        setFeedbackStatus('Feedback text cannot be empty.', 'error');
-        return;
-      }
-
-      entry.isSaving = true;
-      renderFeedbackEntries();
-
-      try {
-        const response = await fetch('/feedback/', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            submitted_at: entry.submitted_at,
-            feedback_text: newText
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Unexpected status: ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const updatedEntry = payload.entry || {};
-        entry.feedback_text = updatedEntry.feedback_text ?? newText;
-        entry.submitted_at = updatedEntry.submitted_at ?? entry.submitted_at;
-        entry.isEditing = false;
-        entry.editDraft = undefined;
-        setFeedbackStatus('Feedback updated.', 'success');
-      } catch (error) {
-        console.error('Failed to update feedback entry:', error);
-        setFeedbackStatus('Unable to update feedback. Please try again.', 'error');
-      } finally {
-        entry.isSaving = false;
-        renderFeedbackEntries();
-      }
-    };
-
-    const deleteFeedbackEntry = async (entry) => {
-      if (!window.confirm('Delete this feedback entry?')) {
-        return;
-      }
-
-      entry.isSaving = true;
-      renderFeedbackEntries();
-
-      try {
-        const response = await fetch('/feedback/', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ submitted_at: entry.submitted_at })
-        });
-
-        if (!response.ok) {
-          throw new Error(`Unexpected status: ${response.status}`);
-        }
-
-        feedbackEntries = feedbackEntries.filter((item) => item !== entry);
-        renderFeedbackEntries();
-        setFeedbackStatus('Feedback removed.', 'success');
-      } catch (error) {
-        console.error('Failed to delete feedback entry:', error);
-        entry.isSaving = false;
-        renderFeedbackEntries();
-        setFeedbackStatus('Unable to delete feedback. Please try again.', 'error');
       }
     };
 
