@@ -1406,13 +1406,7 @@ input#year[type="range"] {
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-  #map-analysis,
-  #cashflow-window-card,
-  #cashflow-summary-card,
-  #supporting-docs,
-  #user-wells-map,
-  #prod-chart,
-  #royalty-value-card {
+  #map-analysis {
     display: none;
   }
 }

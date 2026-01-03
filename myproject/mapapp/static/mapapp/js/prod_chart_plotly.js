@@ -307,7 +307,7 @@
         mode: 'lines',
         showlegend: false,
         line: { color: OIL_COLOR, width: 2 },
-        hovertemplate: '%{x}<br>Oil Fcst: %{y:,.0f} BBL<extra></extra>',
+        hovertemplate: '%{x}<br>Oil Fcst: %{y:,.0f} BBL/month<extra></extra>',
         yaxis: 'y',
       },
       {
@@ -317,7 +317,7 @@
         mode: 'lines',
         showlegend: false,
         line: { color: GAS_COLOR, width: 2 },
-        hovertemplate: '%{x}<br>Gas Fcst: %{y:,.0f} MCF<extra></extra>',
+        hovertemplate: '%{x}<br>Gas Fcst: %{y:,.0f} MCF/month<extra></extra>',
         yaxis: 'y',
       },
       {

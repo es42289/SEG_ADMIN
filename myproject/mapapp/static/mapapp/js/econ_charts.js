@@ -219,7 +219,7 @@
     const ntmCenter = new Date(today);
     ntmCenter.setMonth(ntmCenter.getMonth() + 12);
 
-    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#156082'},name:'Net Cash Flow',hovertemplate: '%{x|%b %Y}<br>$%{y:,.1f}<extra></extra>'}];
+    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#156082'},name:'Net Cash Flow',hovertemplate: '%{x|%b %Y}<br>$%{y:,.0f}<extra></extra>'}];
     const layout = {
       title: {
         text: 'Net Cash Flow:<br>12 Months Backward & 24 Months Forward',
