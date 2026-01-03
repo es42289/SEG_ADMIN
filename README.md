@@ -216,87 +216,70 @@ server with `Ctrl+C` when you are done.
 
 ## Deployment Steps
 
-### 1. Build Docker Image
-
+### 1. Build Docker Image (with clean rebuild)
 ```bash
-docker build -t seg-user-app .
+docker build --no-cache -t seg-user-app .
 ```
 
 ### 2. Tag for ECR
-
 ```bash
 docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
 ```
 
 ### 3. Authenticate with ECR
-
 ```bash
 aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
 ```
 
 ### 4. Push to ECR
-
 ```bash
 docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
 ```
 
-### 5. Stop Current Running Task (if any)
-
-First, get the current task ID:
+### 5. Deploy to ECS (Zero Downtime)
 ```bash
-aws ecs list-tasks --cluster seg-user-app-cluster --region us-east-1 --profile myaws
+aws ecs update-service --cluster seg-user-app-cluster --service seg-user-app-service --force-new-deployment --region us-east-1 --profile myaws
 ```
 
-Then stop the task (replace TASK_ID with actual ID):
+Wait 1-2 minutes for the new task to start and become healthy.
+
+### 6. Get New Public IP Address
 ```bash
-aws ecs stop-task --cluster seg-user-app-cluster --task TASK_ID --region us-east-1 --profile myaws
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks $(aws ecs list-tasks --cluster seg-user-app-cluster --service-name seg-user-app-service --region us-east-1 --profile myaws --query 'taskArns[0]' --output text) --region us-east-1 --profile myaws --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' --output text | %{aws ec2 describe-network-interfaces --network-interface-ids $_ --region us-east-1 --profile myaws --query 'NetworkInterfaces[0].Association.PublicIp' --output text}
 ```
 
-### 6. Start New Task
-
-```bash
-aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app:4 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
-```
-
-### 7. Get New Public IP Address
-
-Get the new task ID from step 6 output, then:
-
-```bash
-aws ecs describe-tasks --cluster seg-user-app-cluster --tasks NEW_TASK_ID --region us-east-1 --profile myaws
-```
-
-Extract the `networkInterfaceId` from the output, then:
-
-```bash
-aws ec2 describe-network-interfaces --network-interface-ids NETWORK_INTERFACE_ID --region us-east-1 --profile myaws
-```
-
-The public IP will be in the `Association.PublicIp` field.
-
-### 8. Update External Configurations
+### 7. Update External Configurations
 
 When the public IP changes, update:
 
 1. **Snowflake Network Policy**:
-   ```sql
+```sql
    ALTER NETWORK POLICY streamlit_policy
      SET ALLOWED_IP_LIST = ('existing_ips', 'NEW_PUBLIC_IP');
-   ```
+```
 
-2. **Auth0 Callback URLs**:
+2. **Auth0 Callback URLs** (if applicable):
    Add `http://NEW_PUBLIC_IP:8000/callback/` to allowed callback URLs
+
+## Application URL
+
+The app is accessible at: **https://user-app.stablegp.com**
 
 ## Troubleshooting
 
+### Check Service Status
+```bash
+aws ecs describe-services --cluster seg-user-app-cluster --services seg-user-app-service --region us-east-1 --profile myaws
+```
+
 ### Check Task Status
 ```bash
-aws ecs describe-tasks --cluster seg-user-app-cluster --tasks TASK_ID --region us-east-1 --profile myaws
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks $(aws ecs list-tasks --cluster seg-user-app-cluster --service-name seg-user-app-service --region us-east-1 --profile myaws --query 'taskArns[0]' --output text) --region us-east-1 --profile myaws
 ```
 
 ### View Application Logs
 ```bash
-aws logs get-log-events --log-group-name "/ecs/seg-user-app" --log-stream-name "ecs/seg-user-app/TASK_ID" --region us-east-1 --profile myaws
+aws logs tail "/ecs/seg-user-app" --follow --region us-east-1 --profile myaws
 ```
 
 ### Common Issues
@@ -327,25 +310,19 @@ aws logs get-log-events --log-group-name "/ecs/seg-user-app" --log-stream-name "
 - **Secrets**: RSA key stored in AWS Secrets Manager (`seg-user-app/snowflake-rsa-key`)
 
 
-- Fast
+- Fast redeploy
 ```bash
-docker build -t seg-user-app .
+docker build --no-cache -t seg-user-app .
 docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
 aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
 docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
-aws ecs list-tasks --cluster seg-user-app-cluster --region us-east-1 --profile myaws
+aws ecs update-service --cluster seg-user-app-cluster --service seg-user-app-service --force-new-deployment --region us-east-1 --profile myaws
 ```
-Then stop the task (replace TASK_ID with actual ID):
+
+Wait 1-2 minutes for the new task to start and become healthy.
+
 ```bash
-aws ecs stop-task --cluster seg-user-app-cluster --task TASK_ID --region us-east-1 --profile myaws
+aws ecs describe-tasks --cluster seg-user-app-cluster --tasks $(aws ecs list-tasks --cluster seg-user-app-cluster --service-name seg-user-app-service --region us-east-1 --profile myaws --query 'taskArns[0]' --output text) --region us-east-1 --profile myaws --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' --output text | %{aws ec2 describe-network-interfaces --network-interface-ids $_ --region us-east-1 --profile myaws --query 'NetworkInterfaces[0].Association.PublicIp' --output text}
 ```
 ```bash
-aws ecs run-task --cluster seg-user-app-cluster --task-definition seg-user-app --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-0c8fc60cca8c6eda9],securityGroups=[sg-05c78762d0d99d139],assignPublicIp=ENABLED}" --region us-east-1 --profile myaws
 ```
-Get the new task ID from step 6 output, then:
-```bash
-aws ecs describe-tasks --cluster seg-user-app-cluster --tasks NEW_TASK_ID --region us-east-1 --profile myaws
-```
-Extract the `networkInterfaceId` from the output, then:
-```bash
-aws ec2 describe-network-interfaces --network-interface-ids NETWORK_INTERFACE_ID --region us-east-1 --profile myaws
