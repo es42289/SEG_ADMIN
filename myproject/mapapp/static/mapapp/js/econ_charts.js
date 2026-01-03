@@ -454,6 +454,7 @@
       margin: { l: 60, r: 20, t: 60, b: 60 },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
+      dragmode: 'pan',
       xaxis: {
         type: 'date',
         tickformat: '%Y',
