@@ -204,10 +204,20 @@
 
     <!-- User Wells Map -->
     <section id="user-wells-map" style="min-width:0; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-      <div style="display:flex; align-items:center; justify-content:space-between; position:relative; margin-bottom:0.5rem;">
-        <h3 class="card-title">User Wells Map</h3>
+      <div class="map-header">
+        <div class="map-title">
+          <h3 class="card-title">User Wells Map</h3>
+          <span class="info-icon" role="img" aria-label="Map information">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+              <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <circle cx="12" cy="6" r="1" fill="currentColor" />
+            </svg>
+          </span>
+        </div>
         <button id="mapStyleToggle" data-map-target="userWellsMap" style="background:white; color:#156082; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Satellite View</button>
       </div>
+      <div class="map-info-box" role="note">This map shows all producing wells where you're recorded as having a royalty interest.</div>
       <div id="userWellsMap"></div>
     </section>
   </div>
