@@ -207,17 +207,17 @@
       <div class="map-header">
         <div class="map-title">
           <h3 class="card-title">User Wells Map</h3>
-          <span class="info-icon" role="img" aria-label="Map information">
+          <button type="button" class="info-icon" aria-label="Show map information" aria-expanded="false" aria-controls="map-info-popup" data-map-info-toggle>
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
               <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
               <circle cx="12" cy="6" r="1" fill="currentColor" />
             </svg>
-          </span>
+          </button>
+          <div id="map-info-popup" class="map-info-box" role="note" hidden tabindex="-1">This map shows all producing wells where you're recorded as having a royalty interest.</div>
         </div>
         <button id="mapStyleToggle" data-map-target="userWellsMap" style="background:white; color:#156082; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Satellite View</button>
       </div>
-      <div class="map-info-box" role="note">This map shows all producing wells where you're recorded as having a royalty interest.</div>
       <div id="userWellsMap"></div>
     </section>
   </div>
@@ -436,6 +436,46 @@
 
       window.addEventListener('resize', applyBannerOffset);
       applyBannerOffset();
+    })();
+
+    (() => {
+      const infoButton = document.querySelector('[data-map-info-toggle]');
+      const infoPopup = document.getElementById('map-info-popup');
+
+      if (!infoButton || !infoPopup) return;
+
+      const openPopup = () => {
+        infoPopup.hidden = false;
+        infoButton.setAttribute('aria-expanded', 'true');
+        infoPopup.focus();
+      };
+
+      const closePopup = () => {
+        infoPopup.hidden = true;
+        infoButton.setAttribute('aria-expanded', 'false');
+      };
+
+      infoButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (infoPopup.hidden) {
+          openPopup();
+        } else {
+          closePopup();
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        if (infoPopup.hidden) return;
+        if (infoPopup.contains(event.target) || infoButton.contains(event.target)) return;
+        closePopup();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closePopup();
+          infoButton.focus();
+        }
+      });
     })();
   </script>
   <!-- existing app scripts -->
