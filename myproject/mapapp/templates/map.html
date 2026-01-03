@@ -295,13 +295,37 @@
       <div id="cashflowWindowChart" style="width:100%; height:400px;"></div>
     </div>
     <div class="econ-card econ-card--fixed-height" id="cashflow-summary-card">
-      <h4 class="econ-card-title">Cumulative Net Cash Flow</h4>
+      <div class="section-header">
+        <div class="section-title">
+          <h4 class="econ-card-title">Cumulative Net Cash Flow</h4>
+          <button type="button" class="info-icon" aria-label="Show cumulative net cash flow information" aria-expanded="false" aria-controls="cumulative-info-popup" data-info-toggle>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+              <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <circle cx="12" cy="6" r="1" fill="currentColor" />
+            </svg>
+          </button>
+          <div id="cumulative-info-popup" class="info-box" role="note" hidden tabindex="-1">This chart tracks cumulative net cash flow for your selected royalty interests, rolling together historical results with projected future receipts.</div>
+        </div>
+      </div>
       <div id="cashflowSummaryChart" class="chart-fill" style="width:100%; height:100%;"></div>
     </div>
   </div>
   <div class="econ-grid__secondary">
     <div class="econ-card">
-      <h4 class="econ-card-title">Price Deck</h4>
+      <div class="section-header">
+        <div class="section-title">
+          <h4 class="econ-card-title">Price Deck</h4>
+          <button type="button" class="info-icon" aria-label="Show price deck information" aria-expanded="false" aria-controls="price-info-popup" data-info-toggle>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+              <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <circle cx="12" cy="6" r="1" fill="currentColor" />
+            </svg>
+          </button>
+          <div id="price-info-popup" class="info-box" role="note" hidden tabindex="-1">These price scenarios drive the economic calculations. Select a price deck to update forecasts and valuations for your chosen royalty interests.</div>
+        </div>
+      </div>
       <div class="price-deck-controls">
         <label for="priceDeckSelect">Change Price Deck to Update Economics</label>
         <select id="priceDeckSelect"></select>
@@ -310,7 +334,19 @@
     </div>
     <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:stretch;">
       <div id="royalty-value-card" class="econ-card econ-card--match-cashflow econ-card--fixed-height" style="flex:1 1 100%; min-width:0;">
-        <h4 class="econ-card-title">Royalty Interest Value</h4>
+        <div class="section-header">
+          <div class="section-title">
+            <h4 class="econ-card-title">Royalty Interest Value</h4>
+            <button type="button" class="info-icon" aria-label="Show royalty interest value information" aria-expanded="false" aria-controls="value-info-popup" data-info-toggle>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+                <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <circle cx="12" cy="6" r="1" fill="currentColor" />
+              </svg>
+            </button>
+            <div id="value-info-popup" class="info-box" role="note" hidden tabindex="-1">This view estimates the total value of your selected royalty interests using the active price deck and production outlook.</div>
+          </div>
+        </div>
         <div id="royaltyValueChart" class="chart-fill" style="width:100%; height:100%; min-height:0;"></div>
       </div>
     </div>
