@@ -324,5 +324,3 @@ Wait 1-2 minutes for the new task to start and become healthy.
 ```bash
 aws ecs describe-tasks --cluster seg-user-app-cluster --tasks $(aws ecs list-tasks --cluster seg-user-app-cluster --service-name seg-user-app-service --region us-east-1 --profile myaws --query 'taskArns[0]' --output text) --region us-east-1 --profile myaws --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' --output text | %{aws ec2 describe-network-interfaces --network-interface-ids $_ --region us-east-1 --profile myaws --query 'NetworkInterfaces[0].Association.PublicIp' --output text}
 ```
-```bash
-```
