@@ -1,5 +1,12 @@
 // Handles price deck selection and economics charts
 (function(){
+  const BASE_PLOT_CONFIG = {
+    responsive: true,
+    scrollZoom: false,
+    displaylogo: false,
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'zoom2d'],
+  };
+
   async function fetchJSON(url){
     const r = await fetch(url);
     return r.json();
@@ -138,8 +145,9 @@
       yaxis: {type:'log', title:'Gas Price / Oil Price, $'},
       xaxis: {range:[PRICE_DECK_RANGE_START, PRICE_DECK_RANGE_END]},
       title: 'Price Deck',
-      margin: { l: 40, r: 5, t: 40, b: 40 }
-    }, {responsive:true});
+      margin: { l: 40, r: 5, t: 40, b: 40 },
+      dragmode: 'pan'
+    }, {...BASE_PLOT_CONFIG});
   }
 
   async function loadEconomics(deck){
@@ -187,7 +195,7 @@
     if(!target) return;
     const rates = npv.map(r=>r.rate);
     const vals = npv.map(r=>r.npv);
-    Plotly.newPlot(target,[{type:'bar',x:rates,y:vals,marker:{color:'#737F6F'}}],{title:'NPV'});
+    Plotly.newPlot(target,[{type:'bar',x:rates,y:vals,marker:{color:'#737F6F'}}],{title:'NPV', dragmode: 'pan'},{...BASE_PLOT_CONFIG});
   }
 
   function renderCum(el, c){
@@ -197,7 +205,7 @@
       {x:c.dates,y:c.cum_revenue,mode:'lines',name:'Cum Revenue',line:{color:'#1e8f4e'}},
       {x:c.dates,y:c.cum_ncf,mode:'lines',name:'Cum NCF',line:{color:'#d62728'}}
     ];
-    Plotly.newPlot(target,fig,{title:'Cumulative Cash and Revenue'}, {responsive:true});
+    Plotly.newPlot(target,fig,{title:'Cumulative Cash and Revenue', dragmode: 'pan'}, {...BASE_PLOT_CONFIG});
   }
 
   function renderWindow(el, w){
@@ -211,7 +219,7 @@
     const ntmCenter = new Date(today);
     ntmCenter.setMonth(ntmCenter.getMonth() + 12);
 
-    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#156082'},name:'Net Cash Flow'}];
+    const fig = [{x:dates,y:w.ncf,type:'bar',marker:{color:'#156082'},name:'Net Cash Flow',hovertemplate: '%{x|%b %Y}<br>$%{y:,.0f}<extra></extra>'}];
     const layout = {
       title: {
         text: 'Net Cash Flow:<br>12 Months Backward & 24 Months Forward',
@@ -263,9 +271,10 @@
           xanchor:'center',
           textangle:45
         }
-      ]
+      ],
+      dragmode: 'pan'
     };
-    Plotly.newPlot(target,fig,layout,{responsive:true});
+    Plotly.newPlot(target,fig,layout,{...BASE_PLOT_CONFIG});
   }
 
   function renderSummary(el, s){
@@ -341,10 +350,11 @@
       uniformtext: {minsize: 8, mode: 'hide'},
       template: 'plotly_white',
       height: target.clientHeight || 400,
-      margin: { l: 60, r: 20, t: 60, b: 60 }
+      margin: { l: 60, r: 20, t: 60, b: 60 },
+      dragmode: 'pan'
     };
 
-    Plotly.newPlot(target, [trace], layout, {responsive: true});
+    Plotly.newPlot(target, [trace], layout, {...BASE_PLOT_CONFIG});
     if (typeof window.syncRoyaltyPanelHeight === 'function') {
       window.syncRoyaltyPanelHeight();
     }
@@ -444,6 +454,7 @@
       margin: { l: 60, r: 20, t: 60, b: 60 },
       paper_bgcolor: '#ffffff',
       plot_bgcolor: '#ffffff',
+      dragmode: 'pan',
       xaxis: {
         type: 'date',
         tickformat: '%Y',
@@ -470,7 +481,7 @@
       hoverlabel: {bgcolor: '#156082', font: {color: '#ffffff'}},
     };
 
-    Plotly.newPlot(target, [trace], layout, {displayModeBar: false, responsive: true});
+    Plotly.newPlot(target, [trace], layout, {...BASE_PLOT_CONFIG});
   }
 
   if(document.readyState !== 'loading') loadPriceDeckOptions();

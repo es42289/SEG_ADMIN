@@ -15,9 +15,15 @@ const yearInput = document.getElementById('year');
     const lastProductionDate = document.getElementById('last-production-date');
     // Removed references to totalNearby elements as they were removed from the HTML
 
-    const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
+const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
 const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
 const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
+const BASE_PLOT_CONFIG = {
+  responsive: true,
+  scrollZoom: false,
+  displaylogo: false,
+  modeBarButtonsToRemove: ['select2d', 'lasso2d', 'zoom2d'],
+};
 const mapStyles = {
   userWellsMap: MAPBOX_STYLE_TERRAIN,
   map: MAPBOX_STYLE_TERRAIN
@@ -1350,7 +1356,9 @@ window.syncRoyaltyPanelHeight = () => {
         layout.height = Math.max(Math.floor(baseHeight * 0.5), 120);
       }
 
-      Plotly.newPlot(chartElement || chartId, data, layout, { displayModeBar: false, responsive: true });
+      layout.dragmode = 'pan';
+
+      Plotly.newPlot(chartElement || chartId, data, layout, { ...BASE_PLOT_CONFIG });
 
       if (chartElement) {
         Plotly.Plots.resize(chartElement);
@@ -1811,10 +1819,11 @@ window.syncRoyaltyPanelHeight = () => {
         margin: { t: 5, r: 10, b: 10, l: 10 },
         height: syncMapHeight(),
         // title: { text: 'User Wells Map', font: { color: '#eaeaea' } },
-        showlegend: false
+        showlegend: false,
+        dragmode: 'pan'
       };
 
-      Plotly.newPlot(mapDivId, traces, layout, { scrollZoom: false, responsive: true });
+      Plotly.newPlot(mapDivId, traces, layout, { ...BASE_PLOT_CONFIG });
       syncChartAndMapContainers();
 
       if (mapDiv._segResizeHandler) {

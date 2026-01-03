@@ -8,6 +8,13 @@
   const GAS_COLOR = '#d62728';
   const COUNT_COLOR = 'gray';
 
+  const PLOT_CONFIG = {
+    responsive: true,
+    scrollZoom: false,
+    displaylogo: false,
+    modeBarButtonsToRemove: ['select2d', 'lasso2d', 'zoom2d'],
+  };
+
   console.log('[prod-chart] start: Plotly=%s, readyState=%s', typeof window.Plotly, document.readyState);
 
   function toMonthKey(d) {
@@ -300,7 +307,7 @@
         mode: 'lines',
         showlegend: false,
         line: { color: OIL_COLOR, width: 2 },
-        hovertemplate: '%{x}<br>Oil Fcst: %{y:,}<extra></extra>',
+        hovertemplate: '%{x}<br>Oil Fcst: %{y:,.0f} BBL/month<extra></extra>',
         yaxis: 'y',
       },
       {
@@ -310,7 +317,7 @@
         mode: 'lines',
         showlegend: false,
         line: { color: GAS_COLOR, width: 2 },
-        hovertemplate: '%{x}<br>Gas Fcst: %{y:,}<extra></extra>',
+        hovertemplate: '%{x}<br>Gas Fcst: %{y:,.0f} MCF/month<extra></extra>',
         yaxis: 'y',
       },
       {
@@ -358,10 +365,11 @@
       paper_bgcolor: '#fff',
       plot_bgcolor: '#fff',
       font: { color: '#1f293a' },
+      dragmode: 'pan',
     };
 
     console.log('[prod-chart] plotting with %d months, Plotly=%s', agg.keys.length, typeof window.Plotly);
-    Plotly.newPlot(el, traces, layout, { displayModeBar: false, responsive: true })
+    Plotly.newPlot(el, traces, layout, { ...PLOT_CONFIG })
       .then(() => console.log('[prod-chart] Chart rendered (Plotly)'))
       .catch((e) => console.error('[prod-chart] Plotly.newPlot error:', e));
   }
