@@ -150,7 +150,11 @@ body {
 }
 
 #royalty-value-card .info-icon {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+}
+
+#royalty-value-card .section-header {
+  margin-bottom: 0.35rem;
 }
 
 .map-info-box,
