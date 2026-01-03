@@ -149,6 +149,10 @@ body {
   height: 100%;
 }
 
+#royalty-value-card .info-icon {
+  transform: translateY(-1px);
+}
+
 .map-info-box,
 .info-box {
   position: absolute;
