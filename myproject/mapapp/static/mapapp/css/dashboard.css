@@ -175,7 +175,7 @@ body {
 }
 
 #asset-value-info-popup {
-  width: min(180px, 45vw);
+  width: min(225px, 56.25vw);
 }
 
 .support-feedback-row {
