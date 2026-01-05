@@ -889,6 +889,14 @@ body {
   box-sizing: border-box;
 }
 
+.asset-value-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  position: relative;
+}
+
 .metrics-sidebar .asset-value-box {
   width: 100%;
   max-width: none;
@@ -900,6 +908,14 @@ body {
   font-size: calc(1.1rem - 4pt);
   color: inherit;
   margin-top: 0.35rem;
+}
+
+.asset-value-box .info-icon {
+  color: inherit;
+}
+
+.asset-value-box .info-icon:focus-visible {
+  outline-color: currentColor;
 }
 
 .asset-value-box .asset-value-amount {
