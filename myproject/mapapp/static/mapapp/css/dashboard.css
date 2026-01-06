@@ -1066,7 +1066,7 @@ body {
 .dashboard-layout {
   display: flex;
   gap: 1.5rem;
-  align-items: flex-start;
+  align-items: stretch;
   width: 100%;
   max-width: 100%;
 }
@@ -1079,8 +1079,8 @@ body {
   max-width: 252px;
   position: sticky;
   top: calc(var(--top-banner-height) + var(--top-banner-gap));
-  height: calc(120vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
-  max-height: calc(120vh - var(--top-banner-height) - var(--top-banner-gap) - 1rem);
+  height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
+  max-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
   overflow-y: auto;
   padding-right: 0.15rem;
   min-height: 0;
@@ -1213,6 +1213,19 @@ body {
   gap: 1rem;
   width: 100%;
   max-width: 100%;
+}
+
+@media (min-width: 1025px) {
+  .dashboard-layout {
+    min-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
+  }
+
+  .main-content {
+    max-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
+    overflow-y: auto;
+    padding-right: 0.15rem;
+    scrollbar-gutter: stable;
+  }
 }
 
 @media (max-width: 1024px) {
