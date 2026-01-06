@@ -9,6 +9,7 @@
 :root {
   --top-banner-height: 0px;
   --site-header-height: 0px;
+  --site-footer-height: 0px;
   --top-banner-gap: 0px;
 }
 
@@ -1125,8 +1126,12 @@ body {
   max-width: 252px;
   position: sticky;
   top: calc(var(--top-banner-height) + var(--top-banner-gap));
-  height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
-  max-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
+  height: calc(
+    100vh - var(--top-banner-height) - var(--top-banner-gap) - var(--site-header-height) - var(--site-footer-height)
+  );
+  max-height: calc(
+    100vh - var(--top-banner-height) - var(--top-banner-gap) - var(--site-header-height) - var(--site-footer-height)
+  );
   overflow-y: auto;
   padding-right: 0.15rem;
   min-height: 0;
@@ -1263,13 +1268,17 @@ body {
 
 @media (min-width: 1025px) {
   .dashboard-layout {
-    min-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
+    min-height: calc(
+      100vh - var(--top-banner-height) - var(--top-banner-gap) - var(--site-header-height) - var(--site-footer-height)
+    );
     flex: 1 1 auto;
     overflow: hidden;
   }
 
   .main-content {
-    max-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
+    max-height: calc(
+      100vh - var(--top-banner-height) - var(--top-banner-gap) - var(--site-header-height) - var(--site-footer-height)
+    );
     overflow-y: auto;
     padding-right: 0.15rem;
     scrollbar-gutter: stable;

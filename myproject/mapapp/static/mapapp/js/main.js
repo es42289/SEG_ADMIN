@@ -188,11 +188,17 @@ window.syncRoyaltyPanelHeight = () => {
     });
     const updateLayoutOffsets = () => {
       const banner = document.querySelector('.top-banner');
-      if (!banner || !rootElement) return;
-      const bannerHeight = banner.offsetHeight;
+      const header = document.querySelector('body > .min-h-screen > header');
+      const footer = document.querySelector('body > .min-h-screen > footer');
+      if (!rootElement) return;
+      const bannerHeight = banner?.offsetHeight || 0;
       // Nudge the layout upward so the dashboard content sits closer to the fixed banner.
       const adjustedHeight = Math.max(0, bannerHeight - 60);
       rootElement.style.setProperty('--top-banner-height', `${adjustedHeight}px`);
+      const headerHeight = header?.offsetHeight || 0;
+      const footerHeight = footer?.offsetHeight || 0;
+      rootElement.style.setProperty('--site-header-height', `${headerHeight}px`);
+      rootElement.style.setProperty('--site-footer-height', `${footerHeight}px`);
     };
 
     updateLayoutOffsets();
