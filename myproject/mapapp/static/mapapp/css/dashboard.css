@@ -62,6 +62,49 @@ body {
   }
 }
 
+@media (orientation: portrait) {
+  html,
+  body {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body > .min-h-screen {
+    height: auto;
+    max-height: none;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  body > .min-h-screen > main#main-content,
+  body > .min-h-screen > main#main-content > .container {
+    display: block;
+    min-height: 0;
+  }
+
+  .metrics-sidebar {
+    position: static;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .dashboard-layout {
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .main-content {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 .footer-brand {
   display: flex;
   align-items: center;
