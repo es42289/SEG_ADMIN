@@ -190,9 +190,9 @@ window.syncRoyaltyPanelHeight = () => {
       const banner = document.querySelector('.top-banner');
       if (!banner || !rootElement) return;
       const bannerHeight = banner.offsetHeight;
-      if (bannerHeight > 0) {
-        rootElement.style.setProperty('--top-banner-height', `${bannerHeight}px`);
-      }
+      // Nudge the layout upward so the dashboard content sits closer to the fixed banner.
+      const adjustedHeight = Math.max(0, bannerHeight - 12);
+      rootElement.style.setProperty('--top-banner-height', `${adjustedHeight}px`);
     };
 
     updateLayoutOffsets();
