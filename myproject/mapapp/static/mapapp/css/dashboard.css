@@ -27,6 +27,14 @@ body {
   overflow-x: hidden;
 }
 
+@media (min-width: 1025px) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
 .footer-brand {
   display: flex;
   align-items: center;
@@ -63,6 +71,15 @@ body {
   margin-top: calc(max(0px, var(--top-banner-height) - var(--site-header-height)) + var(--top-banner-gap));
   width: 100%;
   box-sizing: border-box;
+}
+
+@media (min-width: 1025px) {
+  .page-content {
+    height: calc(100vh - (max(0px, var(--top-banner-height) - var(--site-header-height)) + var(--top-banner-gap)));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 }
 
 .chart-map-grid {
@@ -1218,6 +1235,8 @@ body {
 @media (min-width: 1025px) {
   .dashboard-layout {
     min-height: calc(100vh - var(--top-banner-height) - var(--top-banner-gap));
+    flex: 1 1 auto;
+    overflow: hidden;
   }
 
   .main-content {
