@@ -7,9 +7,9 @@
 }
 
 :root {
-  --top-banner-height: 120px;
+  --top-banner-height: 96px;
   --site-header-height: 0px;
-  --top-banner-gap: 15px;
+  --top-banner-gap: 0px;
 }
 
 html {
@@ -68,7 +68,7 @@ body {
 }
 
 .footer-logo {
-  height: 3.125rem;
+  height: 2rem;
   width: auto;
 }
 
@@ -94,7 +94,7 @@ body {
 
 .page-content {
   padding: 1rem;
-  padding-top: calc(var(--top-banner-height) + var(--top-banner-gap));
+  padding-top: var(--top-banner-height);
   margin-top: 0;
   width: 100%;
   box-sizing: border-box;
@@ -102,7 +102,7 @@ body {
 
 @media (min-width: 1025px) {
   .page-content {
-    padding-top: calc(var(--top-banner-height) + var(--top-banner-gap));
+    padding-top: var(--top-banner-height);
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
