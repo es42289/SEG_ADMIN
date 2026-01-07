@@ -94,9 +94,6 @@
     tenYearStart.setFullYear(today.getFullYear() - 10);
     const withinRange = parsed.filter(r => r.parsedDate >= PRICE_DECK_RANGE_START && r.parsedDate <= PRICE_DECK_RANGE_END);
     const dates = withinRange.map(r=>r.MONTH_DATE);
-    const averageDates = parsed
-      .filter(r => r.parsedDate >= tenYearStart && r.parsedDate <= today)
-      .map(r => r.MONTH_DATE);
     const toPos = v=>{
       const num = Number(v);
       return isFinite(num) && num > 0 ? num : null;
@@ -107,20 +104,20 @@
     const hoverDate = '%{x|%b %Y}';
     const hoverCurrency = (label) => `${label}: $%{y:,.2f}<br>Date: ${hoverDate}<extra></extra>`;
 
-    if (Number.isFinite(trailing10.oil) && averageDates.length) {
+    if (Number.isFinite(trailing10.oil) && dates.length) {
       averageTraces.push({
-        x: averageDates,
-        y: averageDates.map(()=>trailing10.oil),
+        x: dates,
+        y: dates.map(()=>trailing10.oil),
         mode:'lines',
         name:'Average 10-Year (Oil)',
         line:{color:'green', dash:'dash'},
         hovertemplate: hoverCurrency('Average 10-Year (Oil)')
       });
     }
-    if (Number.isFinite(trailing10.gas) && averageDates.length) {
+    if (Number.isFinite(trailing10.gas) && dates.length) {
       averageTraces.push({
-        x: averageDates,
-        y: averageDates.map(()=>trailing10.gas),
+        x: dates,
+        y: dates.map(()=>trailing10.gas),
         mode:'lines',
         name:'Average 10-Year (Gas)',
         line:{color:'red', dash:'dash'},
@@ -265,7 +262,7 @@
         {
           x:ntmCenter,
           y:yMax*1.05,
-          text:'Next 12 Months',
+          text:'Next 24 Months',
           showarrow:false,
           font:{size:14},
           xanchor:'center',
