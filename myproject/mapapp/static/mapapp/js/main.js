@@ -337,6 +337,18 @@ window.syncRoyaltyPanelHeight = () => {
     const scrollToFeedbackSection = () => {
       const feedbackSection = document.getElementById('feedback-section');
       if (!feedbackSection) return;
+      const scrollContainer = feedbackSection.closest('.main-content');
+      if (scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight) {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const targetTop =
+          feedbackSection.getBoundingClientRect().top -
+          containerRect.top +
+          scrollContainer.scrollTop -
+          12;
+        scrollContainer.scrollTo({ top: targetTop, behavior: 'smooth' });
+        feedbackSection.focus?.({ preventScroll: true });
+        return;
+      }
       const header = document.querySelector('header');
       const headerHeight = header ? header.getBoundingClientRect().height : 0;
       const offset = headerHeight + 12;
