@@ -63,37 +63,6 @@ const initCollapsibleCard = () => {
   });
 };
 
-const initViewportReloadOnResize = () => {
-  if (typeof window === 'undefined') return;
-
-  const isFiniteNumber = (value) => Number.isFinite(value) && value >= 0;
-  let lastWidth = isFiniteNumber(window.innerWidth) ? window.innerWidth : null;
-  let lastHeight = isFiniteNumber(window.innerHeight) ? window.innerHeight : null;
-
-  if (lastWidth === null || lastHeight === null) return;
-
-  let reloading = false;
-  const handleViewportChange = () => {
-    const currentWidth = isFiniteNumber(window.innerWidth) ? window.innerWidth : null;
-    const currentHeight = isFiniteNumber(window.innerHeight) ? window.innerHeight : null;
-    if (currentWidth === null || currentHeight === null) return;
-
-    const widthChanged = currentWidth !== lastWidth;
-    const heightChanged = currentHeight !== lastHeight;
-
-    if (!widthChanged && !heightChanged) return;
-    if (reloading) return;
-
-    lastWidth = currentWidth;
-    lastHeight = currentHeight;
-    reloading = true;
-    window.location.reload();
-  };
-
-  window.addEventListener('resize', handleViewportChange);
-  window.addEventListener('orientationchange', handleViewportChange);
-};
-
 const initCollapsibleCardWhenReady = () => {
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCollapsibleCard, { once: true });
@@ -103,8 +72,6 @@ const initCollapsibleCardWhenReady = () => {
 };
 
 initCollapsibleCardWhenReady();
-initViewportReloadOnResize();
-
 const rootElement = document.documentElement;
 window.syncRoyaltyPanelHeight = () => {
   const cumChart = document.getElementById('cashflowSummaryChart');
