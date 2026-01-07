@@ -264,6 +264,11 @@ body {
   z-index: 2;
 }
 
+.info-box--full {
+  width: calc(100% - 2rem);
+  left: 1rem;
+}
+
 #asset-value-info-popup {
   width: min(225px, 56.25vw);
 }
