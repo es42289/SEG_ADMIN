@@ -314,6 +314,7 @@ window.syncRoyaltyPanelHeight = () => {
     };
 
     const ownerProfileButton = document.getElementById('ownerProfileButton');
+    const chatScrollButton = document.getElementById('chatScrollButton');
     const ownerProfileModal = document.getElementById('ownerProfileModal');
     const ownerProfileForm = document.getElementById('ownerProfileForm');
     const ownerProfileMessage = document.getElementById('ownerProfileMessage');
@@ -331,6 +332,17 @@ window.syncRoyaltyPanelHeight = () => {
         (ownerProfileForm && ownerProfileForm.elements && ownerProfileForm.elements.email
           ? ownerProfileForm.elements.email.value
           : '')
+    };
+
+    const scrollToFeedbackSection = () => {
+      const feedbackSection = document.getElementById('feedback-section');
+      if (!feedbackSection) return;
+      const header = document.querySelector('header');
+      const headerHeight = header ? header.getBoundingClientRect().height : 0;
+      const offset = headerHeight + 12;
+      const targetTop = feedbackSection.getBoundingClientRect().top + window.pageYOffset - offset;
+      window.scrollTo({ top: targetTop, behavior: 'smooth' });
+      feedbackSection.focus?.({ preventScroll: true });
     };
 
     function canonicalizeOwnerType(value) {
@@ -724,6 +736,13 @@ window.syncRoyaltyPanelHeight = () => {
       if (!changed) {
         setOwnerProfileMessage('', null);
       }
+    }
+
+    if (chatScrollButton) {
+      chatScrollButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        scrollToFeedbackSection();
+      });
     }
 
     if (ownerProfileModal && ownerProfileForm && ownerProfileButton) {
