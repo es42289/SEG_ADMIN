@@ -273,6 +273,25 @@ body {
   width: min(225px, 56.25vw);
 }
 
+* {
+  scrollbar-color: rgba(21, 96, 130, 0.5) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(21, 96, 130, 0.5);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .support-feedback-row {
   margin-top: 1rem;
   display: flex;
