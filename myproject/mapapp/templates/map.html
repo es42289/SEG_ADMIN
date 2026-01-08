@@ -364,14 +364,21 @@
 </div>
 
   <section id="map-analysis" class="collapsible-card" style="margin-top:1rem; padding:1rem; border-radius:12px; border:1px solid #156082; background:#156082;">
-    <div class="collapsible-card__header">
-      <h3 class="collapsible-card__title">Proximity Map</h3>
+    <div class="collapsible-card__header section-header">
+      <div class="section-title">
+        <h3 class="collapsible-card__title">Proximity Map</h3>
+        <button type="button" class="info-icon" aria-label="Show proximity map information" aria-expanded="false" aria-controls="proximity-map-info-popup" data-info-toggle>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+            <line x1="12" y1="9" x2="12" y2="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="6" r="1" fill="currentColor" />
+          </svg>
+        </button>
+        <div id="proximity-map-info-popup" class="info-box info-box--full" role="note" hidden tabindex="-1">This map shows the development over time of the area of the East Texas Basin around assets by adjusting the year slider. A 10-mile and 20-mile radius capture counts of wells proximal to the centroid of the assets. The color scheme shows the trend of development in the region. Light Green fades to black after ten years production (typically representing ~80-90% of expected ultimate recovery) and turns grey after producing +15 years (end of life production).</div>
+      </div>
       <button type="button" class="collapsible-card__toggle" id="map-analysis-toggle" aria-expanded="false" aria-controls="map-analysis-content">Expand</button>
     </div>
     <div id="map-analysis-content" class="collapsible-card__body" hidden>
-      <div class="map-description">
-        This map shows the development over time of the area of the East Texas Basin around assets by adjusting the year slider. A 10-mile and 20-mile radius capture counts of wells proximal to the centroid of the assets. The color scheme shows the trend of development in the region. Light Green fades to black after ten years production (typically representing ~80-90% of expected ultimate recovery) and turns grey after producing +15 years (end of life production).
-      </div>
       <div class="map-controls">
         <div class="slider-group">
           <label style="color: #ffff;"for="year">Change year to see development history:</label>
