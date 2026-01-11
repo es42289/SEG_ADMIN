@@ -7,6 +7,28 @@
 
 
 <div class="top-banner">
+  {% if admin_context %}
+  <div class="admin-banner">
+    <form method="post" action="{% url 'admin_select_user' %}" class="admin-banner__form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ current_path }}">
+      <label class="admin-banner__label">Viewing as</label>
+      <select name="selected_email" class="admin-banner__select" onchange="this.form.submit()">
+        {% if admin_context.emails %}
+          {% for email in admin_context.emails %}
+            <option value="{{ email }}" {% if email == admin_context.selected_email %}selected{% endif %}>{{ email }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="">No users found</option>
+        {% endif %}
+      </select>
+      <span class="admin-banner__contact">
+        <span class="admin-banner__contact-label">Contact Name:</span>
+        <span>{{ admin_context.contact_name|default:"Unknown" }}</span>
+      </span>
+    </form>
+  </div>
+  {% endif %}
   <div class="login-bar">
     <div class="login-content">
       {% if request.session.user %}

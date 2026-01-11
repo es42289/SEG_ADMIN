@@ -143,8 +143,68 @@ OWNER_PROFILE_MERGE_SQL = """
     )
 """
 
+ADMIN_USER_EMAILS_SQL = """
+    SELECT DISTINCT AUTH0_EMAIL
+    FROM WELLS.MINERALS.USER_MAPPINGS
+    WHERE AUTH0_EMAIL IS NOT NULL
+    ORDER BY AUTH0_EMAIL
+"""
+
+ADMIN_CONTACT_NAME_SQL = """
+    SELECT FIRST_NAME, LAST_NAME
+    FROM WELLS.MINERALS.USER_INFO
+    WHERE EMAIL = %s
+    LIMIT 1
+"""
+
 
 logger = logging.getLogger(__name__)
+
+
+def get_effective_user_email(request):
+    session_user = request.session.get("user") or {}
+    selected_email = request.session.get("admin_selected_email")
+    return selected_email or session_user.get("email")
+
+
+def get_admin_user_emails():
+    try:
+        rows = snowflake_helpers.fetch_all(ADMIN_USER_EMAILS_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load admin user email list.")
+        return []
+    return [row.get("AUTH0_EMAIL") for row in rows if row.get("AUTH0_EMAIL")]
+
+
+def get_admin_contact_name(email):
+    if not email:
+        return None
+    try:
+        row = snowflake_helpers.fetch_one(ADMIN_CONTACT_NAME_SQL, (email,))
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load admin contact name for %s", email)
+        return None
+    if not row:
+        return None
+    first_name = row.get("FIRST_NAME") or ""
+    last_name = row.get("LAST_NAME") or ""
+    full_name = f"{first_name} {last_name}".strip()
+    return full_name or None
+
+
+def get_admin_banner_context(request):
+    session_user = request.session.get("user") or {}
+    default_email = session_user.get("email")
+    emails = get_admin_user_emails()
+    selected_email = request.session.get("admin_selected_email") or default_email
+    if selected_email and emails and selected_email not in emails:
+        selected_email = default_email if default_email in emails else emails[0]
+    contact_name = get_admin_contact_name(selected_email)
+    return {
+        "emails": emails,
+        "selected_email": selected_email,
+        "contact_name": contact_name,
+    }
 
 
 def get_snowflake_connection():
@@ -327,7 +387,13 @@ def map_page(request):
     if 'user' not in request.session:
         return redirect('/login/')
     
-    return render(request, "map.html", {})
+    admin_context = get_admin_banner_context(request)
+
+    return render(
+        request,
+        "map.html",
+        {"admin_context": admin_context, "current_path": request.get_full_path()},
+    )
 
 def map_data(request):
     """Returns JSON for map points."""
@@ -495,7 +561,7 @@ def user_wells_data(request):
         return redirect('/login/')
     
     # Get user's email and find their owner name
-    user_email = request.session['user'].get('email', '')
+    user_email = get_effective_user_email(request)
     owner_name = get_user_owner_name(user_email)
     
     if not owner_name:
@@ -549,8 +615,7 @@ def user_info(request):
     if "user" not in request.session:
         return JsonResponse({"detail": "Authentication required."}, status=401)
 
-    session_user = request.session.get("user") or {}
-    user_email = session_user.get("email")
+    user_email = get_effective_user_email(request)
 
     if not user_email:
         return JsonResponse({"detail": "User email unavailable."}, status=400)
@@ -596,14 +661,33 @@ def user_info(request):
 
     return JsonResponse({"profile": profile})
 
+
+@require_http_methods(["POST"])
+def admin_select_user(request):
+    if "user" not in request.session:
+        return redirect("/login/")
+
+    selected_email = (request.POST.get("selected_email") or "").strip()
+    next_url = request.POST.get("next") or "/map/"
+
+    if selected_email:
+        emails = get_admin_user_emails()
+        if selected_email in emails:
+            request.session["admin_selected_email"] = selected_email
+        else:
+            request.session.pop("admin_selected_email", None)
+    else:
+        request.session.pop("admin_selected_email", None)
+
+    return redirect(next_url)
+
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])
 def user_feedback_entries(request):
     if "user" not in request.session:
         return JsonResponse({"detail": "Authentication required."}, status=401)
 
-    user_info = request.session.get("user") or {}
-    user_email = user_info.get("email")
+    user_email = get_effective_user_email(request)
 
     if not user_email:
         return JsonResponse({"detail": "User email unavailable."}, status=400)
@@ -946,7 +1030,7 @@ def economics_data(request):
     if "user" not in request.session:
         return redirect("/login/")
     deck = request.GET.get("deck")
-    user_email = request.session["user"].get("email", "")
+    user_email = get_effective_user_email(request)
     owner_name = get_user_owner_name(user_email)
     wells = _snowflake_user_wells(owner_name)
     selected_param = request.GET.get("apis", "")

@@ -573,13 +573,6 @@ window.syncRoyaltyPanelHeight = () => {
           setOwnerProfileMessage('Profile loaded.', 'success');
           if (!ownerProfileState.autoOpenChecked) {
             ownerProfileState.autoOpenChecked = true;
-            if (missingRequiredOwnerProfileFields(profile).length > 0) {
-              showOwnerProfileModal();
-              setOwnerProfileMessage(
-                describeMissingOwnerProfileFields(profile),
-                'warning'
-              );
-            }
           }
           return profile;
         } catch (error) {
@@ -682,12 +675,6 @@ window.syncRoyaltyPanelHeight = () => {
 
       const current = readOwnerProfileForm();
       ownerProfileState.data = current;
-
-      const missingRequired = missingRequiredOwnerProfileFields(current);
-      if (missingRequired.length > 0) {
-        setOwnerProfileMessage(describeMissingOwnerProfileFields(current), 'error');
-        return;
-      }
 
       if (!ownerProfileState.original) {
         ownerProfileState.original = createOwnerProfileDefaults(ownerProfileState.userEmail);
