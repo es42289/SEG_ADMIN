@@ -621,17 +621,17 @@ def admin_user_emails(request):
     try:
         rows = snowflake_helpers.fetch_all(
             """
-            SELECT DISTINCT EMAIL
-            FROM WELLS.MINERALS.USER_INFO
-            WHERE EMAIL IS NOT NULL
-            ORDER BY EMAIL
+            SELECT DISTINCT AUTH0_EMAIL
+            FROM WELLS.MINERALS.USER_MAPPINGS
+            WHERE AUTH0_EMAIL IS NOT NULL
+            ORDER BY AUTH0_EMAIL
             """
         )
     except snowflake_errors.Error:
         logger.exception("Failed to load admin user emails.")
         return JsonResponse({"detail": "Unable to load user list."}, status=502)
 
-    emails = [row.get("EMAIL") for row in rows if row.get("EMAIL")]
+    emails = [row.get("AUTH0_EMAIL") for row in rows if row.get("AUTH0_EMAIL")]
     return JsonResponse(
         {
             "emails": emails,
@@ -659,8 +659,8 @@ def admin_select_user(request):
         exists = snowflake_helpers.fetch_one(
             """
             SELECT 1 AS FOUND
-            FROM WELLS.MINERALS.USER_INFO
-            WHERE EMAIL = %s
+            FROM WELLS.MINERALS.USER_MAPPINGS
+            WHERE AUTH0_EMAIL = %s
             LIMIT 1
             """,
             (email,),

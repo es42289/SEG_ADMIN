@@ -271,6 +271,7 @@ window.syncRoyaltyPanelHeight = () => {
 
     const adminUserSelect = document.getElementById('adminUserSelect');
     const adminUserStatus = document.getElementById('adminUserStatus');
+    const adminUserContact = document.getElementById('adminUserContact');
     let adminSelectedEmail = null;
 
     const setAdminStatus = (message, tone = '') => {
@@ -300,6 +301,14 @@ window.syncRoyaltyPanelHeight = () => {
       }
 
       adminSelectedEmail = adminUserSelect.value || null;
+    };
+
+    const updateAdminContactName = (profile) => {
+      if (!adminUserContact) return;
+      const firstName = profile?.contact_first_name || '';
+      const lastName = profile?.contact_last_name || '';
+      const name = `${firstName} ${lastName}`.trim();
+      adminUserContact.textContent = `Contact: ${name || '--'}`;
     };
 
     const loadAdminUserSelect = async () => {
@@ -663,6 +672,7 @@ window.syncRoyaltyPanelHeight = () => {
           ownerProfileState.original = profile;
           ownerProfileState.data = profile;
           populateOwnerProfileForm(profile);
+          updateAdminContactName(profile);
           setOwnerProfileMessage('Profile loaded.', 'success');
           if (!ownerProfileState.autoOpenChecked) {
             ownerProfileState.autoOpenChecked = true;
@@ -681,6 +691,7 @@ window.syncRoyaltyPanelHeight = () => {
           ownerProfileState.original = fallback;
           ownerProfileState.data = fallback;
           populateOwnerProfileForm(fallback);
+          updateAdminContactName(fallback);
           setOwnerProfileMessage('Unable to load owner profile. You can still make updates.', 'error');
           return fallback;
         } finally {
