@@ -835,9 +835,9 @@ body {
   box-sizing: border-box;
 }
 
-.login-bar {
+.admin-banner {
   background: #ffff;
-  padding: 10px 20px;
+  padding: 12px 20px;
   color: #1e293a;
   display: flex;
   align-items: center;
@@ -847,107 +847,59 @@ body {
   overflow: hidden;
   flex-wrap: wrap;
   min-width: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
-.top-banner-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1.25rem;
-  padding: 0 20px 12px;
-  background: #ffff;
-  box-sizing: border-box;
-  min-width: 0;
-  width: 100%;
-  overflow: hidden;
-}
-
-.login-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: 7pt;
-  min-width: 0;
-  flex: 1 1 240px;
-  overflow-wrap: anywhere;
-  width: 100%;
-}
-
-.login-content strong {
-  font-size: inherit;
-}
-
-.login-link {
+.admin-banner__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   font-weight: 600;
-  color: #156082;
-  text-decoration: none;
+  color: rgba(30, 41, 58, 0.7);
 }
 
-.login-link:hover,
-.login-link:focus {
-  text-decoration: underline;
-}
-
-.login-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex-wrap: wrap;
+.admin-banner__control {
+  flex: 1 1 260px;
   min-width: 0;
-  width: auto;
 }
 
-.login-action {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.1rem;
-  padding: 0.15rem 0.27rem;
-  background: #ffffff;
-  color: #156082;
-  border: 2px solid #156082;
+.admin-banner__select {
+  width: 100%;
+  padding: 0.45rem 0.75rem;
   border-radius: 8px;
-  text-decoration: none;
-  min-width: 29px;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-  font-size: 0.55rem;
-  text-align: center;
-  cursor: pointer;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  font-size: 0.85rem;
+  color: #1e293a;
+  background: #ffffff;
   font: inherit;
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
 }
 
-.login-action__label {
-  display: none;
-}
-
-.login-action:focus-visible {
-  outline: 3px solid rgba(255, 255, 255, 0.65);
+.admin-banner__select:focus-visible {
+  outline: 2px solid rgba(21, 96, 130, 0.5);
   outline-offset: 2px;
 }
 
-.login-action__icon {
-  width: 0.8rem;
-  height: 0.8rem;
-  display: inline-block;
-  fill: currentColor;
+.admin-banner__status {
+  flex: 1 1 200px;
+  font-size: 0.75rem;
+  color: rgba(30, 41, 58, 0.7);
+  min-width: 0;
 }
 
-.login-action:hover,
-.login-action:focus {
-  background: #156082;
-  color: #ffffff;
-  border-color: #156082;
-  transform: translateY(-1px);
+.admin-banner__status--loading {
+  color: rgba(30, 41, 58, 0.8);
 }
 
-.login-action:hover .login-action__icon,
-.login-action:focus .login-action__icon {
-  fill: currentColor;
+.admin-banner__status--success {
+  color: #1b7f4d;
+}
+
+.admin-banner__status--warning {
+  color: #a16207;
+}
+
+.admin-banner__status--error {
+  color: #b91c1c;
 }
 
 .well-count-box {
@@ -973,17 +925,6 @@ body {
   gap: 1.5rem;
 }
 
-.top-banner-disclaimer {
-  flex: 1 1 360px;
-  font-size: 7pt;
-  font-style: italic;
-  color: #1e293a;
-  line-height: 1.4;
-  text-align: left;
-  min-width: 240px;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
 
 .well-count-content {
   display: flex;

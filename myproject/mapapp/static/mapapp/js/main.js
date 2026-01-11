@@ -159,9 +159,7 @@ window.syncRoyaltyPanelHeight = () => {
       const footer = document.querySelector('body > .min-h-screen > footer');
       if (!rootElement) return;
       const bannerHeight = banner?.offsetHeight || 0;
-      // Nudge the layout upward so the dashboard content sits closer to the fixed banner.
-      const adjustedHeight = Math.max(0, bannerHeight - 60);
-      rootElement.style.setProperty('--top-banner-height', `${adjustedHeight}px`);
+      rootElement.style.setProperty('--top-banner-height', `${bannerHeight}px`);
       const headerHeight = header?.offsetHeight || 0;
       const footerHeight = footer?.offsetHeight || 0;
       rootElement.style.setProperty('--site-header-height', `${headerHeight}px`);
@@ -271,6 +269,90 @@ window.syncRoyaltyPanelHeight = () => {
       return match ? decodeURIComponent(match[1]) : '';
     }
 
+    const adminUserSelect = document.getElementById('adminUserSelect');
+    const adminUserStatus = document.getElementById('adminUserStatus');
+    let adminSelectedEmail = null;
+
+    const setAdminStatus = (message, tone = '') => {
+      if (!adminUserStatus) return;
+      adminUserStatus.textContent = message || '';
+      adminUserStatus.className = 'admin-banner__status';
+      if (tone) {
+        adminUserStatus.classList.add(`admin-banner__status--${tone}`);
+      }
+    };
+
+    const populateAdminUserSelect = (emails, selectedEmail) => {
+      if (!adminUserSelect) return;
+      adminUserSelect.innerHTML = '';
+
+      emails.forEach((email) => {
+        const option = document.createElement('option');
+        option.value = email;
+        option.textContent = email;
+        adminUserSelect.appendChild(option);
+      });
+
+      if (selectedEmail && emails.includes(selectedEmail)) {
+        adminUserSelect.value = selectedEmail;
+      } else if (emails.length) {
+        adminUserSelect.value = emails[0];
+      }
+
+      adminSelectedEmail = adminUserSelect.value || null;
+    };
+
+    const loadAdminUserSelect = async () => {
+      if (!adminUserSelect) return;
+      adminUserSelect.disabled = true;
+      adminUserSelect.innerHTML = '<option value="">Loading…</option>';
+      setAdminStatus('Loading users…', 'loading');
+
+      try {
+        const resp = await fetch('/api/admin/users/', { headers: { Accept: 'application/json' } });
+        if (!resp.ok) {
+          throw new Error(`Failed to load admin users (${resp.status})`);
+        }
+        const payload = await resp.json();
+        const emails = Array.isArray(payload.emails) ? payload.emails : [];
+        populateAdminUserSelect(emails, payload.selected_email);
+        setAdminStatus(emails.length ? '' : 'No user emails found.', emails.length ? '' : 'warning');
+      } catch (error) {
+        console.error('Unable to load admin users:', error);
+        adminUserSelect.innerHTML = '<option value="">Unable to load users</option>';
+        setAdminStatus('Unable to load user list.', 'error');
+      } finally {
+        adminUserSelect.disabled = false;
+      }
+    };
+
+    const setAdminSelection = async (email) => {
+      if (!adminUserSelect) return;
+      setAdminStatus('Switching user…', 'loading');
+      adminUserSelect.disabled = true;
+      try {
+        const resp = await fetch('/api/admin/impersonate/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          },
+          body: JSON.stringify({ email })
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          throw new Error(payload.detail || `Failed to set user (${resp.status})`);
+        }
+        adminSelectedEmail = payload.selected_email || email;
+        setAdminStatus('User updated.', 'success');
+        window.location.reload();
+      } catch (error) {
+        console.error('Unable to update admin user:', error);
+        setAdminStatus('Unable to switch users.', 'error');
+        adminUserSelect.disabled = false;
+      }
+    };
+
     const OWNER_PROFILE_FIELDS = [
       'owner_type',
       'first_name',
@@ -333,6 +415,17 @@ window.syncRoyaltyPanelHeight = () => {
           ? ownerProfileForm.elements.email.value
           : '')
     };
+
+    if (adminUserSelect) {
+      adminUserSelect.addEventListener('change', () => {
+        const selected = adminUserSelect.value;
+        if (!selected || selected === adminSelectedEmail) {
+          return;
+        }
+        setAdminSelection(selected);
+      });
+      loadAdminUserSelect();
+    }
 
     const scrollToFeedbackSection = () => {
       const feedbackSection = document.getElementById('feedback-section');
