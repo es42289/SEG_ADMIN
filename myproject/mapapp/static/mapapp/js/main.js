@@ -14,6 +14,7 @@ const yearInput = document.getElementById('year');
     const effectiveDate = document.getElementById('effective-date');
     const lastProductionDate = document.getElementById('last-production-date');
     // Removed references to totalNearby elements as they were removed from the HTML
+    const adminUserSelect = document.getElementById('adminUserSelect');
 
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
 const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
@@ -172,6 +173,34 @@ window.syncRoyaltyPanelHeight = () => {
     document.addEventListener('DOMContentLoaded', updateLayoutOffsets);
     window.addEventListener('load', updateLayoutOffsets);
     window.addEventListener('resize', updateLayoutOffsets);
+
+    const initAdminUserSelect = () => {
+      if (!adminUserSelect) return;
+
+      adminUserSelect.addEventListener('change', async (event) => {
+        const selectedEmail = event.target.value;
+        if (!selectedEmail) return;
+        try {
+          const response = await fetch('/api/admin/select-user/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: selectedEmail })
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update user selection.');
+          }
+
+          window.location.reload();
+        } catch (error) {
+          console.error(error);
+        }
+      });
+    };
+
+    initAdminUserSelect();
 
     function updateStatus(message, isError = false, isSuccess = false) {
       if (!statusDiv) return;

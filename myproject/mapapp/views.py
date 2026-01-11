@@ -195,6 +195,54 @@ def _owner_profile_defaults(email=None):
     return defaults
 
 
+def _fetch_admin_user_emails():
+    try:
+        rows = snowflake_helpers.fetch_all(
+            """
+            SELECT DISTINCT EMAIL
+            FROM WELLS.MINERALS.USER_INFO
+            WHERE EMAIL IS NOT NULL
+            ORDER BY EMAIL
+            """
+        )
+    except snowflake_errors.Error:
+        logger.exception("Failed to load admin user list.")
+        return []
+
+    emails = []
+    for row in rows:
+        email = row.get("EMAIL")
+        if email:
+            emails.append(email)
+    return emails
+
+
+def _get_active_user_email(request):
+    session_user = request.session.get("user") or {}
+    session_email = session_user.get("email")
+    impersonated = request.session.get("admin_selected_email")
+    return impersonated or session_email
+
+
+def _sync_selected_user_email(request, available_emails):
+    session_user = request.session.get("user") or {}
+    session_email = session_user.get("email")
+    selected = request.session.get("admin_selected_email")
+
+    if selected and selected in available_emails:
+        return selected
+
+    if session_email and session_email in available_emails:
+        request.session["admin_selected_email"] = session_email
+        return session_email
+
+    if available_emails:
+        request.session["admin_selected_email"] = available_emails[0]
+        return available_emails[0]
+
+    return session_email or ""
+
+
 def _normalize_profile_field(field, value, *, strict=False):
     if value is None:
         return "Individual" if field == "owner_type" else None
@@ -326,8 +374,14 @@ def map_page(request):
     # Check if user is logged in
     if 'user' not in request.session:
         return redirect('/login/')
-    
-    return render(request, "map.html", {})
+
+    user_emails = _fetch_admin_user_emails()
+    selected_email = _sync_selected_user_email(request, user_emails)
+
+    return render(request, "map.html", {
+        "user_emails": user_emails,
+        "selected_user_email": selected_email,
+    })
 
 def map_data(request):
     """Returns JSON for map points."""
@@ -495,7 +549,7 @@ def user_wells_data(request):
         return redirect('/login/')
     
     # Get user's email and find their owner name
-    user_email = request.session['user'].get('email', '')
+    user_email = _get_active_user_email(request) or ""
     owner_name = get_user_owner_name(user_email)
     
     if not owner_name:
@@ -549,8 +603,7 @@ def user_info(request):
     if "user" not in request.session:
         return JsonResponse({"detail": "Authentication required."}, status=401)
 
-    session_user = request.session.get("user") or {}
-    user_email = session_user.get("email")
+    user_email = _get_active_user_email(request)
 
     if not user_email:
         return JsonResponse({"detail": "User email unavailable."}, status=400)
@@ -595,6 +648,29 @@ def user_info(request):
         profile = _profile_row_to_dict(row, user_email)
 
     return JsonResponse({"profile": profile})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_select_user(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    email = (payload.get("email") or "").strip()
+    if not email:
+        return JsonResponse({"detail": "Email is required."}, status=400)
+
+    available_emails = _fetch_admin_user_emails()
+    if email not in available_emails:
+        return JsonResponse({"detail": "Unknown user email."}, status=404)
+
+    request.session["admin_selected_email"] = email
+    return JsonResponse({"selected_email": email})
 
 @csrf_exempt
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])
