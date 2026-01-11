@@ -835,6 +835,89 @@ body {
   box-sizing: border-box;
 }
 
+.admin-banner {
+  background: #ffff;
+  padding: 12px 20px;
+  color: #1e293a;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  flex-wrap: wrap;
+  min-width: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.admin-banner__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: rgba(30, 41, 58, 0.7);
+}
+
+.admin-banner__control {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.admin-banner__select {
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  font-size: 0.85rem;
+  color: #1e293a;
+  background: #ffffff;
+  font: inherit;
+}
+
+.admin-banner__select:focus-visible {
+  outline: 2px solid rgba(21, 96, 130, 0.5);
+  outline-offset: 2px;
+}
+
+.admin-banner__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.admin-banner__contact {
+  font-size: 0.75rem;
+  color: rgba(30, 41, 58, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-banner__status {
+  flex: 1 1 200px;
+  font-size: 0.75rem;
+  color: rgba(30, 41, 58, 0.7);
+  min-width: 0;
+}
+
+.admin-banner__status--loading {
+  color: rgba(30, 41, 58, 0.8);
+}
+
+.admin-banner__status--success {
+  color: #1b7f4d;
+}
+
+.admin-banner__status--warning {
+  color: #a16207;
+}
+
+.admin-banner__status--error {
+  color: #b91c1c;
+}
+
 .login-bar {
   background: #ffff;
   padding: 10px 20px;

@@ -7,34 +7,15 @@
 
 
 <div class="top-banner">
-  <div class="login-bar">
-    <div class="login-content">
-      {% if request.session.user %}
-        Logged in as: <strong>&nbsp;{{ request.session.user.name|default:request.session.user.email }}</strong>
-        <a href="/logout/" class="login-link">Logout</a>
-      {% else %}
-        <a href="/login/" class="login-link">Login</a>
-      {% endif %}
+  <div class="admin-banner" role="region" aria-label="Admin user selector">
+    <div class="admin-banner__label">Viewing as</div>
+    <div class="admin-banner__control">
+      <select id="adminUserSelect" class="admin-banner__select" aria-label="Select a user email"></select>
     </div>
-    <div class="login-actions" role="navigation" aria-label="Quick links">
-      <button type="button" id="ownerProfileButton" class="login-action" title="Manage owner profile">
-        <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M12 12.5a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 1.5c-4.07 0-7.5 2.78-7.5 6.02 0 .76.62 1.48 1.64 1.48h11.72c1.02 0 1.64-.72 1.64-1.48 0-3.24-3.43-6.02-7.5-6.02Z"/>
-        </svg>
-        <span class="login-action__label">Owner Profile</span>
-      </button>
-      <button type="button" id="chatScrollButton" class="login-action" title="Chat (coming soon)">
-        <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M4.5 4A1.5 1.5 0 0 0 3 5.5v9A1.5 1.5 0 0 0 4.5 16H7v3.25a.75.75 0 0 0 1.22.57L13 16h6.5A1.5 1.5 0 0 0 21 14.5v-9A1.5 1.5 0 0 0 19.5 4h-15Z"/>
-        </svg>
-        <span class="login-action__label">Chat</span>
-      </button>
+    <div class="admin-banner__meta">
+      <div class="admin-banner__contact" id="adminUserContact">Contact Name: --</div>
     </div>
-  </div>
-  <div class="top-banner-row">
-    <div class="top-banner-disclaimer">
-      Below you will find your assets as best represented by public data and utilizing any data provided by you, the owner. Given the data available, we would value and purchase your royalties at the asset price shown above. If this interests you or think we missed something, please reach out. We want this dashboard to be helpful and an ongoing tool you can use. We will keep it updated monthly and you can access anytime you’d like for $4/month.
-    </div>
+    <div class="admin-banner__status" id="adminUserStatus" aria-live="polite"></div>
   </div>
 </div>
 <div class="page-content">
@@ -49,7 +30,7 @@
       </div>
       <h2 id="ownerProfileTitle" class="profile-modal__title">Owner Profile</h2>
       <p class="profile-modal__subtitle">Keep your contact and tax information up to date so we can tailor insights for you.</p>
-      <form id="ownerProfileForm" class="profile-form" autocomplete="on" data-user-email="{{ request.session.user.email|default:'' }}">
+      <form id="ownerProfileForm" class="profile-form" autocomplete="on" data-user-email="{{ effective_email|default:'' }}">
         <div class="profile-form-grid">
           <label class="profile-field">
             <span class="profile-field__label">Owner type<span aria-hidden="true">*</span></span>
@@ -66,7 +47,7 @@
           </label>
           <label class="profile-field">
             <span class="profile-field__label">Email</span>
-            <input name="email" type="email" class="profile-field__input" value="{{ request.session.user.email|default:'' }}" readonly />
+            <input name="email" type="email" class="profile-field__input" value="{{ effective_email|default:'' }}" readonly />
           </label>
           <label class="profile-field">
             <span class="profile-field__label">Phone number</span>

@@ -271,6 +271,99 @@ window.syncRoyaltyPanelHeight = () => {
       return match ? decodeURIComponent(match[1]) : '';
     }
 
+    const adminUserSelect = document.getElementById('adminUserSelect');
+    const adminUserStatus = document.getElementById('adminUserStatus');
+    const adminUserContact = document.getElementById('adminUserContact');
+    let adminSelectedEmail = null;
+
+    const setAdminStatus = (message, tone = '') => {
+      if (!adminUserStatus) return;
+      adminUserStatus.textContent = message || '';
+      adminUserStatus.className = 'admin-banner__status';
+      if (tone) {
+        adminUserStatus.classList.add(`admin-banner__status--${tone}`);
+      }
+    };
+
+    const updateAdminContactName = (profile) => {
+      if (!adminUserContact) return;
+      const firstName = profile?.contact_first_name || profile?.first_name || '';
+      const lastName = profile?.contact_last_name || profile?.last_name || '';
+      const name = `${firstName} ${lastName}`.trim();
+      adminUserContact.textContent = `Contact Name: ${name || '--'}`;
+    };
+
+    const populateAdminUserSelect = (emails, selectedEmail) => {
+      if (!adminUserSelect) return;
+      adminUserSelect.innerHTML = '';
+
+      emails.forEach((email) => {
+        const option = document.createElement('option');
+        option.value = email;
+        option.textContent = email;
+        adminUserSelect.appendChild(option);
+      });
+
+      if (selectedEmail && emails.includes(selectedEmail)) {
+        adminUserSelect.value = selectedEmail;
+      } else if (emails.length) {
+        adminUserSelect.value = emails[0];
+      }
+
+      adminSelectedEmail = adminUserSelect.value || null;
+    };
+
+    const loadAdminUserSelect = async () => {
+      if (!adminUserSelect) return;
+      adminUserSelect.disabled = true;
+      adminUserSelect.innerHTML = '<option value="">Loading…</option>';
+      setAdminStatus('Loading users…', 'loading');
+
+      try {
+        const resp = await fetch('/api/admin/users/', { headers: { Accept: 'application/json' } });
+        if (!resp.ok) {
+          throw new Error(`Failed to load admin users (${resp.status})`);
+        }
+        const payload = await resp.json();
+        const emails = Array.isArray(payload.emails) ? payload.emails : [];
+        populateAdminUserSelect(emails, payload.selected_email);
+        setAdminStatus(emails.length ? '' : 'No user emails found.', emails.length ? '' : 'warning');
+      } catch (error) {
+        console.error('Unable to load admin users:', error);
+        adminUserSelect.innerHTML = '<option value="">Unable to load users</option>';
+        setAdminStatus('Unable to load user list.', 'error');
+      } finally {
+        adminUserSelect.disabled = false;
+      }
+    };
+
+    const setAdminSelection = async (email) => {
+      if (!adminUserSelect) return;
+      setAdminStatus('Switching user…', 'loading');
+      adminUserSelect.disabled = true;
+      try {
+        const resp = await fetch('/api/admin/impersonate/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          },
+          body: JSON.stringify({ email })
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          throw new Error(payload.detail || `Failed to set user (${resp.status})`);
+        }
+        adminSelectedEmail = payload.selected_email || email;
+        setAdminStatus('User updated.', 'success');
+        window.location.reload();
+      } catch (error) {
+        console.error('Unable to update admin user:', error);
+        setAdminStatus('Unable to switch users.', 'error');
+        adminUserSelect.disabled = false;
+      }
+    };
+
     const OWNER_PROFILE_FIELDS = [
       'owner_type',
       'first_name',
@@ -333,6 +426,17 @@ window.syncRoyaltyPanelHeight = () => {
           ? ownerProfileForm.elements.email.value
           : '')
     };
+
+    if (adminUserSelect) {
+      adminUserSelect.addEventListener('change', () => {
+        const selected = adminUserSelect.value;
+        if (!selected || selected === adminSelectedEmail) {
+          return;
+        }
+        setAdminSelection(selected);
+      });
+      loadAdminUserSelect();
+    }
 
     const scrollToFeedbackSection = () => {
       const feedbackSection = document.getElementById('feedback-section');
@@ -570,6 +674,7 @@ window.syncRoyaltyPanelHeight = () => {
           ownerProfileState.original = profile;
           ownerProfileState.data = profile;
           populateOwnerProfileForm(profile);
+          updateAdminContactName(profile);
           setOwnerProfileMessage('Profile loaded.', 'success');
           if (!ownerProfileState.autoOpenChecked) {
             ownerProfileState.autoOpenChecked = true;
@@ -588,6 +693,7 @@ window.syncRoyaltyPanelHeight = () => {
           ownerProfileState.original = fallback;
           ownerProfileState.data = fallback;
           populateOwnerProfileForm(fallback);
+          updateAdminContactName(fallback);
           setOwnerProfileMessage('Unable to load owner profile. You can still make updates.', 'error');
           return fallback;
         } finally {
