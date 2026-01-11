@@ -389,7 +389,11 @@ def map_page(request):
     
     admin_context = get_admin_banner_context(request)
 
-    return render(request, "map.html", {"admin_context": admin_context})
+    return render(
+        request,
+        "map.html",
+        {"admin_context": admin_context, "current_path": request.get_full_path()},
+    )
 
 def map_data(request):
     """Returns JSON for map points."""
