@@ -619,19 +619,43 @@ def admin_user_emails(request):
         return JsonResponse({"detail": "Authentication required."}, status=401)
 
     try:
-        rows = snowflake_helpers.fetch_all(
+        column_rows = snowflake_helpers.fetch_all(
             """
-            SELECT DISTINCT AUTH0_EMAIL
-            FROM WELLS.MINERALS.USER_MAPPINGS
-            WHERE AUTH0_EMAIL IS NOT NULL
-            ORDER BY AUTH0_EMAIL
+            SELECT COLUMN_NAME
+            FROM WELLS.INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'MINERALS'
+              AND TABLE_NAME = 'USER_MAPPINGS'
+            """
+        )
+        columns = {row.get("COLUMN_NAME", "").upper() for row in column_rows}
+        candidate_columns = [
+            "AUTH0_EMAIL",
+            "USER_EMAIL",
+            "EMAIL",
+            "USERNAME",
+        ]
+        available_columns = [col for col in candidate_columns if col in columns]
+        if not available_columns:
+            return JsonResponse({"emails": [], "selected_email": _get_effective_user_email(request)})
+
+        select_sql = " UNION ".join(
+            [
+                f"SELECT DISTINCT {col} AS EMAIL FROM WELLS.MINERALS.USER_MAPPINGS WHERE {col} IS NOT NULL"
+                for col in available_columns
+            ]
+        )
+        rows = snowflake_helpers.fetch_all(
+            f"""
+            SELECT DISTINCT EMAIL
+            FROM ({select_sql})
+            ORDER BY EMAIL
             """
         )
     except snowflake_errors.Error:
         logger.exception("Failed to load admin user emails.")
         return JsonResponse({"detail": "Unable to load user list."}, status=502)
 
-    emails = [row.get("AUTH0_EMAIL") for row in rows if row.get("AUTH0_EMAIL")]
+    emails = [row.get("EMAIL") for row in rows if row.get("EMAIL")]
     return JsonResponse(
         {
             "emails": emails,
@@ -656,14 +680,35 @@ def admin_select_user(request):
         return JsonResponse({"selected_email": None})
 
     try:
-        exists = snowflake_helpers.fetch_one(
+        column_rows = snowflake_helpers.fetch_all(
             """
+            SELECT COLUMN_NAME
+            FROM WELLS.INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = 'MINERALS'
+              AND TABLE_NAME = 'USER_MAPPINGS'
+            """
+        )
+        columns = {row.get("COLUMN_NAME", "").upper() for row in column_rows}
+        candidate_columns = [
+            "AUTH0_EMAIL",
+            "USER_EMAIL",
+            "EMAIL",
+            "USERNAME",
+        ]
+        available_columns = [col for col in candidate_columns if col in columns]
+        if not available_columns:
+            return JsonResponse({"detail": "User mappings table missing email columns."}, status=502)
+
+        where_sql = " OR ".join([f"{col} = %s" for col in available_columns])
+        params = [email] * len(available_columns)
+        exists = snowflake_helpers.fetch_one(
+            f"""
             SELECT 1 AS FOUND
             FROM WELLS.MINERALS.USER_MAPPINGS
-            WHERE AUTH0_EMAIL = %s
+            WHERE {where_sql}
             LIMIT 1
             """,
-            (email,),
+            params,
         )
     except snowflake_errors.Error:
         logger.exception("Failed to validate admin user email %s.", email)

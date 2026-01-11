@@ -305,8 +305,8 @@ window.syncRoyaltyPanelHeight = () => {
 
     const updateAdminContactName = (profile) => {
       if (!adminUserContact) return;
-      const firstName = profile?.contact_first_name || '';
-      const lastName = profile?.contact_last_name || '';
+      const firstName = profile?.contact_first_name || profile?.first_name || '';
+      const lastName = profile?.contact_last_name || profile?.last_name || '';
       const name = `${firstName} ${lastName}`.trim();
       adminUserContact.textContent = `Contact: ${name || '--'}`;
     };
