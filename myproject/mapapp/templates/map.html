@@ -26,6 +26,12 @@
         <span class="admin-banner__contact-label">Contact Name:</span>
         <span>{{ admin_context.contact_name|default:"Unknown" }}</span>
       </span>
+      <button type="button" id="executiveDashButton" class="login-action" title="Executive dashboard overview">
+        <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4.5 19a.75.75 0 0 1-.75-.75V5.75A.75.75 0 0 1 4.5 5h15a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-15Zm1.5-1.5h12v-3.25h-12V17.5Zm0-4.75h12v-6h-12v6Zm1.75-4.5h3V7.75h-3v.5Zm4.5 0h3V7.75h-3v.5Zm4.5 0h1.75V7.75H16.75v.5Z"/>
+        </svg>
+        <span class="login-action__label">Executive Dash</span>
+      </button>
     </form>
   </div>
   {% endif %}
@@ -44,12 +50,6 @@
           <path d="M12 12.5a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 1.5c-4.07 0-7.5 2.78-7.5 6.02 0 .76.62 1.48 1.64 1.48h11.72c1.02 0 1.64-.72 1.64-1.48 0-3.24-3.43-6.02-7.5-6.02Z"/>
         </svg>
         <span class="login-action__label">Owner Profile</span>
-      </button>
-      <button type="button" id="executiveDashButton" class="login-action" title="Executive dashboard overview">
-        <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M4.5 19a.75.75 0 0 1-.75-.75V5.75A.75.75 0 0 1 4.5 5h15a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-15Zm1.5-1.5h12v-3.25h-12V17.5Zm0-4.75h12v-6h-12v6Zm1.75-4.5h3V7.75h-3v.5Zm4.5 0h3V7.75h-3v.5Zm4.5 0h1.75V7.75H16.75v.5Z"/>
-        </svg>
-        <span class="login-action__label">Executive Dash</span>
       </button>
       <button type="button" id="chatScrollButton" class="login-action" title="Chat (coming soon)">
         <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
