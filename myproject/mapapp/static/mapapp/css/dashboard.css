@@ -788,6 +788,10 @@ body {
   gap: 1rem;
 }
 
+.executive-modal .executive-stats {
+  grid-template-columns: 1fr;
+}
+
 .executive-stat {
   border-radius: 12px;
   padding: 1rem 1.1rem;
