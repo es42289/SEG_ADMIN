@@ -690,6 +690,49 @@ body {
   pointer-events: none;
 }
 
+.feedback-response__textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+.feedback-response__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.feedback-response__button {
+  font: inherit;
+  background: #ffffff;
+  color: #156082;
+  border: none;
+  padding: 0.5rem 1.35rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feedback-response__button:hover,
+.feedback-response__button:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(4, 36, 54, 0.25);
+}
+
+.feedback-response__button--ghost {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: none;
+}
+
+.feedback-response__button--ghost:hover,
+.feedback-response__button--ghost:focus {
+  transform: none;
+  box-shadow: none;
+}
+
 .profile-form__spinner {
   display: inline-flex;
   align-items: center;
