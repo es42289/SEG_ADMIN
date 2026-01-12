@@ -775,6 +775,22 @@ body {
   vertical-align: top;
 }
 
+.feedback-entry-row {
+  cursor: pointer;
+}
+
+.feedback-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.feedback-entry__response {
+  color: #6fe79d;
+  font-weight: 600;
+  text-align: right;
+}
+
 
 .feedback-history__empty {
   display: none;
