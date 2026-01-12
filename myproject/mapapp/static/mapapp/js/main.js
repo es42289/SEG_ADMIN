@@ -2642,12 +2642,14 @@ window.syncRoyaltyPanelHeight = () => {
       loadSupportDocs();
     }
 
+    const feedbackSection = document.getElementById('feedback-section');
     const feedbackForm = document.getElementById('feedback-form');
     const feedbackTextarea = document.getElementById('feedback-text');
     const feedbackSubmitButton = document.getElementById('feedback-submit');
     const feedbackStatus = document.getElementById('feedback-status');
     const feedbackTableBody = document.querySelector('#feedback-table tbody');
     const feedbackEmptyState = document.getElementById('feedback-empty');
+    const isFeedbackAdmin = feedbackSection?.dataset?.isAdmin === 'true';
 
     const feedbackDateFormatter = new Intl.DateTimeFormat('en-US', {
       dateStyle: 'medium',
@@ -2718,13 +2720,26 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackEntries.forEach((entry) => {
         const row = document.createElement('tr');
         row.dataset.submittedAt = entry.submitted_at;
+        if (isFeedbackAdmin) {
+          row.classList.add('feedback-row--interactive');
+        }
 
         const submittedCell = document.createElement('td');
         submittedCell.textContent = formatFeedbackTimestamp(entry.submitted_at);
         row.appendChild(submittedCell);
 
         const feedbackCell = document.createElement('td');
-        feedbackCell.textContent = entry.feedback_text || '--';
+        const feedbackText = document.createElement('div');
+        feedbackText.className = 'feedback-text';
+        feedbackText.textContent = entry.feedback_text || '--';
+        feedbackCell.appendChild(feedbackText);
+
+        if (entry.feedback_response) {
+          const feedbackResponse = document.createElement('div');
+          feedbackResponse.className = 'feedback-response';
+          feedbackResponse.textContent = entry.feedback_response;
+          feedbackCell.appendChild(feedbackResponse);
+        }
         row.appendChild(feedbackCell);
         feedbackTableBody.appendChild(row);
       });
@@ -2813,4 +2828,51 @@ window.syncRoyaltyPanelHeight = () => {
       });
 
       loadFeedbackEntries();
+    }
+
+    if (feedbackTableBody && isFeedbackAdmin) {
+      feedbackTableBody.addEventListener('click', async (event) => {
+        const row = event.target.closest('tr');
+        if (!row) return;
+        const submittedAt = row.dataset.submittedAt;
+        if (!submittedAt) return;
+        const entry = feedbackEntries.find((item) => item.submitted_at === submittedAt);
+        if (!entry) return;
+
+        const responseText = window.prompt('Add a response to this feedback:', entry.feedback_response || '');
+        if (responseText === null) return;
+
+        const trimmedResponse = responseText.trim();
+        if (!trimmedResponse) {
+          setFeedbackStatus('Response text is required.', 'error');
+          return;
+        }
+
+        try {
+          setFeedbackStatus('Saving response...');
+          const response = await fetch('/feedback/', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              submitted_at: submittedAt,
+              feedback_response: trimmedResponse
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Unexpected status: ${response.status}`);
+          }
+
+          const payload = await response.json();
+          const updatedEntry = payload.entry || {};
+          feedbackEntries = feedbackEntries.map((item) =>
+            item.submitted_at === submittedAt ? { ...item, ...updatedEntry } : item
+          );
+          renderFeedbackEntries();
+          setFeedbackStatus('Response saved.', 'success');
+        } catch (error) {
+          console.error('Failed to save feedback response:', error);
+          setFeedbackStatus('Unable to save response right now.', 'error');
+        }
+      });
     }
