@@ -1164,6 +1164,27 @@ body {
   display: none;
 }
 
+#executiveDashButton {
+  background: #156082;
+  color: #ffffff;
+  border-color: #156082;
+  padding: 0.35rem 0.75rem;
+  min-width: auto;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+#executiveDashButton .login-action__label {
+  display: inline;
+}
+
+#executiveDashButton:hover,
+#executiveDashButton:focus {
+  background: #0f4b64;
+  border-color: #0f4b64;
+  transform: translateY(-1px);
+}
+
 .login-action:focus-visible {
   outline: 3px solid rgba(255, 255, 255, 0.65);
   outline-offset: 2px;
