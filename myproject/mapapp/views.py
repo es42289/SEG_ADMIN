@@ -208,9 +208,16 @@ EXECUTIVE_FEEDBACK_OVERVIEW_SQL = """
 """
 
 EXECUTIVE_DOCUMENTS_SQL = """
-    SELECT owner_name, filename, note, bytes, created_at
-    FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-    ORDER BY owner_name, created_at DESC
+    SELECT
+        COALESCE(um.owner_name, ud.owner_name) AS owner_name,
+        ud.filename,
+        ud.note,
+        ud.bytes,
+        ud.created_at
+    FROM WELLS.MINERALS.USER_DOC_DIRECTORY AS ud
+    LEFT JOIN WELLS.MINERALS.USER_MAPPINGS AS um
+        ON um.AUTH0_EMAIL = ud.AUTH0_EMAIL
+    ORDER BY owner_name, ud.created_at DESC
     LIMIT 100
 """
 
