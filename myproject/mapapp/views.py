@@ -812,11 +812,42 @@ def user_feedback_entries(request):
         if request.method == "PUT":
             original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
             new_feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
-            feedback_response = (payload.get("feedback_response") or payload.get("response") or "").strip()
+            feedback_response = payload.get("feedback_response") or payload.get("response")
+            clear_response = bool(payload.get("clear_response"))
 
             if not original_submitted_at:
                 return JsonResponse({"detail": "submitted_at is required."}, status=400)
 
+            if clear_response:
+                if not is_admin:
+                    return JsonResponse({"detail": "Admin access required."}, status=403)
+
+                cur.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_FEEDBACK
+                    SET FEEDBACK_RESPONSE = NULL
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (user_email, original_submitted_at),
+                )
+
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    return JsonResponse({"detail": "Feedback entry not found."}, status=404)
+
+                conn.commit()
+                return JsonResponse(
+                    {
+                        "entry": {
+                            "feedback_response": None,
+                            "submitted_at": _format_timestamp_for_json(original_submitted_at),
+                            "username": user_email,
+                        }
+                    }
+                )
+
+            if feedback_response is not None:
+                feedback_response = str(feedback_response).strip()
             if feedback_response:
                 if not is_admin:
                     return JsonResponse({"detail": "Admin access required."}, status=403)
@@ -844,6 +875,8 @@ def user_feedback_entries(request):
                         }
                     }
                 )
+            if feedback_response is not None and feedback_response == "":
+                return JsonResponse({"detail": "Response text is required."}, status=400)
 
             if not new_feedback_text:
                 return JsonResponse({"detail": "Feedback text is required."}, status=400)

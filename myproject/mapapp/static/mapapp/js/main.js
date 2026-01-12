@@ -2700,6 +2700,7 @@ window.syncRoyaltyPanelHeight = () => {
     const feedbackResponseForm = document.getElementById('feedbackResponseForm');
     const feedbackResponseText = document.getElementById('feedbackResponseText');
     const feedbackResponseMessage = document.getElementById('feedbackResponseMessage');
+    const feedbackResponseDelete = document.getElementById('feedbackResponseDelete');
     const feedbackResponseCloseButtons = document.querySelectorAll('[data-feedback-close]');
 
     const feedbackResponseState = {
@@ -2777,6 +2778,9 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackResponseModal.setAttribute('aria-hidden', 'false');
       feedbackResponseState.isOpen = true;
       feedbackResponseText.value = entry?.feedback_response || '';
+      if (feedbackResponseDelete) {
+        feedbackResponseDelete.disabled = !entry?.feedback_response;
+      }
       setFeedbackResponseMessage('', null);
       feedbackResponseText.focus();
     };
@@ -2787,6 +2791,9 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackResponseModal.setAttribute('aria-hidden', 'true');
       feedbackResponseState.isOpen = false;
       feedbackResponseState.entry = null;
+      if (feedbackResponseDelete) {
+        feedbackResponseDelete.disabled = true;
+      }
       setFeedbackResponseMessage('', null);
     };
 
@@ -2917,6 +2924,60 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const deleteFeedbackResponse = async (entry) => {
+      if (!entry?.submitted_at) return;
+      if (!entry.feedback_response) {
+        setFeedbackResponseMessage('No response to delete.', 'error');
+        return;
+      }
+
+      const confirmed = window.confirm('Delete this response? This cannot be undone.');
+      if (!confirmed) return;
+
+      try {
+        feedbackResponseState.saving = true;
+        if (feedbackResponseForm) {
+          feedbackResponseForm.classList.add('is-disabled');
+        }
+        setFeedbackResponseMessage('Deleting response…', 'saving');
+        const response = await fetch('/feedback/', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submitted_at: entry.submitted_at,
+            clear_response: true
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unexpected status: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const updated = payload.entry || {};
+        feedbackEntries = feedbackEntries.map((current) => {
+          if (current.submitted_at !== entry.submitted_at) {
+            return current;
+          }
+          return {
+            ...current,
+            feedback_response: updated.feedback_response || null
+          };
+        });
+        renderFeedbackEntries();
+        setFeedbackResponseMessage('Response deleted.', 'success');
+        setTimeout(() => hideFeedbackResponseModal(), 200);
+      } catch (error) {
+        console.error('Failed to delete feedback response:', error);
+        setFeedbackResponseMessage('Unable to delete response right now.', 'error');
+      } finally {
+        feedbackResponseState.saving = false;
+        if (feedbackResponseForm) {
+          feedbackResponseForm.classList.remove('is-disabled');
+        }
+      }
+    };
+
     if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
       const originalButtonText = feedbackSubmitButton.textContent;
 
@@ -2989,6 +3050,17 @@ window.syncRoyaltyPanelHeight = () => {
           return;
         }
         saveFeedbackResponse(feedbackResponseState.entry, feedbackResponseText.value);
+      });
+    }
+
+    if (feedbackResponseDelete) {
+      feedbackResponseDelete.addEventListener('click', () => {
+        if (feedbackResponseState.saving) return;
+        if (!feedbackResponseState.entry) {
+          setFeedbackResponseMessage('Select a feedback entry first.', 'error');
+          return;
+        }
+        deleteFeedbackResponse(feedbackResponseState.entry);
       });
     }
 

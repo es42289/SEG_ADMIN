@@ -720,6 +720,13 @@ body {
   box-shadow: 0 6px 16px rgba(4, 36, 54, 0.25);
 }
 
+.feedback-response__button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .feedback-response__button--ghost {
   background: transparent;
   color: rgba(255, 255, 255, 0.85);
@@ -731,6 +738,20 @@ body {
 .feedback-response__button--ghost:focus {
   transform: none;
   box-shadow: none;
+}
+
+.feedback-response__button--danger {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffd3d3;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: none;
+}
+
+.feedback-response__button--danger:hover,
+.feedback-response__button--danger:focus {
+  transform: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .profile-form__spinner {
