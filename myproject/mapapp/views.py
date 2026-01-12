@@ -214,6 +214,13 @@ EXECUTIVE_DOCUMENTS_SQL = """
     LIMIT 100
 """
 
+EXECUTIVE_DOCUMENTS_SQL_FALLBACK = """
+    SELECT filename, note, bytes, created_at
+    FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+    ORDER BY created_at DESC
+    LIMIT 100
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -286,8 +293,12 @@ def get_executive_dashboard_context():
     try:
         document_rows = snowflake_helpers.fetch_all(EXECUTIVE_DOCUMENTS_SQL)
     except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
-        logger.exception("Failed to load executive dashboard documents.")
-        document_rows = []
+        logger.exception("Failed to load executive dashboard documents with owner names.")
+        try:
+            document_rows = snowflake_helpers.fetch_all(EXECUTIVE_DOCUMENTS_SQL_FALLBACK)
+        except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+            logger.exception("Failed to load executive dashboard documents.")
+            document_rows = []
 
     try:
         row = snowflake_helpers.fetch_one(EXECUTIVE_DASHBOARD_SQL)
