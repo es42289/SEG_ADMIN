@@ -701,7 +701,7 @@ def user_feedback_entries(request):
         if request.method == "GET":
             cur.execute(
                 """
-                SELECT FEEDBACK_TEXT, SUBMITTED_AT, USERNAME
+                SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
                 FROM WELLS.MINERALS.USER_FEEDBACK
                 WHERE USERNAME = %s
                 ORDER BY SUBMITTED_AT DESC
@@ -712,6 +712,7 @@ def user_feedback_entries(request):
             entries = [
                 {
                     "feedback_text": row.get("FEEDBACK_TEXT"),
+                    "feedback_response": row.get("FEEDBACK_RESPONSE"),
                     "submitted_at": _format_timestamp_for_json(row.get("SUBMITTED_AT")),
                     "username": row.get("USERNAME"),
                 }
@@ -742,6 +743,7 @@ def user_feedback_entries(request):
                 {
                     "entry": {
                         "feedback_text": feedback_text,
+                        "feedback_response": None,
                         "submitted_at": _format_timestamp_for_json(submitted_at),
                         "username": user_email,
                     }
@@ -752,9 +754,57 @@ def user_feedback_entries(request):
         if request.method == "PUT":
             original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
             new_feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
+            has_response_payload = "feedback_response" in payload or "response" in payload
 
             if not original_submitted_at:
                 return JsonResponse({"detail": "submitted_at is required."}, status=400)
+            if has_response_payload:
+                feedback_response = (payload.get("feedback_response") or payload.get("response") or "").strip()
+                feedback_response = feedback_response or None
+                cur.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_FEEDBACK
+                    SET FEEDBACK_RESPONSE = %s
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (feedback_response, user_email, original_submitted_at),
+                )
+
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    return JsonResponse({"detail": "Feedback entry not found."}, status=404)
+
+                conn.commit()
+                updated_row = None
+                try:
+                    updated_row = snowflake_helpers.fetch_one(
+                        """
+                        SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
+                        FROM WELLS.MINERALS.USER_FEEDBACK
+                        WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                        """,
+                        (user_email, original_submitted_at),
+                    )
+                except snowflake_errors.Error:
+                    logger.exception("Failed to reload feedback response for %s", user_email)
+
+                entry_payload = {
+                    "feedback_text": payload.get("feedback_text") or payload.get("feedback"),
+                    "feedback_response": feedback_response,
+                    "submitted_at": _format_timestamp_for_json(original_submitted_at),
+                    "username": user_email,
+                }
+
+                if updated_row:
+                    entry_payload = {
+                        "feedback_text": updated_row.get("FEEDBACK_TEXT"),
+                        "feedback_response": updated_row.get("FEEDBACK_RESPONSE"),
+                        "submitted_at": _format_timestamp_for_json(updated_row.get("SUBMITTED_AT")),
+                        "username": updated_row.get("USERNAME"),
+                    }
+
+                return JsonResponse({"entry": entry_payload})
+
             if not new_feedback_text:
                 return JsonResponse({"detail": "Feedback text is required."}, status=400)
 

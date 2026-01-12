@@ -2718,13 +2718,29 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackEntries.forEach((entry) => {
         const row = document.createElement('tr');
         row.dataset.submittedAt = entry.submitted_at;
+        row.classList.add('feedback-entry-row');
 
         const submittedCell = document.createElement('td');
         submittedCell.textContent = formatFeedbackTimestamp(entry.submitted_at);
         row.appendChild(submittedCell);
 
         const feedbackCell = document.createElement('td');
-        feedbackCell.textContent = entry.feedback_text || '--';
+        const feedbackWrapper = document.createElement('div');
+        feedbackWrapper.className = 'feedback-entry';
+
+        const feedbackText = document.createElement('div');
+        feedbackText.className = 'feedback-entry__text';
+        feedbackText.textContent = entry.feedback_text || '--';
+        feedbackWrapper.appendChild(feedbackText);
+
+        if (entry.feedback_response) {
+          const feedbackResponse = document.createElement('div');
+          feedbackResponse.className = 'feedback-entry__response';
+          feedbackResponse.textContent = entry.feedback_response;
+          feedbackWrapper.appendChild(feedbackResponse);
+        }
+
+        feedbackCell.appendChild(feedbackWrapper);
         row.appendChild(feedbackCell);
         feedbackTableBody.appendChild(row);
       });
@@ -2759,8 +2775,59 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const saveFeedbackResponse = async (submittedAt, responseText) => {
+      const response = await fetch('/feedback/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          submitted_at: submittedAt,
+          feedback_response: responseText
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unexpected status: ${response.status}`);
+      }
+
+      return response.json();
+    };
+
+    const handleFeedbackRowClick = async (event) => {
+      const row = event.target.closest('tr');
+      if (!row || !feedbackTableBody.contains(row)) return;
+      const submittedAt = row.dataset.submittedAt;
+      if (!submittedAt) return;
+
+      const entry = feedbackEntries.find((item) => item.submitted_at === submittedAt);
+      if (!entry) return;
+
+      const currentResponse = entry.feedback_response || '';
+      const responseText = window.prompt('Add a response to this feedback:', currentResponse);
+      if (responseText === null) return;
+
+      try {
+        setFeedbackStatus('Saving response...');
+        const payload = await saveFeedbackResponse(submittedAt, responseText.trim());
+        const updatedEntry = payload.entry || {};
+        feedbackEntries = feedbackEntries.map((item) => {
+          if (item.submitted_at !== submittedAt) return item;
+          return {
+            ...item,
+            ...updatedEntry,
+            feedback_response: responseText.trim() || null
+          };
+        });
+        renderFeedbackEntries();
+        setFeedbackStatus('Response saved.', 'success');
+      } catch (error) {
+        console.error('Failed to save feedback response:', error);
+        setFeedbackStatus('Unable to save feedback response right now.', 'error');
+      }
+    };
+
     if (feedbackTableBody) {
       toggleFeedbackEmptyState();
+      feedbackTableBody.addEventListener('click', handleFeedbackRowClick);
     }
 
     if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
