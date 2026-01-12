@@ -695,13 +695,21 @@ def user_feedback_entries(request):
     conn = get_snowflake_connection()
     cur = None
 
+    def _feedback_row_to_dict(row):
+        return {
+            "feedback_text": row.get("FEEDBACK_TEXT"),
+            "feedback_response": row.get("FEEDBACK_RESPONSE"),
+            "submitted_at": _format_timestamp_for_json(row.get("SUBMITTED_AT")),
+            "username": row.get("USERNAME"),
+        }
+
     try:
         cur = conn.cursor(DictCursor)
 
         if request.method == "GET":
             cur.execute(
                 """
-                SELECT FEEDBACK_TEXT, SUBMITTED_AT, USERNAME
+                SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
                 FROM WELLS.MINERALS.USER_FEEDBACK
                 WHERE USERNAME = %s
                 ORDER BY SUBMITTED_AT DESC
@@ -709,14 +717,7 @@ def user_feedback_entries(request):
                 (user_email,),
             )
             rows = cur.fetchall()
-            entries = [
-                {
-                    "feedback_text": row.get("FEEDBACK_TEXT"),
-                    "submitted_at": _format_timestamp_for_json(row.get("SUBMITTED_AT")),
-                    "username": row.get("USERNAME"),
-                }
-                for row in rows
-            ]
+            entries = [_feedback_row_to_dict(row) for row in rows]
             return JsonResponse({"entries": entries})
 
         try:
@@ -742,6 +743,7 @@ def user_feedback_entries(request):
                 {
                     "entry": {
                         "feedback_text": feedback_text,
+                        "feedback_response": None,
                         "submitted_at": _format_timestamp_for_json(submitted_at),
                         "username": user_email,
                     }
@@ -752,36 +754,59 @@ def user_feedback_entries(request):
         if request.method == "PUT":
             original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
             new_feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
+            feedback_response = (payload.get("feedback_response") or "").strip()
 
             if not original_submitted_at:
                 return JsonResponse({"detail": "submitted_at is required."}, status=400)
-            if not new_feedback_text:
-                return JsonResponse({"detail": "Feedback text is required."}, status=400)
+            if not new_feedback_text and not feedback_response:
+                return JsonResponse({"detail": "Feedback text or response is required."}, status=400)
 
-            updated_timestamp = datetime.now(timezone.utc)
-            cur.execute(
-                """
-                UPDATE WELLS.MINERALS.USER_FEEDBACK
-                SET FEEDBACK_TEXT = %s, SUBMITTED_AT = %s
-                WHERE USERNAME = %s AND SUBMITTED_AT = %s
-                """,
-                (new_feedback_text, updated_timestamp, user_email, original_submitted_at),
-            )
+            if feedback_response and not new_feedback_text:
+                cur.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_FEEDBACK
+                    SET FEEDBACK_RESPONSE = %s
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (feedback_response, user_email, original_submitted_at),
+                )
+                target_timestamp = original_submitted_at
+            else:
+                updated_timestamp = datetime.now(timezone.utc)
+                cur.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_FEEDBACK
+                    SET FEEDBACK_TEXT = %s, SUBMITTED_AT = %s, FEEDBACK_RESPONSE = COALESCE(%s, FEEDBACK_RESPONSE)
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (new_feedback_text, updated_timestamp, feedback_response or None, user_email, original_submitted_at),
+                )
+                target_timestamp = updated_timestamp
 
             if cur.rowcount == 0:
                 conn.rollback()
                 return JsonResponse({"detail": "Feedback entry not found."}, status=404)
 
             conn.commit()
-            return JsonResponse(
-                {
-                    "entry": {
-                        "feedback_text": new_feedback_text,
-                        "submitted_at": _format_timestamp_for_json(updated_timestamp),
-                        "username": user_email,
-                    }
-                }
+            cur.execute(
+                """
+                SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
+                FROM WELLS.MINERALS.USER_FEEDBACK
+                WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                """,
+                (user_email, target_timestamp),
             )
+            row = cur.fetchone()
+            if row:
+                entry = _feedback_row_to_dict(row)
+            else:
+                entry = {
+                    "feedback_text": new_feedback_text or None,
+                    "feedback_response": feedback_response or None,
+                    "submitted_at": _format_timestamp_for_json(target_timestamp),
+                    "username": user_email,
+                }
+            return JsonResponse({"entry": entry})
 
         if request.method == "DELETE":
             original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
