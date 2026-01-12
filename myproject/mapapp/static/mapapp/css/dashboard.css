@@ -775,6 +775,30 @@ body {
   vertical-align: top;
 }
 
+#feedback-history[data-can-respond="true"] #feedback-table tbody tr {
+  cursor: pointer;
+}
+
+.feedback-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.feedback-response {
+  align-self: flex-end;
+  color: #2fbf71;
+  font-weight: 600;
+  text-align: right;
+}
+
+.feedback-response__label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
 
 .feedback-history__empty {
   display: none;
