@@ -157,6 +157,25 @@ ADMIN_CONTACT_NAME_SQL = """
     LIMIT 1
 """
 
+EXEC_DASH_OWNER_COUNT_SQL = """
+    SELECT COUNT(DISTINCT OWNER_NAME) AS OWNER_COUNT
+    FROM WELLS.MINERALS.USER_MAPPINGS
+    WHERE OWNER_NAME IS NOT NULL
+      AND TRIM(OWNER_NAME) <> ''
+"""
+
+EXEC_DASH_PENDING_FEEDBACK_SQL = """
+    SELECT COUNT(*) AS PENDING_FEEDBACK_COUNT
+    FROM WELLS.MINERALS.USER_FEEDBACK
+    WHERE FEEDBACK_RESPONSE IS NULL
+       OR TRIM(FEEDBACK_RESPONSE) = ''
+"""
+
+EXEC_DASH_DOC_COUNT_SQL = """
+    SELECT COUNT(*) AS DOC_COUNT
+    FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +225,26 @@ def get_admin_banner_context(request):
         "selected_email": selected_email,
         "contact_name": contact_name,
         "is_admin": is_admin,
+    }
+
+
+def get_executive_dash_context():
+    try:
+        owner_row = snowflake_helpers.fetch_one(EXEC_DASH_OWNER_COUNT_SQL)
+        feedback_row = snowflake_helpers.fetch_one(EXEC_DASH_PENDING_FEEDBACK_SQL)
+        doc_row = snowflake_helpers.fetch_one(EXEC_DASH_DOC_COUNT_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load executive dashboard counts.")
+        return {
+            "owner_count": None,
+            "pending_feedback_count": None,
+            "document_count": None,
+        }
+
+    return {
+        "owner_count": owner_row.get("OWNER_COUNT") if owner_row else 0,
+        "pending_feedback_count": feedback_row.get("PENDING_FEEDBACK_COUNT") if feedback_row else 0,
+        "document_count": doc_row.get("DOC_COUNT") if doc_row else 0,
     }
 
 
@@ -390,11 +429,16 @@ def map_page(request):
         return redirect('/login/')
     
     admin_context = get_admin_banner_context(request)
+    exec_dash_context = get_executive_dash_context() if admin_context.get("is_admin") else None
 
     return render(
         request,
         "map.html",
-        {"admin_context": admin_context, "current_path": request.get_full_path()},
+        {
+            "admin_context": admin_context,
+            "current_path": request.get_full_path(),
+            "exec_dash_context": exec_dash_context,
+        },
     )
 
 def map_data(request):
