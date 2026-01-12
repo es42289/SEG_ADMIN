@@ -275,13 +275,14 @@
                       <th>Note</th>
                       <th>Size</th>
                       <th>Uploaded</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {% regroup executive_dashboard.documents by user_email as documents_by_owner %}
                     {% for group in documents_by_owner %}
                       <tr class="executive-table__group">
-                        <td colspan="4">{{ group.list.0.owner_name|default:group.grouper|default:"Unknown Owner" }}</td>
+                        <td colspan="5">{{ group.list.0.owner_name|default:group.grouper|default:"Unknown Owner" }}</td>
                       </tr>
                       {% for doc in group.list %}
                         <tr>
@@ -289,6 +290,11 @@
                           <td>{{ doc.note|default:"--" }}</td>
                           <td>{{ doc.bytes|default:0 }}</td>
                           <td>{{ doc.created_at }}</td>
+                          <td>
+                            <button type="button" class="executive-table__button" data-executive-select-email="{{ doc.user_email }}">
+                              View as
+                            </button>
+                          </td>
                         </tr>
                       {% endfor %}
                     {% endfor %}
