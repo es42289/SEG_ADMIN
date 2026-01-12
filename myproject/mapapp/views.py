@@ -157,6 +157,78 @@ ADMIN_CONTACT_NAME_SQL = """
     LIMIT 1
 """
 
+EXECUTIVE_DASHBOARD_SQL = """
+    SELECT
+        (
+            SELECT COUNT(DISTINCT OWNER_NAME)
+            FROM WELLS.MINERALS.USER_MAPPINGS
+            WHERE OWNER_NAME IS NOT NULL
+              AND TRIM(OWNER_NAME) <> ''
+        ) AS OWNER_COUNT,
+        (
+            SELECT COUNT(*)
+            FROM WELLS.MINERALS.USER_FEEDBACK
+            WHERE FEEDBACK_RESPONSE IS NULL
+               OR TRIM(FEEDBACK_RESPONSE) = ''
+        ) AS PENDING_FEEDBACK_COUNT,
+        (
+            SELECT COUNT(*)
+            FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+        ) AS DOCUMENT_COUNT
+"""
+
+EXECUTIVE_OWNER_ACCOUNTS_SQL = """
+    SELECT DISTINCT OWNER_NAME, AUTH0_EMAIL
+    FROM WELLS.MINERALS.USER_MAPPINGS
+    WHERE OWNER_NAME IS NOT NULL
+      AND TRIM(OWNER_NAME) <> ''
+      AND AUTH0_EMAIL IS NOT NULL
+      AND TRIM(AUTH0_EMAIL) <> ''
+    ORDER BY OWNER_NAME
+"""
+
+EXECUTIVE_FEEDBACK_OVERVIEW_SQL = """
+    SELECT
+        um.OWNER_NAME,
+        uf.USERNAME,
+        COUNT(*) AS TOTAL_FEEDBACK,
+        SUM(
+            CASE
+                WHEN uf.FEEDBACK_RESPONSE IS NULL OR TRIM(uf.FEEDBACK_RESPONSE) = '' THEN 1
+                ELSE 0
+            END
+        ) AS UNANSWERED_FEEDBACK
+    FROM WELLS.MINERALS.USER_FEEDBACK AS uf
+    INNER JOIN WELLS.MINERALS.USER_MAPPINGS AS um
+        ON um.AUTH0_EMAIL = uf.USERNAME
+    WHERE um.OWNER_NAME IS NOT NULL
+      AND TRIM(um.OWNER_NAME) <> ''
+    GROUP BY um.OWNER_NAME, uf.USERNAME
+    ORDER BY UNANSWERED_FEEDBACK DESC, TOTAL_FEEDBACK DESC, um.OWNER_NAME
+"""
+
+EXECUTIVE_DOCUMENTS_SQL = """
+    SELECT
+        COALESCE(um.owner_name, ud.owner_name) AS owner_name,
+        ud.user_email,
+        ud.filename,
+        ud.note,
+        ud.bytes,
+        ud.created_at
+    FROM WELLS.MINERALS.USER_DOC_DIRECTORY AS ud
+    LEFT JOIN WELLS.MINERALS.USER_MAPPINGS AS um
+        ON um.AUTH0_EMAIL = ud.USER_EMAIL
+    ORDER BY owner_name, ud.created_at DESC
+    LIMIT 100
+"""
+
+EXECUTIVE_DOCUMENTS_SQL_FALLBACK = """
+    SELECT user_email, filename, note, bytes, created_at
+    FROM WELLS.MINERALS.USER_DOC_DIRECTORY
+    ORDER BY created_at DESC
+    LIMIT 100
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -211,6 +283,146 @@ def get_admin_banner_context(request):
 
 def get_snowflake_connection():
     return snowflake_helpers.connect()
+
+
+def get_executive_dashboard_context():
+    try:
+        owner_rows = snowflake_helpers.fetch_all(EXECUTIVE_OWNER_ACCOUNTS_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load executive dashboard owner accounts.")
+        owner_rows = []
+
+    try:
+        feedback_rows = snowflake_helpers.fetch_all(EXECUTIVE_FEEDBACK_OVERVIEW_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load executive dashboard feedback overview.")
+        feedback_rows = []
+
+    try:
+        document_rows = snowflake_helpers.fetch_all(EXECUTIVE_DOCUMENTS_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load executive dashboard documents with owner names.")
+        try:
+            document_rows = snowflake_helpers.fetch_all(EXECUTIVE_DOCUMENTS_SQL_FALLBACK)
+        except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+            logger.exception("Failed to load executive dashboard documents.")
+            document_rows = []
+
+    try:
+        row = snowflake_helpers.fetch_one(EXECUTIVE_DASHBOARD_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load executive dashboard metrics.")
+        return {
+            "owner_count": 0,
+            "pending_feedback_count": 0,
+            "document_count": 0,
+            "owner_accounts": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("AUTH0_EMAIL"),
+                }
+                for entry in owner_rows
+                if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+            ],
+            "feedback_overview": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("USERNAME"),
+                    "total_feedback": int(entry.get("TOTAL_FEEDBACK") or 0),
+                    "unanswered_feedback": int(entry.get("UNANSWERED_FEEDBACK") or 0),
+                }
+                for entry in feedback_rows
+                if entry.get("OWNER_NAME") and entry.get("USERNAME")
+            ],
+            "documents": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "user_email": entry.get("USER_EMAIL"),
+                    "filename": entry.get("FILENAME"),
+                    "note": entry.get("NOTE"),
+                    "bytes": entry.get("BYTES"),
+                    "created_at": _format_timestamp_for_json(entry.get("CREATED_AT")),
+                }
+                for entry in document_rows
+                if entry.get("FILENAME")
+            ],
+            "loaded": False,
+        }
+
+    if not row:
+        return {
+            "owner_count": 0,
+            "pending_feedback_count": 0,
+            "document_count": 0,
+            "owner_accounts": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("AUTH0_EMAIL"),
+                }
+                for entry in owner_rows
+                if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+            ],
+            "feedback_overview": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("USERNAME"),
+                    "total_feedback": int(entry.get("TOTAL_FEEDBACK") or 0),
+                    "unanswered_feedback": int(entry.get("UNANSWERED_FEEDBACK") or 0),
+                }
+                for entry in feedback_rows
+                if entry.get("OWNER_NAME") and entry.get("USERNAME")
+            ],
+            "documents": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "user_email": entry.get("USER_EMAIL"),
+                    "filename": entry.get("FILENAME"),
+                    "note": entry.get("NOTE"),
+                    "bytes": entry.get("BYTES"),
+                    "created_at": _format_timestamp_for_json(entry.get("CREATED_AT")),
+                }
+                for entry in document_rows
+                if entry.get("FILENAME")
+            ],
+            "loaded": False,
+        }
+
+    return {
+        "owner_count": int(row.get("OWNER_COUNT") or 0),
+        "pending_feedback_count": int(row.get("PENDING_FEEDBACK_COUNT") or 0),
+        "document_count": int(row.get("DOCUMENT_COUNT") or 0),
+        "owner_accounts": [
+            {
+                "owner_name": entry.get("OWNER_NAME"),
+                "email": entry.get("AUTH0_EMAIL"),
+            }
+            for entry in owner_rows
+            if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+        ],
+        "feedback_overview": [
+            {
+                "owner_name": entry.get("OWNER_NAME"),
+                "email": entry.get("USERNAME"),
+                "total_feedback": int(entry.get("TOTAL_FEEDBACK") or 0),
+                "unanswered_feedback": int(entry.get("UNANSWERED_FEEDBACK") or 0),
+            }
+            for entry in feedback_rows
+            if entry.get("OWNER_NAME") and entry.get("USERNAME")
+        ],
+        "documents": [
+            {
+                "owner_name": entry.get("OWNER_NAME"),
+                "user_email": entry.get("USER_EMAIL"),
+                "filename": entry.get("FILENAME"),
+                "note": entry.get("NOTE"),
+                "bytes": entry.get("BYTES"),
+                "created_at": _format_timestamp_for_json(entry.get("CREATED_AT")),
+            }
+            for entry in document_rows
+            if entry.get("FILENAME")
+        ],
+        "loaded": True,
+    }
 
 
 def _format_timestamp_for_json(value):
@@ -390,11 +602,16 @@ def map_page(request):
         return redirect('/login/')
     
     admin_context = get_admin_banner_context(request)
+    executive_dashboard = get_executive_dashboard_context()
 
     return render(
         request,
         "map.html",
-        {"admin_context": admin_context, "current_path": request.get_full_path()},
+        {
+            "admin_context": admin_context,
+            "current_path": request.get_full_path(),
+            "executive_dashboard": executive_dashboard,
+        },
     )
 
 def map_data(request):
@@ -759,11 +976,42 @@ def user_feedback_entries(request):
         if request.method == "PUT":
             original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
             new_feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
-            feedback_response = (payload.get("feedback_response") or payload.get("response") or "").strip()
+            feedback_response = payload.get("feedback_response") or payload.get("response")
+            clear_response = bool(payload.get("clear_response"))
 
             if not original_submitted_at:
                 return JsonResponse({"detail": "submitted_at is required."}, status=400)
 
+            if clear_response:
+                if not is_admin:
+                    return JsonResponse({"detail": "Admin access required."}, status=403)
+
+                cur.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_FEEDBACK
+                    SET FEEDBACK_RESPONSE = NULL
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (user_email, original_submitted_at),
+                )
+
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    return JsonResponse({"detail": "Feedback entry not found."}, status=404)
+
+                conn.commit()
+                return JsonResponse(
+                    {
+                        "entry": {
+                            "feedback_response": None,
+                            "submitted_at": _format_timestamp_for_json(original_submitted_at),
+                            "username": user_email,
+                        }
+                    }
+                )
+
+            if feedback_response is not None:
+                feedback_response = str(feedback_response).strip()
             if feedback_response:
                 if not is_admin:
                     return JsonResponse({"detail": "Admin access required."}, status=403)
@@ -791,6 +1039,8 @@ def user_feedback_entries(request):
                         }
                     }
                 )
+            if feedback_response is not None and feedback_response == "":
+                return JsonResponse({"detail": "Response text is required."}, status=400)
 
             if not new_feedback_text:
                 return JsonResponse({"detail": "Feedback text is required."}, status=400)

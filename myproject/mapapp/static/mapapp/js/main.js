@@ -315,7 +315,9 @@ window.syncRoyaltyPanelHeight = () => {
 
     const ownerProfileButton = document.getElementById('ownerProfileButton');
     const chatScrollButton = document.getElementById('chatScrollButton');
+    const executiveDashButton = document.getElementById('executiveDashButton');
     const ownerProfileModal = document.getElementById('ownerProfileModal');
+    const executiveDashModal = document.getElementById('executiveDashModal');
     const ownerProfileForm = document.getElementById('ownerProfileForm');
     const ownerProfileMessage = document.getElementById('ownerProfileMessage');
 
@@ -332,6 +334,10 @@ window.syncRoyaltyPanelHeight = () => {
         (ownerProfileForm && ownerProfileForm.elements && ownerProfileForm.elements.email
           ? ownerProfileForm.elements.email.value
           : '')
+    };
+
+    const executiveDashState = {
+      isOpen: false
     };
 
     const scrollToFeedbackSection = () => {
@@ -664,6 +670,25 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
+    function showExecutiveDashModal() {
+      if (!executiveDashModal || !executiveDashButton) return;
+      executiveDashModal.classList.add('is-visible');
+      executiveDashModal.setAttribute('aria-hidden', 'false');
+      executiveDashState.isOpen = true;
+      const closeButton = executiveDashModal.querySelector('[data-executive-close]');
+      closeButton?.focus?.();
+    }
+
+    function hideExecutiveDashModal() {
+      if (!executiveDashModal) return;
+      executiveDashModal.classList.remove('is-visible');
+      executiveDashModal.setAttribute('aria-hidden', 'true');
+      executiveDashState.isOpen = false;
+      if (executiveDashButton) {
+        executiveDashButton.focus({ preventScroll: true });
+      }
+    }
+
     async function attemptCloseOwnerProfileModal() {
       if (!ownerProfileForm) {
         hideOwnerProfileModal();
@@ -770,6 +795,40 @@ window.syncRoyaltyPanelHeight = () => {
       });
 
       fetchOwnerProfileData();
+    }
+
+    if (executiveDashModal && executiveDashButton) {
+      executiveDashModal
+        .querySelectorAll('[data-executive-close]')
+        .forEach((el) => el.addEventListener('click', (event) => {
+          event.preventDefault();
+          hideExecutiveDashModal();
+        }));
+
+      executiveDashModal.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-executive-select-email]');
+        if (!target) return;
+        const email = target.dataset.executiveSelectEmail;
+        if (!email) return;
+        const adminForm = document.querySelector('.admin-banner__form');
+        const select = adminForm?.querySelector('select[name="selected_email"]');
+        if (!select) return;
+        select.value = email;
+        hideExecutiveDashModal();
+        adminForm.submit();
+      });
+
+      executiveDashButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        showExecutiveDashModal();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && executiveDashState.isOpen) {
+          event.preventDefault();
+          hideExecutiveDashModal();
+        }
+      });
     }
 
     // Global variables to store all data
@@ -2654,6 +2713,7 @@ window.syncRoyaltyPanelHeight = () => {
     const feedbackResponseForm = document.getElementById('feedbackResponseForm');
     const feedbackResponseText = document.getElementById('feedbackResponseText');
     const feedbackResponseMessage = document.getElementById('feedbackResponseMessage');
+    const feedbackResponseDelete = document.getElementById('feedbackResponseDelete');
     const feedbackResponseCloseButtons = document.querySelectorAll('[data-feedback-close]');
 
     const feedbackResponseState = {
@@ -2731,6 +2791,9 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackResponseModal.setAttribute('aria-hidden', 'false');
       feedbackResponseState.isOpen = true;
       feedbackResponseText.value = entry?.feedback_response || '';
+      if (feedbackResponseDelete) {
+        feedbackResponseDelete.disabled = !entry?.feedback_response;
+      }
       setFeedbackResponseMessage('', null);
       feedbackResponseText.focus();
     };
@@ -2741,6 +2804,9 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackResponseModal.setAttribute('aria-hidden', 'true');
       feedbackResponseState.isOpen = false;
       feedbackResponseState.entry = null;
+      if (feedbackResponseDelete) {
+        feedbackResponseDelete.disabled = true;
+      }
       setFeedbackResponseMessage('', null);
     };
 
@@ -2871,6 +2937,60 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const deleteFeedbackResponse = async (entry) => {
+      if (!entry?.submitted_at) return;
+      if (!entry.feedback_response) {
+        setFeedbackResponseMessage('No response to delete.', 'error');
+        return;
+      }
+
+      const confirmed = window.confirm('Delete this response? This cannot be undone.');
+      if (!confirmed) return;
+
+      try {
+        feedbackResponseState.saving = true;
+        if (feedbackResponseForm) {
+          feedbackResponseForm.classList.add('is-disabled');
+        }
+        setFeedbackResponseMessage('Deleting response…', 'saving');
+        const response = await fetch('/feedback/', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submitted_at: entry.submitted_at,
+            clear_response: true
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unexpected status: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const updated = payload.entry || {};
+        feedbackEntries = feedbackEntries.map((current) => {
+          if (current.submitted_at !== entry.submitted_at) {
+            return current;
+          }
+          return {
+            ...current,
+            feedback_response: updated.feedback_response || null
+          };
+        });
+        renderFeedbackEntries();
+        setFeedbackResponseMessage('Response deleted.', 'success');
+        setTimeout(() => hideFeedbackResponseModal(), 200);
+      } catch (error) {
+        console.error('Failed to delete feedback response:', error);
+        setFeedbackResponseMessage('Unable to delete response right now.', 'error');
+      } finally {
+        feedbackResponseState.saving = false;
+        if (feedbackResponseForm) {
+          feedbackResponseForm.classList.remove('is-disabled');
+        }
+      }
+    };
+
     if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
       const originalButtonText = feedbackSubmitButton.textContent;
 
@@ -2943,6 +3063,17 @@ window.syncRoyaltyPanelHeight = () => {
           return;
         }
         saveFeedbackResponse(feedbackResponseState.entry, feedbackResponseText.value);
+      });
+    }
+
+    if (feedbackResponseDelete) {
+      feedbackResponseDelete.addEventListener('click', () => {
+        if (feedbackResponseState.saving) return;
+        if (!feedbackResponseState.entry) {
+          setFeedbackResponseMessage('Select a feedback entry first.', 'error');
+          return;
+        }
+        deleteFeedbackResponse(feedbackResponseState.entry);
       });
     }
 

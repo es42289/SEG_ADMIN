@@ -335,12 +335,13 @@ class FinalizeUpload(ApiLoginRequiredMixin, View):
             snowflake_helpers.execute(
                 """
                 INSERT INTO WELLS.MINERALS.USER_DOC_DIRECTORY
-                (id, owner_user_id, s3_key, filename, content_type, bytes, note)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                (id, owner_user_id, user_email, s3_key, filename, content_type, bytes, note)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     file_id,
                     request.user.id,
+                    request.user.email,
                     s3_key,
                     filename,
                     content_type,

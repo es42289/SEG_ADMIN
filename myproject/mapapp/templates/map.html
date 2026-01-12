@@ -26,6 +26,9 @@
         <span class="admin-banner__contact-label">Contact Name:</span>
         <span>{{ admin_context.contact_name|default:"Unknown" }}</span>
       </span>
+      <button type="button" id="executiveDashButton" class="login-action" title="Executive dashboard overview">
+        <span class="login-action__label">EXECUTIVE DASH</span>
+      </button>
     </form>
   </div>
   {% endif %}
@@ -169,11 +172,146 @@
           <textarea id="feedbackResponseText" class="profile-field__input feedback-response__textarea" rows="5" placeholder="Enter your response here"></textarea>
         </label>
         <div class="feedback-response__actions">
+          <button type="button" id="feedbackResponseDelete" class="feedback-response__button feedback-response__button--danger" disabled>Delete Response</button>
           <button type="button" class="feedback-response__button feedback-response__button--ghost" data-feedback-close>Cancel</button>
           <button type="submit" class="feedback-response__button">Save Response</button>
         </div>
       </form>
       <div id="feedbackResponseMessage" class="profile-modal__message" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+  <div id="executiveDashModal" class="profile-modal" aria-hidden="true">
+    <div class="profile-modal__overlay" data-executive-close></div>
+    <div class="profile-modal__dialog executive-modal" role="dialog" aria-modal="true" aria-labelledby="executiveDashTitle">
+      <button type="button" class="profile-modal__close" data-executive-close aria-label="Close executive dashboard dialog">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <div class="profile-modal__logo">
+        <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
+      </div>
+      <h2 id="executiveDashTitle" class="profile-modal__title">Executive Dashboard</h2>
+      <p class="profile-modal__subtitle">Snapshot of owner engagement and support activity.</p>
+      <div class="executive-stats">
+        <div class="executive-stat">
+          <span class="executive-stat__label">Claimed owner accounts</span>
+          <span class="executive-stat__value">{{ executive_dashboard.owner_count|default:0 }}</span>
+          <div class="executive-table">
+            {% if executive_dashboard.owner_accounts %}
+              <div class="executive-table__scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Owner Name</th>
+                      <th>Claimed Email</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for account in executive_dashboard.owner_accounts %}
+                      <tr>
+                        <td>{{ account.owner_name }}</td>
+                        <td>{{ account.email }}</td>
+                        <td>
+                          <button type="button" class="executive-table__button" data-executive-select-email="{{ account.email }}">
+                            View as
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="executive-table__empty">No claimed owner accounts found.</p>
+            {% endif %}
+          </div>
+        </div>
+        <div class="executive-stat">
+          <span class="executive-stat__label">Feedback items awaiting response</span>
+          <span class="executive-stat__value">{{ executive_dashboard.pending_feedback_count|default:0 }}</span>
+          <div class="executive-table">
+            {% if executive_dashboard.feedback_overview %}
+              <div class="executive-table__scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Owner Name</th>
+                      <th>Total Feedback</th>
+                      <th>Unanswered</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for entry in executive_dashboard.feedback_overview %}
+                      <tr>
+                        <td>{{ entry.owner_name }}</td>
+                        <td>{{ entry.total_feedback }}</td>
+                        <td class="executive-table__alert">{{ entry.unanswered_feedback }}</td>
+                        <td>
+                          <button type="button" class="executive-table__button" data-executive-select-email="{{ entry.email }}">
+                            View as
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="executive-table__empty">No feedback entries found.</p>
+            {% endif %}
+          </div>
+        </div>
+        <div class="executive-stat">
+          <span class="executive-stat__label">Documents uploaded</span>
+          <span class="executive-stat__value">{{ executive_dashboard.document_count|default:0 }}</span>
+          <div class="executive-table">
+            {% if executive_dashboard.documents %}
+              <div class="executive-table__scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Filename</th>
+                      <th>Note</th>
+                      <th>Size</th>
+                      <th>Uploaded</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% regroup executive_dashboard.documents by user_email as documents_by_owner %}
+                    {% for group in documents_by_owner %}
+                      <tr class="executive-table__group">
+                        <td colspan="5">{{ group.list.0.owner_name|default:group.grouper|default:"Unknown Owner" }}</td>
+                      </tr>
+                      {% for doc in group.list %}
+                        <tr>
+                          <td>{{ doc.filename }}</td>
+                          <td>{{ doc.note|default:"--" }}</td>
+                          <td>{{ doc.bytes|default:0 }}</td>
+                          <td>{{ doc.created_at }}</td>
+                          <td>
+                            <button type="button" class="executive-table__button" data-executive-select-email="{{ doc.user_email }}">
+                              View as
+                            </button>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="executive-table__empty">No documents found.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% if not executive_dashboard.loaded %}
+        <div class="profile-modal__message profile-modal__message--warning" role="status" aria-live="polite">
+          Dashboard metrics are temporarily unavailable. Please try again later.
+        </div>
+      {% endif %}
     </div>
   </div>
 
