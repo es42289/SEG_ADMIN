@@ -318,6 +318,8 @@ window.syncRoyaltyPanelHeight = () => {
     const ownerProfileModal = document.getElementById('ownerProfileModal');
     const ownerProfileForm = document.getElementById('ownerProfileForm');
     const ownerProfileMessage = document.getElementById('ownerProfileMessage');
+    const executiveDashButton = document.getElementById('executiveDashButton');
+    const executiveDashModal = document.getElementById('executiveDashModal');
 
     const ownerProfileState = {
       original: null,
@@ -741,6 +743,40 @@ window.syncRoyaltyPanelHeight = () => {
       chatScrollButton.addEventListener('click', (event) => {
         event.preventDefault();
         scrollToFeedbackSection();
+      });
+    }
+
+    if (executiveDashButton && executiveDashModal) {
+      const showExecutiveDashModal = () => {
+        executiveDashModal.classList.add('is-visible');
+        executiveDashModal.setAttribute('aria-hidden', 'false');
+        const focusTarget = executiveDashModal.querySelector('.profile-modal__close');
+        focusTarget?.focus();
+      };
+
+      const hideExecutiveDashModal = () => {
+        executiveDashModal.classList.remove('is-visible');
+        executiveDashModal.setAttribute('aria-hidden', 'true');
+        executiveDashButton.focus({ preventScroll: true });
+      };
+
+      executiveDashButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        showExecutiveDashModal();
+      });
+
+      executiveDashModal
+        .querySelectorAll('[data-exec-close]')
+        .forEach((el) => el.addEventListener('click', (event) => {
+          event.preventDefault();
+          hideExecutiveDashModal();
+        }));
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && executiveDashModal.classList.contains('is-visible')) {
+          event.preventDefault();
+          hideExecutiveDashModal();
+        }
       });
     }
 

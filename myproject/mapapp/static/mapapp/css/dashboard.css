@@ -690,6 +690,39 @@ body {
   pointer-events: none;
 }
 
+/* Executive dash modal */
+.executive-modal__dialog {
+  width: min(720px, 92vw);
+}
+
+.executive-modal__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin-top: 1.25rem;
+}
+
+.executive-metric {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(158, 224, 255, 0.25);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.executive-metric__label {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.executive-metric__value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
 .feedback-response__textarea {
   resize: vertical;
   min-height: 140px;
