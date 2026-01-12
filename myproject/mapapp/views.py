@@ -208,9 +208,9 @@ EXECUTIVE_FEEDBACK_OVERVIEW_SQL = """
 """
 
 EXECUTIVE_DOCUMENTS_SQL = """
-    SELECT filename, note, bytes, created_at
+    SELECT owner_name, filename, note, bytes, created_at
     FROM WELLS.MINERALS.USER_DOC_DIRECTORY
-    ORDER BY created_at DESC
+    ORDER BY owner_name, created_at DESC
     LIMIT 100
 """
 
@@ -317,6 +317,7 @@ def get_executive_dashboard_context():
             ],
             "documents": [
                 {
+                    "owner_name": entry.get("OWNER_NAME"),
                     "filename": entry.get("FILENAME"),
                     "note": entry.get("NOTE"),
                     "bytes": entry.get("BYTES"),
@@ -353,6 +354,7 @@ def get_executive_dashboard_context():
             ],
             "documents": [
                 {
+                    "owner_name": entry.get("OWNER_NAME"),
                     "filename": entry.get("FILENAME"),
                     "note": entry.get("NOTE"),
                     "bytes": entry.get("BYTES"),
@@ -388,6 +390,7 @@ def get_executive_dashboard_context():
         ],
         "documents": [
             {
+                "owner_name": entry.get("OWNER_NAME"),
                 "filename": entry.get("FILENAME"),
                 "note": entry.get("NOTE"),
                 "bytes": entry.get("BYTES"),

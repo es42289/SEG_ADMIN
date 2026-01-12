@@ -278,13 +278,19 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% for doc in executive_dashboard.documents %}
-                      <tr>
-                        <td>{{ doc.filename }}</td>
-                        <td>{{ doc.note|default:"--" }}</td>
-                        <td>{{ doc.bytes|default:0 }}</td>
-                        <td>{{ doc.created_at }}</td>
+                    {% regroup executive_dashboard.documents by owner_name as documents_by_owner %}
+                    {% for group in documents_by_owner %}
+                      <tr class="executive-table__group">
+                        <td colspan="4">{{ group.grouper|default:"Unknown Owner" }}</td>
                       </tr>
+                      {% for doc in group.list %}
+                        <tr>
+                          <td>{{ doc.filename }}</td>
+                          <td>{{ doc.note|default:"--" }}</td>
+                          <td>{{ doc.bytes|default:0 }}</td>
+                          <td>{{ doc.created_at }}</td>
+                        </tr>
+                      {% endfor %}
                     {% endfor %}
                   </tbody>
                 </table>

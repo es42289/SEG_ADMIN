@@ -877,6 +877,15 @@ body {
   color: #ff8b8b;
 }
 
+.executive-table__group td {
+  background: rgba(21, 96, 130, 0.35);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .executive-table__empty {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;
