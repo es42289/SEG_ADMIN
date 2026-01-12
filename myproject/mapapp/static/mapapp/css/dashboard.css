@@ -829,7 +829,15 @@ body {
 .feedback-response {
   margin-top: 0.35rem;
   color: #8fe7b5;
-  text-align: center;
+  text-align: left;
+  font-weight: 600;
+  display: block;
+}
+
+.feedback-response__label {
+  margin-top: 0.35rem;
+  color: #ff6b6b;
+  text-align: left;
   font-weight: 600;
   display: block;
 }

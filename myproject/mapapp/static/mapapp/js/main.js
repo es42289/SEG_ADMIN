@@ -2771,6 +2771,11 @@ window.syncRoyaltyPanelHeight = () => {
         const feedbackCell = document.createElement('td');
         feedbackCell.textContent = entry.feedback_text || '--';
         if (entry.feedback_response) {
+          const responseLabel = document.createElement('div');
+          responseLabel.className = 'feedback-response__label';
+          responseLabel.textContent = 'Admin Response:';
+          feedbackCell.appendChild(responseLabel);
+
           const responseText = document.createElement('div');
           responseText.className = 'feedback-response';
           responseText.textContent = entry.feedback_response;
