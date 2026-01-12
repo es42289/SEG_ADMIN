@@ -2642,12 +2642,25 @@ window.syncRoyaltyPanelHeight = () => {
       loadSupportDocs();
     }
 
+    const feedbackSection = document.getElementById('feedback-section');
     const feedbackForm = document.getElementById('feedback-form');
     const feedbackTextarea = document.getElementById('feedback-text');
     const feedbackSubmitButton = document.getElementById('feedback-submit');
     const feedbackStatus = document.getElementById('feedback-status');
     const feedbackTableBody = document.querySelector('#feedback-table tbody');
     const feedbackEmptyState = document.getElementById('feedback-empty');
+    const isAdminFeedback = feedbackSection?.dataset?.isAdmin === 'true';
+    const feedbackResponseModal = document.getElementById('feedbackResponseModal');
+    const feedbackResponseForm = document.getElementById('feedbackResponseForm');
+    const feedbackResponseText = document.getElementById('feedbackResponseText');
+    const feedbackResponseMessage = document.getElementById('feedbackResponseMessage');
+    const feedbackResponseCloseButtons = document.querySelectorAll('[data-feedback-close]');
+
+    const feedbackResponseState = {
+      isOpen: false,
+      entry: null,
+      saving: false
+    };
 
     const feedbackDateFormatter = new Intl.DateTimeFormat('en-US', {
       dateStyle: 'medium',
@@ -2702,6 +2715,35 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const setFeedbackResponseMessage = (message, variant) => {
+      if (!feedbackResponseMessage) return;
+      feedbackResponseMessage.textContent = message || '';
+      feedbackResponseMessage.className = 'profile-modal__message';
+      if (variant) {
+        feedbackResponseMessage.classList.add(`profile-modal__message--${variant}`);
+      }
+    };
+
+    const showFeedbackResponseModal = (entry) => {
+      if (!feedbackResponseModal || !feedbackResponseText) return;
+      feedbackResponseState.entry = entry;
+      feedbackResponseModal.classList.add('is-visible');
+      feedbackResponseModal.setAttribute('aria-hidden', 'false');
+      feedbackResponseState.isOpen = true;
+      feedbackResponseText.value = entry?.feedback_response || '';
+      setFeedbackResponseMessage('', null);
+      feedbackResponseText.focus();
+    };
+
+    const hideFeedbackResponseModal = () => {
+      if (!feedbackResponseModal) return;
+      feedbackResponseModal.classList.remove('is-visible');
+      feedbackResponseModal.setAttribute('aria-hidden', 'true');
+      feedbackResponseState.isOpen = false;
+      feedbackResponseState.entry = null;
+      setFeedbackResponseMessage('', null);
+    };
+
     const toggleFeedbackEmptyState = () => {
       if (!feedbackEmptyState) return;
       if (!feedbackEntries.length) {
@@ -2718,6 +2760,9 @@ window.syncRoyaltyPanelHeight = () => {
       feedbackEntries.forEach((entry) => {
         const row = document.createElement('tr');
         row.dataset.submittedAt = entry.submitted_at;
+        if (isAdminFeedback) {
+          row.classList.add('feedback-row--interactive');
+        }
 
         const submittedCell = document.createElement('td');
         submittedCell.textContent = formatFeedbackTimestamp(entry.submitted_at);
@@ -2725,6 +2770,17 @@ window.syncRoyaltyPanelHeight = () => {
 
         const feedbackCell = document.createElement('td');
         feedbackCell.textContent = entry.feedback_text || '--';
+        if (entry.feedback_response) {
+          const responseLabel = document.createElement('div');
+          responseLabel.className = 'feedback-response__label';
+          responseLabel.textContent = 'Admin Response:';
+          feedbackCell.appendChild(responseLabel);
+
+          const responseText = document.createElement('div');
+          responseText.className = 'feedback-response';
+          responseText.textContent = entry.feedback_response;
+          feedbackCell.appendChild(responseText);
+        }
         row.appendChild(feedbackCell);
         feedbackTableBody.appendChild(row);
       });
@@ -2762,6 +2818,58 @@ window.syncRoyaltyPanelHeight = () => {
     if (feedbackTableBody) {
       toggleFeedbackEmptyState();
     }
+
+    const saveFeedbackResponse = async (entry, responseText) => {
+      if (!entry?.submitted_at) return;
+      const trimmedResponse = (responseText || '').trim();
+      if (!trimmedResponse) {
+        setFeedbackResponseMessage('Response text is required.', 'error');
+        return;
+      }
+
+      try {
+        feedbackResponseState.saving = true;
+        if (feedbackResponseForm) {
+          feedbackResponseForm.classList.add('is-disabled');
+        }
+        setFeedbackResponseMessage('Saving response…', 'saving');
+        const response = await fetch('/feedback/', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submitted_at: entry.submitted_at,
+            feedback_response: trimmedResponse
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unexpected status: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const updated = payload.entry || {};
+        feedbackEntries = feedbackEntries.map((current) => {
+          if (current.submitted_at !== entry.submitted_at) {
+            return current;
+          }
+          return {
+            ...current,
+            feedback_response: updated.feedback_response || trimmedResponse
+          };
+        });
+        renderFeedbackEntries();
+        setFeedbackResponseMessage('Response saved.', 'success');
+        setTimeout(() => hideFeedbackResponseModal(), 200);
+      } catch (error) {
+        console.error('Failed to save feedback response:', error);
+        setFeedbackResponseMessage('Unable to save response right now.', 'error');
+      } finally {
+        feedbackResponseState.saving = false;
+        if (feedbackResponseForm) {
+          feedbackResponseForm.classList.remove('is-disabled');
+        }
+      }
+    };
 
     if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
       const originalButtonText = feedbackSubmitButton.textContent;
@@ -2814,3 +2922,41 @@ window.syncRoyaltyPanelHeight = () => {
 
       loadFeedbackEntries();
     }
+
+    if (feedbackTableBody && isAdminFeedback) {
+      feedbackTableBody.addEventListener('click', (event) => {
+        const row = event.target.closest('tr');
+        if (!row) return;
+        const submittedAt = row.dataset.submittedAt;
+        const entry = feedbackEntries.find((item) => item.submitted_at === submittedAt);
+        if (!entry) return;
+        showFeedbackResponseModal(entry);
+      });
+    }
+
+    if (feedbackResponseForm && feedbackResponseText) {
+      feedbackResponseForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (feedbackResponseState.saving) return;
+        if (!feedbackResponseState.entry) {
+          setFeedbackResponseMessage('Select a feedback entry first.', 'error');
+          return;
+        }
+        saveFeedbackResponse(feedbackResponseState.entry, feedbackResponseText.value);
+      });
+    }
+
+    if (feedbackResponseCloseButtons.length) {
+      feedbackResponseCloseButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          if (feedbackResponseState.saving) return;
+          hideFeedbackResponseModal();
+        });
+      });
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      if (!feedbackResponseState.isOpen || feedbackResponseState.saving) return;
+      hideFeedbackResponseModal();
+    });
