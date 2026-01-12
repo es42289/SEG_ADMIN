@@ -388,11 +388,16 @@ def map_page(request):
         return redirect('/login/')
     
     admin_context = get_admin_banner_context(request)
+    can_respond_to_feedback = bool(request.session.get("admin_selected_email"))
 
     return render(
         request,
         "map.html",
-        {"admin_context": admin_context, "current_path": request.get_full_path()},
+        {
+            "admin_context": admin_context,
+            "current_path": request.get_full_path(),
+            "can_respond_to_feedback": can_respond_to_feedback,
+        },
     )
 
 def map_data(request):
@@ -695,13 +700,21 @@ def user_feedback_entries(request):
     conn = get_snowflake_connection()
     cur = None
 
+    def _feedback_row_to_dict(row):
+        return {
+            "feedback_text": row.get("FEEDBACK_TEXT"),
+            "feedback_response": row.get("FEEDBACK_RESPONSE"),
+            "submitted_at": _format_timestamp_for_json(row.get("SUBMITTED_AT")),
+            "username": row.get("USERNAME"),
+        }
+
     try:
         cur = conn.cursor(DictCursor)
 
         if request.method == "GET":
             cur.execute(
                 """
-                SELECT FEEDBACK_TEXT, SUBMITTED_AT, USERNAME
+                SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
                 FROM WELLS.MINERALS.USER_FEEDBACK
                 WHERE USERNAME = %s
                 ORDER BY SUBMITTED_AT DESC
@@ -709,14 +722,7 @@ def user_feedback_entries(request):
                 (user_email,),
             )
             rows = cur.fetchall()
-            entries = [
-                {
-                    "feedback_text": row.get("FEEDBACK_TEXT"),
-                    "submitted_at": _format_timestamp_for_json(row.get("SUBMITTED_AT")),
-                    "username": row.get("USERNAME"),
-                }
-                for row in rows
-            ]
+            entries = [_feedback_row_to_dict(row) for row in rows]
             return JsonResponse({"entries": entries})
 
         try:
@@ -742,6 +748,7 @@ def user_feedback_entries(request):
                 {
                     "entry": {
                         "feedback_text": feedback_text,
+                        "feedback_response": None,
                         "submitted_at": _format_timestamp_for_json(submitted_at),
                         "username": user_email,
                     }
@@ -752,9 +759,43 @@ def user_feedback_entries(request):
         if request.method == "PUT":
             original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
             new_feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
+            response_value = payload.get("feedback_response")
 
             if not original_submitted_at:
                 return JsonResponse({"detail": "submitted_at is required."}, status=400)
+
+            if response_value is not None:
+                if not request.session.get("admin_selected_email"):
+                    return JsonResponse({"detail": "Admin access required."}, status=403)
+                response_text = str(response_value).strip()
+                if not response_text:
+                    return JsonResponse({"detail": "Feedback response is required."}, status=400)
+
+                cur.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_FEEDBACK
+                    SET FEEDBACK_RESPONSE = %s
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (response_text, user_email, original_submitted_at),
+                )
+
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    return JsonResponse({"detail": "Feedback entry not found."}, status=404)
+
+                conn.commit()
+                cur.execute(
+                    """
+                    SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
+                    FROM WELLS.MINERALS.USER_FEEDBACK
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (user_email, original_submitted_at),
+                )
+                row = cur.fetchone()
+                return JsonResponse({"entry": _feedback_row_to_dict(row) if row else None})
+
             if not new_feedback_text:
                 return JsonResponse({"detail": "Feedback text is required."}, status=400)
 
@@ -773,10 +814,22 @@ def user_feedback_entries(request):
                 return JsonResponse({"detail": "Feedback entry not found."}, status=404)
 
             conn.commit()
+            cur.execute(
+                """
+                SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
+                FROM WELLS.MINERALS.USER_FEEDBACK
+                WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                """,
+                (user_email, updated_timestamp),
+            )
+            row = cur.fetchone()
             return JsonResponse(
                 {
-                    "entry": {
+                    "entry": _feedback_row_to_dict(row)
+                    if row
+                    else {
                         "feedback_text": new_feedback_text,
+                        "feedback_response": None,
                         "submitted_at": _format_timestamp_for_json(updated_timestamp),
                         "username": user_email,
                     }

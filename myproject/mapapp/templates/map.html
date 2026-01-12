@@ -460,7 +460,7 @@
           Submit Feedback
         </button>
       </form>
-      <div id="feedback-history" class="feedback-history">
+      <div id="feedback-history" class="feedback-history" data-can-respond="{{ can_respond_to_feedback|yesno:'true,false' }}">
         <div class="feedback-history__table-wrapper">
           <table id="feedback-table" aria-describedby="feedback-status">
             <thead>

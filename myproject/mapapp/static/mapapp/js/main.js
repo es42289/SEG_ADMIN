@@ -2648,6 +2648,8 @@ window.syncRoyaltyPanelHeight = () => {
     const feedbackStatus = document.getElementById('feedback-status');
     const feedbackTableBody = document.querySelector('#feedback-table tbody');
     const feedbackEmptyState = document.getElementById('feedback-empty');
+    const feedbackHistory = document.getElementById('feedback-history');
+    const canRespondToFeedback = feedbackHistory?.dataset?.canRespond === 'true';
 
     const feedbackDateFormatter = new Intl.DateTimeFormat('en-US', {
       dateStyle: 'medium',
@@ -2724,7 +2726,28 @@ window.syncRoyaltyPanelHeight = () => {
         row.appendChild(submittedCell);
 
         const feedbackCell = document.createElement('td');
-        feedbackCell.textContent = entry.feedback_text || '--';
+        feedbackCell.classList.add('feedback-cell');
+
+        const feedbackText = document.createElement('div');
+        feedbackText.textContent = entry.feedback_text || '--';
+        feedbackCell.appendChild(feedbackText);
+
+        if (entry.feedback_response) {
+          const responseWrapper = document.createElement('div');
+          responseWrapper.classList.add('feedback-response');
+
+          const responseLabel = document.createElement('div');
+          responseLabel.classList.add('feedback-response__label');
+          responseLabel.textContent = 'Admin Response';
+
+          const responseText = document.createElement('div');
+          responseText.textContent = entry.feedback_response;
+
+          responseWrapper.appendChild(responseLabel);
+          responseWrapper.appendChild(responseText);
+          feedbackCell.appendChild(responseWrapper);
+        }
+
         row.appendChild(feedbackCell);
         feedbackTableBody.appendChild(row);
       });
@@ -2759,8 +2782,61 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const updateFeedbackResponse = async (entry) => {
+      if (!entry?.submitted_at) return;
+      const currentResponse = entry.feedback_response || '';
+      const promptValue = currentResponse
+        ? `Update response for this feedback:\n\n${entry.feedback_text || ''}`
+        : `Add a response for this feedback:\n\n${entry.feedback_text || ''}`;
+      const responseText = window.prompt(promptValue, currentResponse);
+      if (responseText === null) return;
+
+      const trimmedResponse = responseText.trim();
+      if (!trimmedResponse) {
+        setFeedbackStatus('Response cannot be empty.', 'error');
+        return;
+      }
+
+      try {
+        setFeedbackStatus('Saving response...');
+        const response = await fetch('/feedback/', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            submitted_at: entry.submitted_at,
+            feedback_response: trimmedResponse
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unexpected status: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const updatedEntry = payload.entry || entry;
+        feedbackEntries = feedbackEntries.map((item) =>
+          item.submitted_at === entry.submitted_at ? { ...item, ...updatedEntry } : item
+        );
+        renderFeedbackEntries();
+        setFeedbackStatus('Feedback response saved.', 'success');
+      } catch (error) {
+        console.error('Failed to save feedback response:', error);
+        setFeedbackStatus('Unable to save feedback response right now.', 'error');
+      }
+    };
+
     if (feedbackTableBody) {
       toggleFeedbackEmptyState();
+    }
+
+    if (feedbackTableBody && canRespondToFeedback) {
+      feedbackTableBody.addEventListener('click', (event) => {
+        const row = event.target.closest('tr');
+        if (!row) return;
+        const entry = feedbackEntries.find((item) => item.submitted_at === row.dataset.submittedAt);
+        if (!entry) return;
+        updateFeedbackResponse(entry);
+      });
     }
 
     if (feedbackForm && feedbackTextarea && feedbackSubmitButton) {
