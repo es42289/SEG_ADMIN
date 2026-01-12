@@ -210,19 +210,20 @@ EXECUTIVE_FEEDBACK_OVERVIEW_SQL = """
 EXECUTIVE_DOCUMENTS_SQL = """
     SELECT
         COALESCE(um.owner_name, ud.owner_name) AS owner_name,
+        ud.user_email,
         ud.filename,
         ud.note,
         ud.bytes,
         ud.created_at
     FROM WELLS.MINERALS.USER_DOC_DIRECTORY AS ud
     LEFT JOIN WELLS.MINERALS.USER_MAPPINGS AS um
-        ON um.AUTH0_EMAIL = ud.AUTH0_EMAIL
+        ON um.AUTH0_EMAIL = ud.USER_EMAIL
     ORDER BY owner_name, ud.created_at DESC
     LIMIT 100
 """
 
 EXECUTIVE_DOCUMENTS_SQL_FALLBACK = """
-    SELECT filename, note, bytes, created_at
+    SELECT user_email, filename, note, bytes, created_at
     FROM WELLS.MINERALS.USER_DOC_DIRECTORY
     ORDER BY created_at DESC
     LIMIT 100
@@ -336,6 +337,7 @@ def get_executive_dashboard_context():
             "documents": [
                 {
                     "owner_name": entry.get("OWNER_NAME"),
+                    "user_email": entry.get("USER_EMAIL"),
                     "filename": entry.get("FILENAME"),
                     "note": entry.get("NOTE"),
                     "bytes": entry.get("BYTES"),
@@ -373,6 +375,7 @@ def get_executive_dashboard_context():
             "documents": [
                 {
                     "owner_name": entry.get("OWNER_NAME"),
+                    "user_email": entry.get("USER_EMAIL"),
                     "filename": entry.get("FILENAME"),
                     "note": entry.get("NOTE"),
                     "bytes": entry.get("BYTES"),
@@ -409,6 +412,7 @@ def get_executive_dashboard_context():
         "documents": [
             {
                 "owner_name": entry.get("OWNER_NAME"),
+                "user_email": entry.get("USER_EMAIL"),
                 "filename": entry.get("FILENAME"),
                 "note": entry.get("NOTE"),
                 "bytes": entry.get("BYTES"),

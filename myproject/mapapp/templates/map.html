@@ -278,10 +278,10 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% regroup executive_dashboard.documents by owner_name as documents_by_owner %}
+                    {% regroup executive_dashboard.documents by user_email as documents_by_owner %}
                     {% for group in documents_by_owner %}
                       <tr class="executive-table__group">
-                        <td colspan="4">{{ group.grouper|default:"Unknown Owner" }}</td>
+                        <td colspan="4">{{ group.list.0.owner_name|default:group.grouper|default:"Unknown Owner" }}</td>
                       </tr>
                       {% for doc in group.list %}
                         <tr>
