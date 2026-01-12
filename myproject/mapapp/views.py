@@ -197,6 +197,7 @@ def get_admin_banner_context(request):
     default_email = session_user.get("email")
     emails = get_admin_user_emails()
     selected_email = request.session.get("admin_selected_email") or default_email
+    is_admin = bool(default_email and default_email in emails)
     if selected_email and emails and selected_email not in emails:
         selected_email = default_email if default_email in emails else emails[0]
     contact_name = get_admin_contact_name(selected_email)
@@ -204,6 +205,7 @@ def get_admin_banner_context(request):
         "emails": emails,
         "selected_email": selected_email,
         "contact_name": contact_name,
+        "is_admin": is_admin,
     }
 
 
@@ -688,6 +690,10 @@ def user_feedback_entries(request):
         return JsonResponse({"detail": "Authentication required."}, status=401)
 
     user_email = get_effective_user_email(request)
+    session_user = request.session.get("user") or {}
+    session_email = session_user.get("email")
+    admin_emails = get_admin_user_emails()
+    is_admin = session_email in admin_emails
 
     if not user_email:
         return JsonResponse({"detail": "User email unavailable."}, status=400)
@@ -701,7 +707,7 @@ def user_feedback_entries(request):
         if request.method == "GET":
             cur.execute(
                 """
-                SELECT FEEDBACK_TEXT, SUBMITTED_AT, USERNAME
+                SELECT FEEDBACK_TEXT, FEEDBACK_RESPONSE, SUBMITTED_AT, USERNAME
                 FROM WELLS.MINERALS.USER_FEEDBACK
                 WHERE USERNAME = %s
                 ORDER BY SUBMITTED_AT DESC
@@ -712,6 +718,7 @@ def user_feedback_entries(request):
             entries = [
                 {
                     "feedback_text": row.get("FEEDBACK_TEXT"),
+                    "feedback_response": row.get("FEEDBACK_RESPONSE"),
                     "submitted_at": _format_timestamp_for_json(row.get("SUBMITTED_AT")),
                     "username": row.get("USERNAME"),
                 }
@@ -752,9 +759,39 @@ def user_feedback_entries(request):
         if request.method == "PUT":
             original_submitted_at = _parse_iso_timestamp(payload.get("submitted_at"))
             new_feedback_text = (payload.get("feedback_text") or payload.get("feedback") or "").strip()
+            feedback_response = (payload.get("feedback_response") or payload.get("response") or "").strip()
 
             if not original_submitted_at:
                 return JsonResponse({"detail": "submitted_at is required."}, status=400)
+
+            if feedback_response:
+                if not is_admin:
+                    return JsonResponse({"detail": "Admin access required."}, status=403)
+
+                cur.execute(
+                    """
+                    UPDATE WELLS.MINERALS.USER_FEEDBACK
+                    SET FEEDBACK_RESPONSE = %s
+                    WHERE USERNAME = %s AND SUBMITTED_AT = %s
+                    """,
+                    (feedback_response, user_email, original_submitted_at),
+                )
+
+                if cur.rowcount == 0:
+                    conn.rollback()
+                    return JsonResponse({"detail": "Feedback entry not found."}, status=404)
+
+                conn.commit()
+                return JsonResponse(
+                    {
+                        "entry": {
+                            "feedback_response": feedback_response,
+                            "submitted_at": _format_timestamp_for_json(original_submitted_at),
+                            "username": user_email,
+                        }
+                    }
+                )
+
             if not new_feedback_text:
                 return JsonResponse({"detail": "Feedback text is required."}, status=400)
 

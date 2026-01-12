@@ -775,6 +775,22 @@ body {
   vertical-align: top;
 }
 
+#feedback-table tbody tr.feedback-row--interactive {
+  cursor: pointer;
+}
+
+#feedback-table tbody tr.feedback-row--interactive:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.feedback-response {
+  margin-top: 0.35rem;
+  color: #8fe7b5;
+  text-align: right;
+  font-weight: 600;
+  display: block;
+}
+
 
 .feedback-history__empty {
   display: none;
