@@ -805,6 +805,19 @@ window.syncRoyaltyPanelHeight = () => {
           hideExecutiveDashModal();
         }));
 
+      executiveDashModal.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-executive-select-email]');
+        if (!target) return;
+        const email = target.dataset.executiveSelectEmail;
+        if (!email) return;
+        const adminForm = document.querySelector('.admin-banner__form');
+        const select = adminForm?.querySelector('select[name="selected_email"]');
+        if (!select) return;
+        select.value = email;
+        hideExecutiveDashModal();
+        adminForm.submit();
+      });
+
       executiveDashButton.addEventListener('click', (event) => {
         event.preventDefault();
         showExecutiveDashModal();

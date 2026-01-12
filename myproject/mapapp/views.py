@@ -177,6 +177,16 @@ EXECUTIVE_DASHBOARD_SQL = """
         ) AS DOCUMENT_COUNT
 """
 
+EXECUTIVE_OWNER_ACCOUNTS_SQL = """
+    SELECT DISTINCT OWNER_NAME, AUTH0_EMAIL
+    FROM WELLS.MINERALS.USER_MAPPINGS
+    WHERE OWNER_NAME IS NOT NULL
+      AND TRIM(OWNER_NAME) <> ''
+      AND AUTH0_EMAIL IS NOT NULL
+      AND TRIM(AUTH0_EMAIL) <> ''
+    ORDER BY OWNER_NAME
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -235,6 +245,12 @@ def get_snowflake_connection():
 
 def get_executive_dashboard_context():
     try:
+        owner_rows = snowflake_helpers.fetch_all(EXECUTIVE_OWNER_ACCOUNTS_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load executive dashboard owner accounts.")
+        owner_rows = []
+
+    try:
         row = snowflake_helpers.fetch_one(EXECUTIVE_DASHBOARD_SQL)
     except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
         logger.exception("Failed to load executive dashboard metrics.")
@@ -242,6 +258,14 @@ def get_executive_dashboard_context():
             "owner_count": 0,
             "pending_feedback_count": 0,
             "document_count": 0,
+            "owner_accounts": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("AUTH0_EMAIL"),
+                }
+                for entry in owner_rows
+                if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+            ],
             "loaded": False,
         }
 
@@ -250,6 +274,14 @@ def get_executive_dashboard_context():
             "owner_count": 0,
             "pending_feedback_count": 0,
             "document_count": 0,
+            "owner_accounts": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("AUTH0_EMAIL"),
+                }
+                for entry in owner_rows
+                if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+            ],
             "loaded": False,
         }
 
@@ -257,6 +289,14 @@ def get_executive_dashboard_context():
         "owner_count": int(row.get("OWNER_COUNT") or 0),
         "pending_feedback_count": int(row.get("PENDING_FEEDBACK_COUNT") or 0),
         "document_count": int(row.get("DOCUMENT_COUNT") or 0),
+        "owner_accounts": [
+            {
+                "owner_name": entry.get("OWNER_NAME"),
+                "email": entry.get("AUTH0_EMAIL"),
+            }
+            for entry in owner_rows
+            if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+        ],
         "loaded": True,
     }
 

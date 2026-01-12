@@ -198,6 +198,36 @@
         <div class="executive-stat">
           <span class="executive-stat__label">Claimed owner accounts</span>
           <span class="executive-stat__value">{{ executive_dashboard.owner_count|default:0 }}</span>
+          <div class="executive-table">
+            {% if executive_dashboard.owner_accounts %}
+              <div class="executive-table__scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Owner Name</th>
+                      <th>Claimed Email</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for account in executive_dashboard.owner_accounts %}
+                      <tr>
+                        <td>{{ account.owner_name }}</td>
+                        <td>{{ account.email }}</td>
+                        <td>
+                          <button type="button" class="executive-table__button" data-executive-select-email="{{ account.email }}">
+                            View as
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="executive-table__empty">No claimed owner accounts found.</p>
+            {% endif %}
+          </div>
         </div>
         <div class="executive-stat">
           <span class="executive-stat__label">Feedback items awaiting response</span>

@@ -808,6 +808,63 @@ body {
   color: #ffffff;
 }
 
+.executive-table {
+  margin-top: 0.85rem;
+}
+
+.executive-table__scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(6, 48, 71, 0.4);
+}
+
+.executive-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  color: #ffffff;
+}
+
+.executive-table thead th {
+  position: sticky;
+  top: 0;
+  background: rgba(21, 96, 130, 0.95);
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.executive-table tbody td {
+  padding: 0.45rem 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.executive-table__button {
+  font: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
+  color: #ffffff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.executive-table__button:hover,
+.executive-table__button:focus {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.executive-table__empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .support-docs-button .button-subtitle {
   font-size: 0.65rem;
   font-style: italic;
