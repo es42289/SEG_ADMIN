@@ -777,7 +777,9 @@ body {
 }
 
 .executive-modal {
-  max-width: 620px;
+  width: min(1200px, 96vw);
+  max-width: 1200px;
+  max-height: 92vh;
 }
 
 .executive-stats {
