@@ -268,6 +268,34 @@
         <div class="executive-stat">
           <span class="executive-stat__label">Documents uploaded</span>
           <span class="executive-stat__value">{{ executive_dashboard.document_count|default:0 }}</span>
+          <div class="executive-table">
+            {% if executive_dashboard.documents %}
+              <div class="executive-table__scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Filename</th>
+                      <th>Note</th>
+                      <th>Size</th>
+                      <th>Uploaded</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for doc in executive_dashboard.documents %}
+                      <tr>
+                        <td>{{ doc.filename }}</td>
+                        <td>{{ doc.note|default:"--" }}</td>
+                        <td>{{ doc.bytes|default:0 }}</td>
+                        <td>{{ doc.created_at }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="executive-table__empty">No documents found.</p>
+            {% endif %}
+          </div>
         </div>
       </div>
       {% if not executive_dashboard.loaded %}

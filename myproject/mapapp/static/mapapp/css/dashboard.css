@@ -861,6 +861,13 @@ body {
   background: rgba(255, 255, 255, 0.18);
 }
 
+.executive-table td {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .executive-table__alert {
   font-weight: 700;
   color: #ff8b8b;
