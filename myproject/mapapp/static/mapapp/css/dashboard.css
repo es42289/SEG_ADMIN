@@ -829,7 +829,7 @@ body {
 .feedback-response {
   margin-top: 0.35rem;
   color: #8fe7b5;
-  text-align: right;
+  text-align: center;
   font-weight: 600;
   display: block;
 }
