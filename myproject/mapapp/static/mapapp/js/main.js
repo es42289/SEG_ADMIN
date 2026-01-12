@@ -315,7 +315,9 @@ window.syncRoyaltyPanelHeight = () => {
 
     const ownerProfileButton = document.getElementById('ownerProfileButton');
     const chatScrollButton = document.getElementById('chatScrollButton');
+    const executiveDashButton = document.getElementById('executiveDashButton');
     const ownerProfileModal = document.getElementById('ownerProfileModal');
+    const executiveDashModal = document.getElementById('executiveDashModal');
     const ownerProfileForm = document.getElementById('ownerProfileForm');
     const ownerProfileMessage = document.getElementById('ownerProfileMessage');
 
@@ -332,6 +334,10 @@ window.syncRoyaltyPanelHeight = () => {
         (ownerProfileForm && ownerProfileForm.elements && ownerProfileForm.elements.email
           ? ownerProfileForm.elements.email.value
           : '')
+    };
+
+    const executiveDashState = {
+      isOpen: false
     };
 
     const scrollToFeedbackSection = () => {
@@ -664,6 +670,25 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
+    function showExecutiveDashModal() {
+      if (!executiveDashModal || !executiveDashButton) return;
+      executiveDashModal.classList.add('is-visible');
+      executiveDashModal.setAttribute('aria-hidden', 'false');
+      executiveDashState.isOpen = true;
+      const closeButton = executiveDashModal.querySelector('[data-executive-close]');
+      closeButton?.focus?.();
+    }
+
+    function hideExecutiveDashModal() {
+      if (!executiveDashModal) return;
+      executiveDashModal.classList.remove('is-visible');
+      executiveDashModal.setAttribute('aria-hidden', 'true');
+      executiveDashState.isOpen = false;
+      if (executiveDashButton) {
+        executiveDashButton.focus({ preventScroll: true });
+      }
+    }
+
     async function attemptCloseOwnerProfileModal() {
       if (!ownerProfileForm) {
         hideOwnerProfileModal();
@@ -770,6 +795,27 @@ window.syncRoyaltyPanelHeight = () => {
       });
 
       fetchOwnerProfileData();
+    }
+
+    if (executiveDashModal && executiveDashButton) {
+      executiveDashModal
+        .querySelectorAll('[data-executive-close]')
+        .forEach((el) => el.addEventListener('click', (event) => {
+          event.preventDefault();
+          hideExecutiveDashModal();
+        }));
+
+      executiveDashButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        showExecutiveDashModal();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && executiveDashState.isOpen) {
+          event.preventDefault();
+          hideExecutiveDashModal();
+        }
+      });
     }
 
     // Global variables to store all data

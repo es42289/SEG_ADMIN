@@ -45,6 +45,12 @@
         </svg>
         <span class="login-action__label">Owner Profile</span>
       </button>
+      <button type="button" id="executiveDashButton" class="login-action" title="Executive dashboard overview">
+        <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4.5 19a.75.75 0 0 1-.75-.75V5.75A.75.75 0 0 1 4.5 5h15a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-15Zm1.5-1.5h12v-3.25h-12V17.5Zm0-4.75h12v-6h-12v6Zm1.75-4.5h3V7.75h-3v.5Zm4.5 0h3V7.75h-3v.5Zm4.5 0h1.75V7.75H16.75v.5Z"/>
+        </svg>
+        <span class="login-action__label">Executive Dash</span>
+      </button>
       <button type="button" id="chatScrollButton" class="login-action" title="Chat (coming soon)">
         <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M4.5 4A1.5 1.5 0 0 0 3 5.5v9A1.5 1.5 0 0 0 4.5 16H7v3.25a.75.75 0 0 0 1.22.57L13 16h6.5A1.5 1.5 0 0 0 21 14.5v-9A1.5 1.5 0 0 0 19.5 4h-15Z"/>
@@ -174,6 +180,38 @@
         </div>
       </form>
       <div id="feedbackResponseMessage" class="profile-modal__message" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+  <div id="executiveDashModal" class="profile-modal" aria-hidden="true">
+    <div class="profile-modal__overlay" data-executive-close></div>
+    <div class="profile-modal__dialog executive-modal" role="dialog" aria-modal="true" aria-labelledby="executiveDashTitle">
+      <button type="button" class="profile-modal__close" data-executive-close aria-label="Close executive dashboard dialog">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <div class="profile-modal__logo">
+        <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
+      </div>
+      <h2 id="executiveDashTitle" class="profile-modal__title">Executive Dashboard</h2>
+      <p class="profile-modal__subtitle">Snapshot of owner engagement and support activity.</p>
+      <div class="executive-stats">
+        <div class="executive-stat">
+          <span class="executive-stat__label">Claimed owner accounts</span>
+          <span class="executive-stat__value">{{ executive_dashboard.owner_count|default:0 }}</span>
+        </div>
+        <div class="executive-stat">
+          <span class="executive-stat__label">Feedback items awaiting response</span>
+          <span class="executive-stat__value">{{ executive_dashboard.pending_feedback_count|default:0 }}</span>
+        </div>
+        <div class="executive-stat">
+          <span class="executive-stat__label">Documents uploaded</span>
+          <span class="executive-stat__value">{{ executive_dashboard.document_count|default:0 }}</span>
+        </div>
+      </div>
+      {% if not executive_dashboard.loaded %}
+        <div class="profile-modal__message profile-modal__message--warning" role="status" aria-live="polite">
+          Dashboard metrics are temporarily unavailable. Please try again later.
+        </div>
+      {% endif %}
     </div>
   </div>
 
