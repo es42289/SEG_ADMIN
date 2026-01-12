@@ -861,6 +861,11 @@ body {
   background: rgba(255, 255, 255, 0.18);
 }
 
+.executive-table__alert {
+  font-weight: 700;
+  color: #ff8b8b;
+}
+
 .executive-table__empty {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

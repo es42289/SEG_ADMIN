@@ -232,6 +232,38 @@
         <div class="executive-stat">
           <span class="executive-stat__label">Feedback items awaiting response</span>
           <span class="executive-stat__value">{{ executive_dashboard.pending_feedback_count|default:0 }}</span>
+          <div class="executive-table">
+            {% if executive_dashboard.feedback_overview %}
+              <div class="executive-table__scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Owner Name</th>
+                      <th>Total Feedback</th>
+                      <th>Unanswered</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for entry in executive_dashboard.feedback_overview %}
+                      <tr>
+                        <td>{{ entry.owner_name }}</td>
+                        <td>{{ entry.total_feedback }}</td>
+                        <td class="executive-table__alert">{{ entry.unanswered_feedback }}</td>
+                        <td>
+                          <button type="button" class="executive-table__button" data-executive-select-email="{{ entry.email }}">
+                            View as
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="executive-table__empty">No feedback entries found.</p>
+            {% endif %}
+          </div>
         </div>
         <div class="executive-stat">
           <span class="executive-stat__label">Documents uploaded</span>

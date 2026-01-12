@@ -187,6 +187,26 @@ EXECUTIVE_OWNER_ACCOUNTS_SQL = """
     ORDER BY OWNER_NAME
 """
 
+EXECUTIVE_FEEDBACK_OVERVIEW_SQL = """
+    SELECT
+        um.OWNER_NAME,
+        uf.USERNAME,
+        COUNT(*) AS TOTAL_FEEDBACK,
+        SUM(
+            CASE
+                WHEN uf.FEEDBACK_RESPONSE IS NULL OR TRIM(uf.FEEDBACK_RESPONSE) = '' THEN 1
+                ELSE 0
+            END
+        ) AS UNANSWERED_FEEDBACK
+    FROM WELLS.MINERALS.USER_FEEDBACK AS uf
+    INNER JOIN WELLS.MINERALS.USER_MAPPINGS AS um
+        ON um.AUTH0_EMAIL = uf.USERNAME
+    WHERE um.OWNER_NAME IS NOT NULL
+      AND TRIM(um.OWNER_NAME) <> ''
+    GROUP BY um.OWNER_NAME, uf.USERNAME
+    ORDER BY UNANSWERED_FEEDBACK DESC, TOTAL_FEEDBACK DESC, um.OWNER_NAME
+"""
+
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +271,12 @@ def get_executive_dashboard_context():
         owner_rows = []
 
     try:
+        feedback_rows = snowflake_helpers.fetch_all(EXECUTIVE_FEEDBACK_OVERVIEW_SQL)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to load executive dashboard feedback overview.")
+        feedback_rows = []
+
+    try:
         row = snowflake_helpers.fetch_one(EXECUTIVE_DASHBOARD_SQL)
     except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
         logger.exception("Failed to load executive dashboard metrics.")
@@ -265,6 +291,16 @@ def get_executive_dashboard_context():
                 }
                 for entry in owner_rows
                 if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+            ],
+            "feedback_overview": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("USERNAME"),
+                    "total_feedback": int(entry.get("TOTAL_FEEDBACK") or 0),
+                    "unanswered_feedback": int(entry.get("UNANSWERED_FEEDBACK") or 0),
+                }
+                for entry in feedback_rows
+                if entry.get("OWNER_NAME") and entry.get("USERNAME")
             ],
             "loaded": False,
         }
@@ -282,6 +318,16 @@ def get_executive_dashboard_context():
                 for entry in owner_rows
                 if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
             ],
+            "feedback_overview": [
+                {
+                    "owner_name": entry.get("OWNER_NAME"),
+                    "email": entry.get("USERNAME"),
+                    "total_feedback": int(entry.get("TOTAL_FEEDBACK") or 0),
+                    "unanswered_feedback": int(entry.get("UNANSWERED_FEEDBACK") or 0),
+                }
+                for entry in feedback_rows
+                if entry.get("OWNER_NAME") and entry.get("USERNAME")
+            ],
             "loaded": False,
         }
 
@@ -296,6 +342,16 @@ def get_executive_dashboard_context():
             }
             for entry in owner_rows
             if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
+        ],
+        "feedback_overview": [
+            {
+                "owner_name": entry.get("OWNER_NAME"),
+                "email": entry.get("USERNAME"),
+                "total_feedback": int(entry.get("TOTAL_FEEDBACK") or 0),
+                "unanswered_feedback": int(entry.get("UNANSWERED_FEEDBACK") or 0),
+            }
+            for entry in feedback_rows
+            if entry.get("OWNER_NAME") and entry.get("USERNAME")
         ],
         "loaded": True,
     }
