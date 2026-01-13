@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from functools import lru_cache
 
 import numpy as np
@@ -458,6 +458,49 @@ def _parse_iso_timestamp(value):
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _format_date_for_json(value):
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if value is None:
+        return None
+    return str(value)
+
+
+def _coerce_float(value):
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_int(value):
+    if value is None or value == "":
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_date(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value).date()
+        except ValueError:
+            return None
+    return None
 
     return None
 
@@ -1185,6 +1228,174 @@ def bulk_well_production(request):
         except Exception:
             pass
         conn.close()
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def well_dca_inputs(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    if request.method == "GET":
+        api = request.GET.get("api")
+        if not api:
+            return JsonResponse({"detail": "API is required."}, status=400)
+
+        prod_sql = """
+            SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF
+            FROM WELLS.MINERALS.RAW_PROD_DATA
+            WHERE API_UWI = %s
+            ORDER BY PRODUCINGMONTH
+        """
+        params_sql = """
+            SELECT API_UWI,
+                   ECON_SCENARIO,
+                   FCST_START_OIL,
+                   FCST_START_GAS,
+                   GAS_CALC_QI,
+                   GAS_Q_MIN,
+                   GAS_DECLINE_TYPE,
+                   GAS_EMPIRICAL_DI,
+                   GAS_CALC_B_FACTOR,
+                   GAS_D_MIN,
+                   OIL_CALC_QI,
+                   OIL_Q_MIN,
+                   OIL_DECLINE_TYPE,
+                   OIL_EMPIRICAL_DI,
+                   OIL_CALC_B_FACTOR,
+                   OIL_D_MIN,
+                   GAS_FCST_YRS
+            FROM WELLS.MINERALS.ECON_INPUT_1PASS
+            WHERE API_UWI = %s
+            ORDER BY LAST_EDIT_DATE
+            LIMIT 1
+        """
+        try:
+            prod_rows = list(snowflake_helpers.fetch_all(prod_sql, (api,)))
+            params_row = snowflake_helpers.fetch_one(params_sql, (api,))
+        except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+            logger.exception("Failed to load well DCA inputs for %s", api)
+            return JsonResponse({"detail": "Unable to load well data."}, status=502)
+
+        production = [
+            {
+                "API_UWI": row.get("API_UWI"),
+                "PRODUCINGMONTH": _format_date_for_json(row.get("PRODUCINGMONTH")),
+                "LIQUIDSPROD_BBL": row.get("LIQUIDSPROD_BBL"),
+                "GASPROD_MCF": row.get("GASPROD_MCF"),
+            }
+            for row in prod_rows
+        ]
+        params = None
+        if params_row:
+            params = dict(params_row)
+            params["FCST_START_OIL"] = _format_date_for_json(params.get("FCST_START_OIL"))
+            params["FCST_START_GAS"] = _format_date_for_json(params.get("FCST_START_GAS"))
+
+        return JsonResponse({"api": api, "production": production, "params": params})
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    api = payload.get("api")
+    params = payload.get("params") or {}
+    if not api:
+        return JsonResponse({"detail": "API is required."}, status=400)
+
+    econ_scenario = params.get("ECON_SCENARIO") or "BASE"
+    merge_sql = """
+        MERGE INTO WELLS.MINERALS.ECON_INPUT_1PASS AS target
+        USING (SELECT %s AS API_UWI) AS source
+        ON target.API_UWI = source.API_UWI
+        WHEN MATCHED THEN UPDATE SET
+            ECON_SCENARIO = %s,
+            FCST_START_OIL = %s,
+            FCST_START_GAS = %s,
+            GAS_CALC_QI = %s,
+            GAS_Q_MIN = %s,
+            GAS_DECLINE_TYPE = %s,
+            GAS_EMPIRICAL_DI = %s,
+            GAS_CALC_B_FACTOR = %s,
+            GAS_D_MIN = %s,
+            OIL_CALC_QI = %s,
+            OIL_Q_MIN = %s,
+            OIL_DECLINE_TYPE = %s,
+            OIL_EMPIRICAL_DI = %s,
+            OIL_CALC_B_FACTOR = %s,
+            OIL_D_MIN = %s,
+            GAS_FCST_YRS = %s,
+            LAST_EDIT_DATE = CURRENT_TIMESTAMP
+        WHEN NOT MATCHED THEN INSERT (
+            API_UWI,
+            ECON_SCENARIO,
+            FCST_START_OIL,
+            FCST_START_GAS,
+            GAS_CALC_QI,
+            GAS_Q_MIN,
+            GAS_DECLINE_TYPE,
+            GAS_EMPIRICAL_DI,
+            GAS_CALC_B_FACTOR,
+            GAS_D_MIN,
+            OIL_CALC_QI,
+            OIL_Q_MIN,
+            OIL_DECLINE_TYPE,
+            OIL_EMPIRICAL_DI,
+            OIL_CALC_B_FACTOR,
+            OIL_D_MIN,
+            GAS_FCST_YRS,
+            LAST_EDIT_DATE
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            CURRENT_TIMESTAMP
+        )
+    """
+
+    values = [
+        api,
+        econ_scenario,
+        _coerce_date(params.get("FCST_START_OIL")),
+        _coerce_date(params.get("FCST_START_GAS")),
+        _coerce_float(params.get("GAS_CALC_QI")),
+        _coerce_float(params.get("GAS_Q_MIN")),
+        params.get("GAS_DECLINE_TYPE") or "EXP",
+        _coerce_float(params.get("GAS_EMPIRICAL_DI")),
+        _coerce_float(params.get("GAS_CALC_B_FACTOR")),
+        _coerce_float(params.get("GAS_D_MIN")),
+        _coerce_float(params.get("OIL_CALC_QI")),
+        _coerce_float(params.get("OIL_Q_MIN")),
+        params.get("OIL_DECLINE_TYPE") or "EXP",
+        _coerce_float(params.get("OIL_EMPIRICAL_DI")),
+        _coerce_float(params.get("OIL_CALC_B_FACTOR")),
+        _coerce_float(params.get("OIL_D_MIN")),
+        _coerce_int(params.get("GAS_FCST_YRS")),
+        api,
+        econ_scenario,
+        _coerce_date(params.get("FCST_START_OIL")),
+        _coerce_date(params.get("FCST_START_GAS")),
+        _coerce_float(params.get("GAS_CALC_QI")),
+        _coerce_float(params.get("GAS_Q_MIN")),
+        params.get("GAS_DECLINE_TYPE") or "EXP",
+        _coerce_float(params.get("GAS_EMPIRICAL_DI")),
+        _coerce_float(params.get("GAS_CALC_B_FACTOR")),
+        _coerce_float(params.get("GAS_D_MIN")),
+        _coerce_float(params.get("OIL_CALC_QI")),
+        _coerce_float(params.get("OIL_Q_MIN")),
+        params.get("OIL_DECLINE_TYPE") or "EXP",
+        _coerce_float(params.get("OIL_EMPIRICAL_DI")),
+        _coerce_float(params.get("OIL_CALC_B_FACTOR")),
+        _coerce_float(params.get("OIL_D_MIN")),
+        _coerce_int(params.get("GAS_FCST_YRS")),
+    ]
+
+    try:
+        snowflake_helpers.execute(merge_sql, values)
+    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+        logger.exception("Failed to save well DCA inputs for %s", api)
+        return JsonResponse({"detail": "Unable to save well inputs."}, status=502)
+
+    return JsonResponse({"status": "ok"})
 
 
 def fetch_price_decks():
