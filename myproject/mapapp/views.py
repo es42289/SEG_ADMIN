@@ -1187,6 +1187,136 @@ def bulk_well_production(request):
         conn.close()
 
 
+@require_http_methods(["GET"])
+def well_dca_inputs(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    api = (request.GET.get("api") or "").strip()
+    if not api:
+        return JsonResponse({"detail": "API is required."}, status=400)
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF
+            FROM WELLS.MINERALS.RAW_PROD_DATA
+            WHERE API_UWI = %s
+            ORDER BY PRODUCINGMONTH
+            """,
+            (api,),
+        )
+        prod_rows = cur.fetchall() or []
+        production = [
+            {
+                "API_UWI": row.get("API_UWI"),
+                "PRODUCINGMONTH": _format_timestamp_for_json(row.get("PRODUCINGMONTH")),
+                "LIQUIDSPROD_BBL": row.get("LIQUIDSPROD_BBL"),
+                "GASPROD_MCF": row.get("GASPROD_MCF"),
+            }
+            for row in prod_rows
+        ]
+
+        cur.execute(
+            """
+            SELECT *
+            FROM WELLS.MINERALS.ECON_INPUT_1PASS
+            WHERE API_UWI = %s
+            ORDER BY LAST_EDIT_DATE DESC
+            LIMIT 1
+            """,
+            (api,),
+        )
+        params = cur.fetchone() or {}
+        params_out = {
+            key: _format_timestamp_for_json(value) if isinstance(value, datetime) else value
+            for key, value in params.items()
+        }
+        return JsonResponse({"api": api, "production": production, "params": params_out})
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_well_dca_inputs(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    api = (payload.get("api") or "").strip()
+    params = payload.get("params") or {}
+    if not api:
+        return JsonResponse({"detail": "API is required."}, status=400)
+
+    columns = [
+        "OIL_CALC_QI",
+        "OIL_Q_MIN",
+        "OIL_EMPIRICAL_DI",
+        "OIL_CALC_B_FACTOR",
+        "OIL_D_MIN",
+        "OIL_DECLINE_TYPE",
+        "FCST_START_OIL",
+        "GAS_CALC_QI",
+        "GAS_Q_MIN",
+        "GAS_EMPIRICAL_DI",
+        "GAS_CALC_B_FACTOR",
+        "GAS_D_MIN",
+        "GAS_DECLINE_TYPE",
+        "FCST_START_GAS",
+        "GAS_FCST_YRS",
+        "ECON_SCENARIO",
+    ]
+
+    values = {col: params.get(col) for col in columns}
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    try:
+        set_clause = ", ".join([f"{col} = %s" for col in columns])
+        update_sql = f"""
+            UPDATE WELLS.MINERALS.ECON_INPUT_1PASS
+            SET {set_clause},
+                LAST_EDIT_DATE = CURRENT_TIMESTAMP()
+            WHERE API_UWI = %s
+        """
+        update_params = [values[col] for col in columns] + [api]
+        cur.execute(update_sql, update_params)
+        updated = cur.rowcount
+
+        if updated == 0:
+            insert_cols = ", ".join(["API_UWI"] + columns + ["LAST_EDIT_DATE"])
+            insert_placeholders = ", ".join(["%s"] * (len(columns) + 2))
+            insert_sql = f"""
+                INSERT INTO WELLS.MINERALS.ECON_INPUT_1PASS ({insert_cols})
+                VALUES ({insert_placeholders})
+            """
+            insert_params = [api] + [values[col] for col in columns] + [datetime.utcnow()]
+            cur.execute(insert_sql, insert_params)
+        conn.commit()
+        return JsonResponse({"saved": True})
+    except snowflake_errors.Error:
+        logger.exception("Failed to save DCA inputs for %s", api)
+        conn.rollback()
+        return JsonResponse({"detail": "Unable to save well inputs."}, status=502)
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+
 def fetch_price_decks():
     conn = get_snowflake_connection()
     cur = conn.cursor()
