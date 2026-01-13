@@ -2065,8 +2065,8 @@ input#year[type="range"] {
       position: relative;
       z-index: 1;
       max-width: 1100px;
-      margin: 4vh auto;
-      padding: 2rem;
+      margin: 2vh auto;
+      padding: 1.25rem;
       background: #0f3d56;
       color: #f8fafc;
       border-radius: 18px;
@@ -2093,7 +2093,7 @@ input#year[type="range"] {
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     .well-editor-modal__eyebrow {
@@ -2124,24 +2124,24 @@ input#year[type="range"] {
     .well-editor-modal__chart {
       background: #ffffff;
       border-radius: 12px;
-      padding: 0.75rem;
-      margin-bottom: 1rem;
+      padding: 0.5rem;
+      margin-bottom: 0.75rem;
     }
 
     #wellEditorChart {
       width: 100%;
-      height: 360px;
+      height: 300px;
     }
 
     .well-editor-metrics {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.75rem;
-      margin-bottom: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
     }
 
     .well-editor-metric {
-      padding: 0.75rem;
+      padding: 0.6rem;
       background: rgba(248, 250, 252, 0.08);
       border-radius: 10px;
     }
@@ -2163,20 +2163,20 @@ input#year[type="range"] {
     }
 
     .well-editor-status {
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
       font-size: 0.9rem;
       color: #f8fafc;
     }
 
     .well-editor-form {
       display: grid;
-      gap: 1.5rem;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     }
 
     .well-editor-form__section {
       background: rgba(248, 250, 252, 0.06);
-      padding: 1rem;
+      padding: 0.85rem;
       border-radius: 12px;
     }
 
@@ -2188,7 +2188,7 @@ input#year[type="range"] {
     .well-editor-field {
       display: grid;
       gap: 0.4rem;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.6rem;
     }
 
     .well-editor-field label {
@@ -2213,9 +2213,19 @@ input#year[type="range"] {
     }
 
     .well-editor-actions {
-      margin-top: 1.5rem;
+      margin-top: 1rem;
       display: flex;
       justify-content: flex-end;
+    }
+
+    @media (max-width: 900px) {
+      #wellEditorChart {
+        height: 260px;
+      }
+
+      .well-editor-modal__dialog {
+        padding: 1rem;
+      }
     }
 
     .well-editor-save {
