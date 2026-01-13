@@ -2157,7 +2157,7 @@ input#year[type="range"] {
 
     .well-editor-form {
       flex: 1;
-      overflow-y: auto;
+      overflow: visible;
     }
 
     .well-editor-toggle {
