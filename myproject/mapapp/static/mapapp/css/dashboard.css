@@ -2025,6 +2025,202 @@ input#year[type="range"] {
       cursor: pointer;
     }
 
+    .well-edit-button {
+      background: #ffffff;
+      border: 1px solid #1f293a;
+      color: #1f293a;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .well-edit-button:hover {
+      background: #1f293a;
+      color: #ffffff;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 2rem;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border-radius: 16px;
+      max-width: 1100px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(15, 23, 42, 0.35);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1.5rem 2rem 1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .modal-title {
+      margin: 0;
+      color: #1f293a;
+      font-size: 1.25rem;
+    }
+
+    .modal-subtitle {
+      margin: 0.25rem 0 0;
+      color: #64748b;
+    }
+
+    .modal-close {
+      border: none;
+      background: #f1f5f9;
+      color: #1f293a;
+      border-radius: 999px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .modal-body {
+      padding: 0 2rem 2rem;
+      overflow-y: auto;
+    }
+
+    .modal-chart {
+      width: 100%;
+      height: 360px;
+      margin-top: 1rem;
+    }
+
+    .modal-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+
+    .metric-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    .metric-card h4 {
+      margin: 0 0 0.5rem;
+      color: #1f293a;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.5rem 1rem;
+      color: #1f293a;
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1f293a;
+    }
+
+    .metric-note {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-top: 0.25rem;
+    }
+
+    .modal-controls h4 {
+      margin: 0 0 0.75rem;
+      color: #1f293a;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .control-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      background: #ffffff;
+    }
+
+    .control-card label {
+      display: block;
+      font-size: 0.85rem;
+      color: #475569;
+      margin-bottom: 0.35rem;
+    }
+
+    .control-inputs {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .control-inputs input[type="range"] {
+      flex: 1;
+    }
+
+    .control-inputs input[type="number"],
+    .control-inputs input[type="text"],
+    .control-inputs select {
+      width: 90px;
+      padding: 4px 6px;
+      border: 1px solid #cbd5f5;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 2rem 1.5rem;
+      border-top: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .modal-status {
+      color: #1f293a;
+      font-size: 0.9rem;
+    }
+
+    .primary-button {
+      background: #156082;
+      color: #ffffff;
+      border: none;
+      padding: 0.6rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .primary-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .mobile-experience-disclaimer {
       display: none;
       margin: 1.5rem auto 0;
