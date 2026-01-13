@@ -1,0 +1,79 @@
+# Seed Prompt: Forecast Inputs + Auto-UPSERT Architecture (Snowflake-only)
+
+## Context
+- Repo: SEG_ADMIN (admin app + Snowflake data stack).
+- Goal: enable admin app to edit well DCA input parameters (qi, Di, b-factor, etc.) and automatically UPSERT the FORECASTS table when inputs change.
+- Current state: FORECASTS is populated via a notebook in reference/Update FORECASTS for wells.ipynb.
+  - Notebook flow:
+    - Pull production data from RAW_PROD_DATA per well.
+    - Pull economic/DCA parameters from ECON_INPUT_1PASS.
+    - Run decline calculations in Python (calculate_decline_rates + calc_decline).
+    - Write forecast rows to FORECASTS (often via delete + rewrite for wells).
+  - There are multiple calc_decline implementations in the notebook; logic is not centralized.
+
+## Desired End-State (Snowflake-only)
+- Use Snowflake for all compute and automation (no external services).
+- Admin UI edits should write to a dedicated table of DCA inputs.
+- When DCA inputs change, recompute forecasts for those wells and UPSERT into FORECASTS automatically.
+
+## Recommended Re-Architecture
+1) Create a dedicated inputs table (versioned), e.g., WELL_DCA_INPUTS
+   - Columns: API_UWI, ECON_SCENARIO, QI, QF, DI, B_FACTOR, D_MIN, forecast start dates, etc.
+   - Add LAST_EDIT_DATE, LAST_EDITED_BY, VERSION or IS_ACTIVE.
+   - Keep this as the single source of truth for editable DCA parameters.
+
+2) Centralize forecast computation logic
+   - Move decline curve logic out of the notebook into a single canonical implementation.
+   - Prefer a Snowpark Python stored procedure (runs in Snowflake) so logic is close to data.
+
+3) Use change-data capture to trigger recompute
+   - Create a STREAM on WELL_DCA_INPUTS to detect changed wells.
+   - Create a TASK to call the stored procedure on changed wells.
+
+4) UPSERT forecasts
+   - MERGE INTO FORECASTS using keys such as (API_UWI, PRODUCINGMONTH, ECON_SCENARIO).
+   - Avoid delete-all; recompute only for changed wells.
+
+5) Optional: forecast status tracking
+   - Add a status column (PENDING/COMPLETE/FAILED) on WELL_DCA_INPUTS or a separate tracking table.
+
+## Minimal Implementation Checklist
+- [ ] Confirm DB/SCHEMA/ROLE/WAREHOUSE for new objects.
+- [ ] Define WELL_DCA_INPUTS schema with required DCA fields.
+- [ ] Implement Snowpark Python stored procedure to:
+      - Read DCA inputs for a given well (and scenario).
+      - Read RAW_PROD_DATA for that well.
+      - Calculate forecasts (using the notebook’s decline logic).
+      - MERGE results into FORECASTS.
+- [ ] Create STREAM on WELL_DCA_INPUTS.
+- [ ] Create TASK to process STREAM changes and call the procedure.
+- [ ] Update admin UI to edit WELL_DCA_INPUTS only.
+
+## Key Questions to Answer Before Implementing
+- What are the exact object names/locations?
+  - RAW_PROD_DATA: <db.schema.table>
+  - FORECASTS: <db.schema.table>
+  - ECON_INPUT_1PASS: <db.schema.table>
+- Which keys uniquely identify forecasts? (API_UWI, PRODUCINGMONTH, ECON_SCENARIO?)
+- Will multiple scenarios be supported?
+- Do we keep historical versions of inputs (versioned table) or only the latest?
+
+## Notes from Current Notebook
+- Decline logic uses calculate_decline_rates with exponential/hyperbolic cases.
+- Defaulting logic for missing params exists (e.g., b_factor >= 0.8, decline type EXP).
+- Forecast dates are generated with monthly frequency and cut off at 2050.
+- Gas forecast may cut off at GAS_FCST_YRS.
+
+## Short-Term Execution Plan (Fast Start)
+1) Create WELL_DCA_INPUTS.
+2) Build stored procedure for a single well recompute.
+3) Add MERGE into FORECASTS.
+4) Add STREAM + TASK for automation.
+5) Wire admin UI to write inputs.
+
+## Deliverables for the Next LLM
+- SQL DDL for WELL_DCA_INPUTS
+- Snowpark Python stored procedure code
+- MERGE statement for FORECASTS
+- STREAM + TASK SQL
+- Any UI update guidance (if requested)

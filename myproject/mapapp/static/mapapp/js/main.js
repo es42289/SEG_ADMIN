@@ -1608,7 +1608,7 @@ window.syncRoyaltyPanelHeight = () => {
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 16;
+        cell.colSpan = 17;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -1637,6 +1637,16 @@ window.syncRoyaltyPanelHeight = () => {
         if (apiValue) {
           row.dataset.api = apiValue;
         }
+
+        const editCell = document.createElement('td');
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.classList.add('well-edit-button');
+        editButton.textContent = 'Edit';
+        editButton.dataset.api = apiValue;
+        editButton.disabled = !apiValue;
+        editCell.appendChild(editButton);
+        row.appendChild(editCell);
 
         const selectionCell = document.createElement('td');
         selectionCell.classList.add('well-select-cell');
@@ -1735,6 +1745,689 @@ window.syncRoyaltyPanelHeight = () => {
         table._bulkSelectionListenerAttached = true;
       }
     }
+
+    const WELL_EDIT_MODAL_ID = 'well-edit-modal';
+    const WELL_EDIT_CHART_ID = 'well-edit-chart';
+    const WELL_EDIT_CONTROLS_ID = 'well-edit-controls';
+    const WELL_EDIT_EUR_ID = 'well-edit-eur';
+    const WELL_EDIT_STATUS_ID = 'well-edit-status';
+    const WELL_EDIT_NRI_VALUE_ID = 'well-edit-nri-value';
+    const WELL_EDIT_TITLE_ID = 'well-edit-title';
+    const WELL_EDIT_SUBTITLE_ID = 'well-edit-subtitle';
+
+    const WELL_EDIT_PARAMS = [
+      { key: 'OIL_CALC_QI', label: 'Oil Qi (BBL/mo)', min: 0, max: 50000, step: 10, section: 'Oil' },
+      { key: 'OIL_Q_MIN', label: 'Oil Qmin (BBL/mo)', min: 0, max: 5000, step: 10, section: 'Oil' },
+      { key: 'OIL_EMPIRICAL_DI', label: 'Oil Di (annual)', min: 0, max: 2, step: 0.01, section: 'Oil' },
+      { key: 'OIL_CALC_B_FACTOR', label: 'Oil b-factor', min: 0, max: 2, step: 0.01, section: 'Oil' },
+      { key: 'OIL_D_MIN', label: 'Oil Dmin (annual)', min: 0, max: 1, step: 0.01, section: 'Oil' },
+      { key: 'GAS_CALC_QI', label: 'Gas Qi (MCF/mo)', min: 0, max: 200000, step: 10, section: 'Gas' },
+      { key: 'GAS_Q_MIN', label: 'Gas Qmin (MCF/mo)', min: 0, max: 10000, step: 10, section: 'Gas' },
+      { key: 'GAS_EMPIRICAL_DI', label: 'Gas Di (annual)', min: 0, max: 2, step: 0.01, section: 'Gas' },
+      { key: 'GAS_CALC_B_FACTOR', label: 'Gas b-factor', min: 0, max: 2, step: 0.01, section: 'Gas' },
+      { key: 'GAS_D_MIN', label: 'Gas Dmin (annual)', min: 0, max: 1, step: 0.01, section: 'Gas' },
+      { key: 'GAS_FCST_YRS', label: 'Gas forecast years', min: 1, max: 50, step: 1, section: 'Gas' },
+    ];
+
+    const WELL_EDIT_STATE = {
+      api: null,
+      production: [],
+      params: {},
+      ownerInterest: null,
+      lastProdDate: null,
+      firstProdDate: null,
+      priceAverages: null,
+    };
+
+    const getWellEditModal = () => document.getElementById(WELL_EDIT_MODAL_ID);
+
+    const parseDateValue = (value) => {
+      if (!value) return null;
+      const dt = new Date(value);
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    };
+
+    const monthKey = (dateObj) => {
+      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+      return `${dateObj.getUTCFullYear()}-${String(dateObj.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    };
+
+    const monthIndex = (dateObj) => {
+      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return null;
+      return dateObj.getUTCFullYear() * 12 + dateObj.getUTCMonth();
+    };
+
+    const monthIndexToDate = (index) => {
+      if (!Number.isFinite(index)) return null;
+      const year = Math.floor(index / 12);
+      const month = index % 12;
+      return new Date(Date.UTC(year, month, 1));
+    };
+
+    const formatDateLabel = (dateObj) => {
+      if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) return '--';
+      return `${dateObj.getUTCFullYear()}-${String(dateObj.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    };
+
+    const toNumber = (value) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    };
+
+    const formatNumber = (value) => {
+      if (!Number.isFinite(value)) return '--';
+      return Math.round(value).toLocaleString('en-US');
+    };
+
+    const formatCurrency = (value) => {
+      if (!Number.isFinite(value)) return '--';
+      return '$' + Math.round(value).toLocaleString('en-US');
+    };
+
+    const getOwnerInterestForApi = (api) => {
+      if (!userWellData || !Array.isArray(userWellData.api_uwi)) return null;
+      const idx = userWellData.api_uwi.findIndex((entry) => entry === api);
+      if (idx === -1) return null;
+      const val = userWellData.owner_interest ? userWellData.owner_interest[idx] : null;
+      const num = Number(val);
+      return Number.isFinite(num) ? num : null;
+    };
+
+    const ensurePriceAverages = async () => {
+      if (WELL_EDIT_STATE.priceAverages) return WELL_EDIT_STATE.priceAverages;
+      try {
+        const resp = await fetch('/price-decks/');
+        if (!resp.ok) return null;
+        const payload = await resp.json();
+        const avg = payload && payload.trailing_averages ? payload.trailing_averages['10_year'] : null;
+        if (avg && Number.isFinite(avg.oil) && Number.isFinite(avg.gas)) {
+          WELL_EDIT_STATE.priceAverages = avg;
+          return avg;
+        }
+      } catch (error) {
+        console.warn('Failed to load price deck averages', error);
+      }
+      return null;
+    };
+
+    const calculateDeclineRates = (qi, qf, declineType, bFactor, initialDecline, terminalDecline, maxMonths = 600) => {
+      const rates = [];
+      let currentRate = qi;
+
+      if (declineType === 'EXP') {
+        const monthlyDecline = 1 - Math.exp(-initialDecline / 12);
+        while (currentRate > qf && rates.length < maxMonths) {
+          rates.push(currentRate);
+          currentRate *= (1 - monthlyDecline);
+        }
+        return rates;
+      }
+
+      let t = 0;
+      const monthlyTerminal = 1 - Math.exp(-terminalDecline / 12);
+      while (currentRate > qf && rates.length < maxMonths) {
+        const currentDecline = initialDecline / (1 + bFactor * initialDecline * t / 12);
+        if (currentDecline <= terminalDecline) {
+          while (currentRate > qf && rates.length < maxMonths) {
+            rates.push(currentRate);
+            currentRate *= (1 - monthlyTerminal);
+          }
+          break;
+        }
+        rates.push(currentRate);
+        currentRate = qi / Math.pow(1 + bFactor * initialDecline * (t + 1) / 12, 1 / bFactor);
+        t += 1;
+      }
+      return rates;
+    };
+
+    const buildForecastSeries = (productionRows, params) => {
+      const maxMonths = 600;
+      const oilStartRaw = parseDateValue(params.FCST_START_OIL);
+      const gasStartRaw = parseDateValue(params.FCST_START_GAS);
+      const oilStart = oilStartRaw ? new Date(Date.UTC(oilStartRaw.getUTCFullYear(), oilStartRaw.getUTCMonth(), 1)) : null;
+      const gasStart = gasStartRaw ? new Date(Date.UTC(gasStartRaw.getUTCFullYear(), gasStartRaw.getUTCMonth(), 1)) : null;
+
+      const startCandidates = [oilStart, gasStart].filter(Boolean);
+      const earliestStart = startCandidates.length
+        ? new Date(Math.min(...startCandidates.map((d) => d.getTime())))
+        : null;
+
+      const monthMap = new Map();
+      let minDate = null;
+      let maxDate = null;
+
+      productionRows.forEach((row) => {
+        const dt = parseDateValue(row.PRODUCINGMONTH);
+        const key = monthKey(dt);
+        if (!key) return;
+        const bucket = monthMap.get(key) || { oilHist: 0, gasHist: 0, oilFc: null, gasFc: null };
+        bucket.oilHist += toNumber(row.LIQUIDSPROD_BBL);
+        bucket.gasHist += toNumber(row.GASPROD_MCF);
+        monthMap.set(key, bucket);
+        if (!minDate || dt < minDate) minDate = dt;
+        if (!maxDate || dt > maxDate) maxDate = dt;
+      });
+
+      if (!earliestStart) {
+        return { monthMap, minDate, maxDate };
+      }
+
+      const gasQi = toNumber(params.GAS_CALC_QI);
+      const gasQf = toNumber(params.GAS_Q_MIN);
+      const gasDeclineType = params.GAS_DECLINE_TYPE || 'EXP';
+      const gasDecline = toNumber(params.GAS_EMPIRICAL_DI);
+      let gasBFactor = toNumber(params.GAS_CALC_B_FACTOR);
+      if (!gasBFactor || gasBFactor < 0.8) gasBFactor = 0.8;
+      const gasTerminal = toNumber(params.GAS_D_MIN);
+
+      const oilQi = toNumber(params.OIL_CALC_QI);
+      const oilQf = toNumber(params.OIL_Q_MIN);
+      const oilDeclineType = params.OIL_DECLINE_TYPE || 'HYP';
+      const oilDecline = toNumber(params.OIL_EMPIRICAL_DI);
+      let oilBFactor = toNumber(params.OIL_CALC_B_FACTOR);
+      if (!oilBFactor || oilBFactor < 0.8) oilBFactor = 0.8;
+      const oilTerminal = toNumber(params.OIL_D_MIN);
+
+      const gasRates = gasStart
+        ? calculateDeclineRates(gasQi, gasQf, gasDeclineType, gasBFactor, gasDecline, gasTerminal, maxMonths)
+        : [];
+      const oilRates = oilStart
+        ? calculateDeclineRates(oilQi, oilQf, oilDeclineType, oilBFactor, oilDecline, oilTerminal, maxMonths)
+        : [];
+
+      for (let i = 0; i < maxMonths; i++) {
+        const dt = new Date(Date.UTC(earliestStart.getUTCFullYear(), earliestStart.getUTCMonth() + i, 1));
+        const key = monthKey(dt);
+        const bucket = monthMap.get(key) || { oilHist: 0, gasHist: 0, oilFc: null, gasFc: null };
+        monthMap.set(key, bucket);
+      }
+
+      const cutoffDate = new Date(Date.UTC(2050, 11, 31));
+      for (const key of Array.from(monthMap.keys())) {
+        const dt = parseDateValue(key);
+        if (dt && dt > cutoffDate) {
+          monthMap.delete(key);
+        }
+      }
+
+      if (gasStart) {
+        const offset = Math.max(0, monthIndex(gasStart) - monthIndex(earliestStart));
+        for (let i = 0; i < gasRates.length; i++) {
+          const idx = offset + i;
+          const dt = new Date(Date.UTC(earliestStart.getUTCFullYear(), earliestStart.getUTCMonth() + idx, 1));
+          const key = monthKey(dt);
+          const bucket = monthMap.get(key);
+          if (bucket) bucket.gasFc = gasRates[i];
+        }
+      }
+
+      if (oilStart) {
+        const offset = Math.max(0, monthIndex(oilStart) - monthIndex(earliestStart));
+        for (let i = 0; i < oilRates.length; i++) {
+          const idx = offset + i;
+          const dt = new Date(Date.UTC(earliestStart.getUTCFullYear(), earliestStart.getUTCMonth() + idx, 1));
+          const key = monthKey(dt);
+          const bucket = monthMap.get(key);
+          if (bucket) bucket.oilFc = oilRates[i];
+        }
+      }
+
+      const gasYears = toNumber(params.GAS_FCST_YRS);
+      if (gasYears > 0 && minDate) {
+        const cutoff = new Date(Date.UTC(minDate.getUTCFullYear() + gasYears, minDate.getUTCMonth(), 1));
+        for (const [key, bucket] of monthMap.entries()) {
+          const dt = parseDateValue(key);
+          if (dt && dt > cutoff) {
+            bucket.gasFc = null;
+          }
+        }
+      }
+
+      const allDates = Array.from(monthMap.keys()).map((key) => parseDateValue(key)).filter(Boolean);
+      if (allDates.length) {
+        const sorted = allDates.sort((a, b) => a - b);
+        minDate = minDate || sorted[0];
+        maxDate = maxDate || sorted[sorted.length - 1];
+      }
+
+      return { monthMap, minDate, maxDate };
+    };
+
+    const computeEurForWell = (monthMap, ownerInterest) => {
+      const keys = Array.from(monthMap.keys()).sort();
+      const now = new Date();
+      const remainingStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+      const remainingEnd = new Date(Date.UTC(remainingStart.getUTCFullYear() + 15, remainingStart.getUTCMonth(), 1));
+
+      let oilHistSum = 0;
+      let gasHistSum = 0;
+      let oilForecastSum = 0;
+      let gasForecastSum = 0;
+      let remainingOilSum = 0;
+      let remainingGasSum = 0;
+
+      for (const key of keys) {
+        const bucket = monthMap.get(key);
+        const dt = parseDateValue(key);
+        const histOil = bucket.oilHist > 0 ? bucket.oilHist : 0;
+        const histGas = bucket.gasHist > 0 ? bucket.gasHist : 0;
+        const fcOil = bucket.oilFc > 0 ? bucket.oilFc : 0;
+        const fcGas = bucket.gasFc > 0 ? bucket.gasFc : 0;
+
+        oilHistSum += histOil;
+        gasHistSum += histGas;
+
+        if (dt && dt >= remainingStart && dt < remainingEnd && histOil === 0) {
+          oilForecastSum += fcOil;
+        }
+        if (dt && dt >= remainingStart && dt < remainingEnd && histGas === 0) {
+          gasForecastSum += fcGas;
+        }
+
+        if (dt && dt >= remainingStart && dt < remainingEnd) {
+          remainingOilSum += fcOil;
+          remainingGasSum += fcGas;
+        }
+      }
+
+      const grossOil = oilHistSum + oilForecastSum;
+      const grossGas = gasHistSum + gasForecastSum;
+      const nri = Number.isFinite(ownerInterest) ? ownerInterest : null;
+
+      const netOil = nri !== null ? grossOil * nri : null;
+      const netGas = nri !== null ? grossGas * nri : null;
+      const remainingNetOil = nri !== null ? remainingOilSum * nri : null;
+      const remainingNetGas = nri !== null ? remainingGasSum * nri : null;
+
+      return {
+        grossOil,
+        grossGas,
+        netOil,
+        netGas,
+        remainingNetOil,
+        remainingNetGas,
+      };
+    };
+
+    const renderWellEditMetrics = async (monthMap, ownerInterest) => {
+      const eurEl = document.getElementById(WELL_EDIT_EUR_ID);
+      const nriEl = document.getElementById(WELL_EDIT_NRI_VALUE_ID);
+      if (!eurEl || !nriEl) return;
+
+      const metrics = computeEurForWell(monthMap, ownerInterest);
+      eurEl.innerHTML = `
+        <div>Gross Oil EUR: ${formatNumber(metrics.grossOil)}</div>
+        <div>Gross Gas EUR: ${formatNumber(metrics.grossGas)}</div>
+        <div>Net Oil EUR: ${formatNumber(metrics.netOil)}</div>
+        <div>Net Gas EUR: ${formatNumber(metrics.netGas)}</div>
+        <div>Remaining Net Oil: ${formatNumber(metrics.remainingNetOil)}</div>
+        <div>Remaining Net Gas: ${formatNumber(metrics.remainingNetGas)}</div>
+      `;
+
+      const prices = await ensurePriceAverages();
+      if (prices && Number.isFinite(metrics.remainingNetOil) && Number.isFinite(metrics.remainingNetGas)) {
+        const valueEstimate = metrics.remainingNetOil * prices.oil + metrics.remainingNetGas * prices.gas;
+        nriEl.textContent = formatCurrency(valueEstimate);
+      } else {
+        nriEl.textContent = '--';
+      }
+    };
+
+    const renderWellEditChart = (monthMap) => {
+      const chartEl = document.getElementById(WELL_EDIT_CHART_ID);
+      if (!chartEl || !window.Plotly) return;
+
+      const keys = Array.from(monthMap.keys()).sort();
+      const x = keys.map((k) => k.slice(0, 7));
+      const oilHist = keys.map((k) => monthMap.get(k).oilHist || null);
+      const gasHist = keys.map((k) => monthMap.get(k).gasHist || null);
+      const oilFc = keys.map((k) => {
+        const v = monthMap.get(k).oilFc;
+        return v > 0 ? v : null;
+      });
+      const gasFc = keys.map((k) => {
+        const v = monthMap.get(k).gasFc;
+        return v > 0 ? v : null;
+      });
+
+      const janMonths = keys.filter((k) => k.slice(5, 7) === '01');
+      const janEvery3 = janMonths.filter((_, i) => i % 3 === 0);
+      const yearTicks = janEvery3.map((k) => k.slice(0, 7));
+      const yearText = janEvery3.map((k) => k.slice(0, 4));
+
+      const traces = [
+        {
+          name: 'Oil (BBL)',
+          x,
+          y: oilHist,
+          mode: 'markers',
+          marker: { size: 6, color: '#1e8f4e', opacity: 0.7 },
+          hovertemplate: '%{x}<br>Oil: %{y:,}<extra></extra>',
+        },
+        {
+          name: 'Gas (MCF)',
+          x,
+          y: gasHist,
+          mode: 'markers',
+          marker: { size: 6, color: '#d62728', opacity: 0.7 },
+          hovertemplate: '%{x}<br>Gas: %{y:,}<extra></extra>',
+        },
+        {
+          name: 'Oil Forecast (BBL)',
+          x,
+          y: oilFc,
+          mode: 'lines',
+          line: { color: '#1e8f4e', width: 2 },
+          hovertemplate: '%{x}<br>Oil Fcst: %{y:,.0f} BBL/month<extra></extra>',
+        },
+        {
+          name: 'Gas Forecast (MCF)',
+          x,
+          y: gasFc,
+          mode: 'lines',
+          line: { color: '#d62728', width: 2 },
+          hovertemplate: '%{x}<br>Gas Fcst: %{y:,.0f} MCF/month<extra></extra>',
+        },
+      ];
+
+      const layout = {
+        height: chartEl.clientHeight || 320,
+        margin: { l: 50, r: 40, t: 10, b: 60 },
+        showlegend: true,
+        legend: {
+          x: 0.98,
+          y: 0.9,
+          xanchor: 'right',
+          yanchor: 'top',
+          orientation: 'v',
+          bgcolor: '#fff',
+          bordercolor: '#1f293aff',
+          borderwidth: 1,
+          font: { size: 8 },
+        },
+        xaxis: {
+          title: 'Production Month',
+          type: 'category',
+          tickmode: 'array',
+          tickvals: yearTicks,
+          ticktext: yearText,
+          tickangle: -45,
+          automargin: true,
+        },
+        yaxis: {
+          title: 'MCF or BBL per Month',
+          type: 'log',
+          gridcolor: '#1f293a1f',
+        },
+        paper_bgcolor: '#fff',
+        plot_bgcolor: '#fff',
+        font: { color: '#1f293a' },
+        dragmode: 'pan',
+      };
+
+      Plotly.react(chartEl, traces, layout, { ...BASE_PLOT_CONFIG });
+    };
+
+    const updateWellEditVisualization = () => {
+      const { production, params, ownerInterest } = WELL_EDIT_STATE;
+      if (!production || !params) return;
+      const { monthMap } = buildForecastSeries(production, params);
+      renderWellEditChart(monthMap);
+      renderWellEditMetrics(monthMap, ownerInterest);
+    };
+
+    const setWellEditStatus = (message, isError = false) => {
+      const statusEl = document.getElementById(WELL_EDIT_STATUS_ID);
+      if (!statusEl) return;
+      statusEl.textContent = message || '';
+      statusEl.style.color = isError ? '#dc2626' : '#1f293a';
+    };
+
+    const buildControlCard = (labelText, inputEl) => {
+      const card = document.createElement('div');
+      card.classList.add('control-card');
+      const label = document.createElement('label');
+      label.textContent = labelText;
+      card.appendChild(label);
+      card.appendChild(inputEl);
+      return card;
+    };
+
+    const renderWellEditControls = () => {
+      const container = document.getElementById(WELL_EDIT_CONTROLS_ID);
+      if (!container) return;
+      container.innerHTML = '';
+
+      const params = WELL_EDIT_STATE.params || {};
+      const firstDate = WELL_EDIT_STATE.firstProdDate;
+      const lastDate = WELL_EDIT_STATE.lastProdDate;
+      const firstIndex = firstDate ? monthIndex(firstDate) : null;
+      const lastIndex = lastDate ? monthIndex(lastDate) : null;
+
+      const buildRangeControl = (field, label, min, max, step) => {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('control-inputs');
+        const range = document.createElement('input');
+        range.type = 'range';
+        range.min = min;
+        range.max = max;
+        range.step = step;
+        range.value = Number(params[field] ?? min);
+        range.dataset.field = field;
+        const number = document.createElement('input');
+        number.type = 'number';
+        number.min = min;
+        number.max = max;
+        number.step = step;
+        number.value = range.value;
+        wrapper.appendChild(range);
+        wrapper.appendChild(number);
+
+        const sync = (value) => {
+          range.value = value;
+          number.value = value;
+          WELL_EDIT_STATE.params[field] = Number(value);
+          updateWellEditVisualization();
+        };
+
+        range.addEventListener('input', () => sync(range.value));
+        number.addEventListener('change', () => sync(number.value));
+
+        return buildControlCard(label, wrapper);
+      };
+
+      const buildSelectControl = (field, label, options) => {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('control-inputs');
+        const select = document.createElement('select');
+        select.dataset.field = field;
+        options.forEach((opt) => {
+          const option = document.createElement('option');
+          option.value = opt;
+          option.textContent = opt;
+          select.appendChild(option);
+        });
+        select.value = params[field] || options[0];
+        wrapper.appendChild(select);
+        select.addEventListener('change', () => {
+          WELL_EDIT_STATE.params[field] = select.value;
+          updateWellEditVisualization();
+        });
+        return buildControlCard(label, wrapper);
+      };
+
+      const buildDateSlider = (field, label) => {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('control-inputs');
+        const range = document.createElement('input');
+        range.type = 'range';
+        if (firstIndex !== null) range.min = firstIndex;
+        if (lastIndex !== null) range.max = lastIndex;
+        if (firstIndex === null && lastIndex === null) {
+          range.min = 0;
+          range.max = 0;
+          range.disabled = true;
+        }
+        range.step = 1;
+
+        const currentDate = parseDateValue(params[field]) || lastDate || firstDate;
+        let currentIndex = currentDate ? monthIndex(currentDate) : lastIndex;
+        if (lastIndex !== null && currentIndex !== null && currentIndex > lastIndex) {
+          currentIndex = lastIndex;
+        }
+        range.value = currentIndex ?? (lastIndex ?? 0);
+
+        const display = document.createElement('input');
+        display.type = 'text';
+        display.readOnly = true;
+        display.value = formatDateLabel(monthIndexToDate(Number(range.value)));
+
+        wrapper.appendChild(range);
+        wrapper.appendChild(display);
+
+        range.addEventListener('input', () => {
+          const selectedDate = monthIndexToDate(Number(range.value));
+          display.value = formatDateLabel(selectedDate);
+          WELL_EDIT_STATE.params[field] = formatDateLabel(selectedDate);
+          updateWellEditVisualization();
+        });
+
+        return buildControlCard(label, wrapper);
+      };
+
+      container.appendChild(buildDateSlider('FCST_START_OIL', 'Oil forecast start'));
+      container.appendChild(buildDateSlider('FCST_START_GAS', 'Gas forecast start'));
+      container.appendChild(buildSelectControl('OIL_DECLINE_TYPE', 'Oil decline type', ['EXP', 'HYP']));
+      container.appendChild(buildSelectControl('GAS_DECLINE_TYPE', 'Gas decline type', ['EXP', 'HYP']));
+
+      WELL_EDIT_PARAMS.forEach((def) => {
+        container.appendChild(buildRangeControl(def.key, def.label, def.min, def.max, def.step));
+      });
+    };
+
+    const loadWellEditData = async (api) => {
+      const resp = await fetch(`/well-dca-detail/?api=${encodeURIComponent(api)}`);
+      if (!resp.ok) {
+        throw new Error(`Failed to load ${api}`);
+      }
+      const payload = await resp.json();
+      return payload;
+    };
+
+    const openWellEditModal = async (api) => {
+      const modal = getWellEditModal();
+      if (!modal) return;
+      modal.removeAttribute('hidden');
+      setWellEditStatus('Loading well data...');
+      WELL_EDIT_STATE.api = api;
+      WELL_EDIT_STATE.ownerInterest = getOwnerInterestForApi(api);
+
+      try {
+        const data = await loadWellEditData(api);
+        WELL_EDIT_STATE.production = data.production || [];
+        WELL_EDIT_STATE.params = data.params || {};
+
+        const prodDates = WELL_EDIT_STATE.production
+          .map((row) => parseDateValue(row.PRODUCINGMONTH))
+          .filter(Boolean)
+          .sort((a, b) => a - b);
+        WELL_EDIT_STATE.firstProdDate = prodDates[0] || null;
+        WELL_EDIT_STATE.lastProdDate = prodDates[prodDates.length - 1] || null;
+
+        if (!WELL_EDIT_STATE.params.FCST_START_OIL && WELL_EDIT_STATE.lastProdDate) {
+          WELL_EDIT_STATE.params.FCST_START_OIL = formatDateLabel(WELL_EDIT_STATE.lastProdDate);
+        }
+        if (!WELL_EDIT_STATE.params.FCST_START_GAS && WELL_EDIT_STATE.lastProdDate) {
+          WELL_EDIT_STATE.params.FCST_START_GAS = formatDateLabel(WELL_EDIT_STATE.lastProdDate);
+        }
+        if (!WELL_EDIT_STATE.params.OIL_DECLINE_TYPE) {
+          WELL_EDIT_STATE.params.OIL_DECLINE_TYPE = 'HYP';
+        }
+        if (!WELL_EDIT_STATE.params.GAS_DECLINE_TYPE) {
+          WELL_EDIT_STATE.params.GAS_DECLINE_TYPE = 'EXP';
+        }
+
+        const titleEl = document.getElementById(WELL_EDIT_TITLE_ID);
+        const subtitleEl = document.getElementById(WELL_EDIT_SUBTITLE_ID);
+        if (titleEl) titleEl.textContent = `Edit Well Forecast: ${api}`;
+        if (subtitleEl) {
+          subtitleEl.textContent = WELL_EDIT_STATE.lastProdDate
+            ? `Last production month: ${formatDateLabel(WELL_EDIT_STATE.lastProdDate)}`
+            : 'No production history found.';
+        }
+
+        renderWellEditControls();
+        updateWellEditVisualization();
+        setWellEditStatus('');
+      } catch (error) {
+        console.error('Well edit load failed', error);
+        setWellEditStatus('Unable to load well data.', true);
+      }
+    };
+
+    const closeWellEditModal = () => {
+      const modal = getWellEditModal();
+      if (!modal) return;
+      modal.setAttribute('hidden', 'hidden');
+      WELL_EDIT_STATE.api = null;
+    };
+
+    const bindWellEditEvents = () => {
+      const table = document.getElementById('userWellsTable');
+      if (table) {
+        table.addEventListener('click', (event) => {
+          const button = event.target.closest('.well-edit-button');
+          if (!button) return;
+          const api = button.dataset.api;
+          if (!api) return;
+          openWellEditModal(api);
+        });
+      }
+
+      const closeButton = document.getElementById('well-edit-close');
+      if (closeButton) closeButton.addEventListener('click', closeWellEditModal);
+
+      const modal = getWellEditModal();
+      if (modal) {
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) closeWellEditModal();
+        });
+      }
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        const modalEl = getWellEditModal();
+        if (modalEl && !modalEl.hasAttribute('hidden')) closeWellEditModal();
+      });
+
+      const saveButton = document.getElementById('well-edit-save');
+      if (saveButton) {
+        saveButton.addEventListener('click', async () => {
+          if (!WELL_EDIT_STATE.api) return;
+          saveButton.disabled = true;
+          setWellEditStatus('Saving parameters...');
+          try {
+            const resp = await fetch('/well-dca-inputs/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ api: WELL_EDIT_STATE.api, params: WELL_EDIT_STATE.params }),
+            });
+            if (!resp.ok) {
+              throw new Error(`Save failed ${resp.status}`);
+            }
+            setWellEditStatus('Parameters saved.');
+          } catch (error) {
+            console.error('Save failed', error);
+            setWellEditStatus('Unable to save parameters.', true);
+          } finally {
+            saveButton.disabled = false;
+          }
+        });
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', bindWellEditEvents);
 
     window.updateWellPvValues = function updateWellPvValues(pvMap) {
       if (!pvMap || typeof pvMap !== 'object') return;

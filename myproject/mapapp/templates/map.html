@@ -444,6 +444,7 @@
   <table id="userWellsTable" style="width:100%; border-collapse:collapse;">
     <thead>
       <tr>
+        <th style="width:56px;">Edit</th>
         <th style="width:48px;">Select</th>
         <th>Well API</th>
         <th>NRI</th>
@@ -466,6 +467,40 @@
   </table>
   </div>
   </section>
+
+  <div id="well-edit-modal" class="modal-overlay" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="well-edit-title">
+      <div class="modal-header">
+        <div>
+          <h3 id="well-edit-title" class="modal-title">Edit Well Forecast</h3>
+          <p id="well-edit-subtitle" class="modal-subtitle">Adjust decline inputs to update the forecast.</p>
+        </div>
+        <button type="button" class="modal-close" id="well-edit-close" aria-label="Close edit well popup">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="well-edit-chart" class="modal-chart"></div>
+        <div class="modal-metrics">
+          <div class="metric-card">
+            <h4>EUR Metrics</h4>
+            <div class="metric-grid" id="well-edit-eur"></div>
+          </div>
+          <div class="metric-card">
+            <h4>Estimated NRI Value</h4>
+            <div id="well-edit-nri-value" class="metric-value">—</div>
+            <div class="metric-note">Estimated using trailing 10-year average prices.</div>
+          </div>
+        </div>
+        <div class="modal-controls">
+          <h4>Decline Curve Inputs</h4>
+          <div id="well-edit-controls" class="control-grid"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div id="well-edit-status" class="modal-status" aria-live="polite"></div>
+        <button type="button" id="well-edit-save" class="primary-button">Save Parameters</button>
+      </div>
+    </div>
+  </div>
 
 <div class="econ-grid">
   <div class="econ-grid__primary">
