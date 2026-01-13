@@ -314,6 +314,54 @@
       {% endif %}
     </div>
   </div>
+  <div id="wellEditorModal" class="profile-modal well-editor-modal" aria-hidden="true">
+    <div class="profile-modal__overlay" data-well-editor-close></div>
+    <div class="profile-modal__dialog well-editor-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wellEditorTitle">
+      <button type="button" class="profile-modal__close" data-well-editor-close aria-label="Close well editor dialog">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <h2 id="wellEditorTitle" class="profile-modal__title">Well DCA Editor</h2>
+      <p id="wellEditorSubtitle" class="profile-modal__subtitle">Adjust decline inputs to see the impact on forecasts.</p>
+      <div class="well-editor__content">
+        <div id="wellEditorChart" class="well-editor__chart"></div>
+        <div class="well-editor__metrics">
+          <div class="well-editor__metric">
+            <span class="well-editor__metric-label">Gross Oil EUR</span>
+            <span id="wellEditorGrossOil" class="well-editor__metric-value">--</span>
+          </div>
+          <div class="well-editor__metric">
+            <span class="well-editor__metric-label">Gross Gas EUR</span>
+            <span id="wellEditorGrossGas" class="well-editor__metric-value">--</span>
+          </div>
+          <div class="well-editor__metric">
+            <span class="well-editor__metric-label">Net Oil EUR</span>
+            <span id="wellEditorNetOil" class="well-editor__metric-value">--</span>
+          </div>
+          <div class="well-editor__metric">
+            <span class="well-editor__metric-label">Net Gas EUR</span>
+            <span id="wellEditorNetGas" class="well-editor__metric-value">--</span>
+          </div>
+          <div class="well-editor__metric">
+            <span class="well-editor__metric-label">Remaining Net Oil</span>
+            <span id="wellEditorRemainingOil" class="well-editor__metric-value">--</span>
+          </div>
+          <div class="well-editor__metric">
+            <span class="well-editor__metric-label">Remaining Net Gas</span>
+            <span id="wellEditorRemainingGas" class="well-editor__metric-value">--</span>
+          </div>
+        </div>
+        <div class="well-editor__nri">
+          <span class="well-editor__metric-label">Estimated NRI Value</span>
+          <span id="wellEditorNriValue" class="well-editor__metric-value">--</span>
+        </div>
+        <div id="wellEditorControls" class="well-editor__controls"></div>
+      </div>
+      <div class="well-editor__actions">
+        <button type="button" id="wellEditorSave" class="well-editor__save">Save parameters</button>
+        <div id="wellEditorMessage" class="profile-modal__message" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
 
   <div class="dashboard-layout">
     <aside class="metrics-sidebar">
@@ -444,6 +492,7 @@
   <table id="userWellsTable" style="width:100%; border-collapse:collapse;">
     <thead>
       <tr>
+        <th style="width:48px;">Edit</th>
         <th style="width:48px;">Select</th>
         <th>Well API</th>
         <th>NRI</th>
@@ -766,6 +815,7 @@
   </script>
   <!-- existing app scripts -->
   <script src="{% static 'mapapp/js/main.js' %}?v=2025-08-25a"></script>
+  <script src="{% static 'mapapp/js/well_editor.js' %}?v=2025-08-25a"></script>
 
   <!-- production chart (must be last so it runs after main.js populates window.productionByApi) -->
   <script src="{% static 'mapapp/js/prod_chart_plotly.js' %}?v=2025-08-25a"></script>

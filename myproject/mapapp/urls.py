@@ -22,6 +22,7 @@ urlpatterns = [
     path('econ-data/', views.economics_data, name='economics_data'),
     path('feedback/', views.user_feedback_entries, name='user_feedback_entries'),
     path('api/user-info/', views.user_info, name='user_info'),
+    path('api/well-dca-inputs/', views.well_dca_inputs, name='well_dca_inputs'),
     path('impersonate/select-user/', views.admin_select_user, name='admin_select_user'),
     path('api/uploads/start', StartUpload.as_view(), name='start_upload'),
     path('api/uploads/finalize', FinalizeUpload.as_view(), name='finalize_upload'),

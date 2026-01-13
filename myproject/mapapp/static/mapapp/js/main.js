@@ -1608,7 +1608,7 @@ window.syncRoyaltyPanelHeight = () => {
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 16;
+        cell.colSpan = 17;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -1637,6 +1637,20 @@ window.syncRoyaltyPanelHeight = () => {
         if (apiValue) {
           row.dataset.api = apiValue;
         }
+
+        const editCell = document.createElement('td');
+        editCell.classList.add('well-edit-cell');
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.classList.add('well-edit-button');
+        editButton.dataset.api = apiValue;
+        editButton.setAttribute('aria-label', `Edit well ${apiValue}`);
+        editButton.textContent = 'Edit';
+        if (!apiValue) {
+          editButton.disabled = true;
+        }
+        editCell.appendChild(editButton);
+        row.appendChild(editCell);
 
         const selectionCell = document.createElement('td');
         selectionCell.classList.add('well-select-cell');
