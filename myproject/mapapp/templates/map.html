@@ -485,126 +485,137 @@
         </div>
       </header>
 
-      <div class="well-editor-modal__chart">
-        <div id="wellEditorChart"></div>
-      </div>
+      <div class="well-editor-layout">
+        <div class="well-editor-left">
+          <div class="well-editor-modal__chart">
+            <div id="wellEditorChart"></div>
+          </div>
 
-      <div class="well-editor-metrics">
-        <div class="well-editor-metric">
-          <span class="well-editor-metric__label">Gross Oil EUR (BBL)</span>
-          <span id="wellEditorGrossOilEur" class="well-editor-metric__value">--</span>
-        </div>
-        <div class="well-editor-metric">
-          <span class="well-editor-metric__label">Gross Gas EUR (MCF)</span>
-          <span id="wellEditorGrossGasEur" class="well-editor-metric__value">--</span>
-        </div>
-        <div class="well-editor-metric">
-          <span class="well-editor-metric__label">Net Oil EUR (BBL)</span>
-          <span id="wellEditorNetOilEur" class="well-editor-metric__value">--</span>
-        </div>
-        <div class="well-editor-metric">
-          <span class="well-editor-metric__label">Net Gas EUR (MCF)</span>
-          <span id="wellEditorNetGasEur" class="well-editor-metric__value">--</span>
-        </div>
-        <div class="well-editor-metric well-editor-metric--wide">
-          <span class="well-editor-metric__label">Estimated NRI Value</span>
-          <span id="wellEditorNriValue" class="well-editor-metric__value">--</span>
-        </div>
-      </div>
+          <div class="well-editor-metrics">
+            <div class="well-editor-metric">
+              <span class="well-editor-metric__label">Gross Oil EUR (BBL)</span>
+              <span id="wellEditorGrossOilEur" class="well-editor-metric__value">--</span>
+            </div>
+            <div class="well-editor-metric">
+              <span class="well-editor-metric__label">Gross Gas EUR (MCF)</span>
+              <span id="wellEditorGrossGasEur" class="well-editor-metric__value">--</span>
+            </div>
+            <div class="well-editor-metric">
+              <span class="well-editor-metric__label">Net Oil EUR (BBL)</span>
+              <span id="wellEditorNetOilEur" class="well-editor-metric__value">--</span>
+            </div>
+            <div class="well-editor-metric">
+              <span class="well-editor-metric__label">Net Gas EUR (MCF)</span>
+              <span id="wellEditorNetGasEur" class="well-editor-metric__value">--</span>
+            </div>
+            <div class="well-editor-metric well-editor-metric--wide">
+              <span class="well-editor-metric__label">Estimated NRI Value</span>
+              <span id="wellEditorNriValue" class="well-editor-metric__value">--</span>
+            </div>
+          </div>
 
-      <div id="wellEditorStatus" class="well-editor-status" role="status" aria-live="polite"></div>
-
-      <div class="well-editor-form">
-        <div class="well-editor-form__section">
-          <h3 class="well-editor-form__title">Oil Forecast Inputs</h3>
-          <div class="well-editor-field">
-            <label for="wellOilQi">Oil qi (BBL)</label>
-            <input id="wellOilQi" type="range" min="0" max="10000" step="10" data-field="OIL_CALC_QI">
-            <span class="well-editor-field__value" data-field-value="OIL_CALC_QI">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellOilQf">Oil qf min (BBL)</label>
-            <input id="wellOilQf" type="range" min="0" max="500" step="1" data-field="OIL_Q_MIN">
-            <span class="well-editor-field__value" data-field-value="OIL_Q_MIN">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellOilDi">Oil Di (annual)</label>
-            <input id="wellOilDi" type="range" min="0" max="1" step="0.01" data-field="OIL_EMPIRICAL_DI">
-            <span class="well-editor-field__value" data-field-value="OIL_EMPIRICAL_DI">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellOilB">Oil b-factor</label>
-            <input id="wellOilB" type="range" min="0.8" max="2" step="0.01" data-field="OIL_CALC_B_FACTOR">
-            <span class="well-editor-field__value" data-field-value="OIL_CALC_B_FACTOR">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellOilDmin">Oil terminal decline (annual)</label>
-            <input id="wellOilDmin" type="range" min="0" max="0.5" step="0.005" data-field="OIL_D_MIN">
-            <span class="well-editor-field__value" data-field-value="OIL_D_MIN">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellOilDeclineType">Oil Decline Type</label>
-            <select id="wellOilDeclineType" data-field="OIL_DECLINE_TYPE">
-              <option value="EXP">Exponential</option>
-              <option value="HYP">Hyperbolic</option>
-            </select>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellOilStart">Oil Forecast Start</label>
-            <input id="wellOilStart" type="range" data-field="FCST_START_OIL">
-            <span class="well-editor-field__value" data-field-value="FCST_START_OIL">--</span>
-          </div>
+          <div id="wellEditorStatus" class="well-editor-status" role="status" aria-live="polite"></div>
         </div>
 
-        <div class="well-editor-form__section">
-          <h3 class="well-editor-form__title">Gas Forecast Inputs</h3>
-          <div class="well-editor-field">
-            <label for="wellGasQi">Gas qi (MCF)</label>
-            <input id="wellGasQi" type="range" min="0" max="50000" step="50" data-field="GAS_CALC_QI">
-            <span class="well-editor-field__value" data-field-value="GAS_CALC_QI">--</span>
+        <div class="well-editor-right">
+          <div class="well-editor-toggle">
+            <button type="button" class="well-editor-toggle__button is-active" data-well-editor-tab="oil">Oil Inputs</button>
+            <button type="button" class="well-editor-toggle__button" data-well-editor-tab="gas">Gas Inputs</button>
           </div>
-          <div class="well-editor-field">
-            <label for="wellGasQf">Gas qf min (MCF)</label>
-            <input id="wellGasQf" type="range" min="0" max="1000" step="1" data-field="GAS_Q_MIN">
-            <span class="well-editor-field__value" data-field-value="GAS_Q_MIN">--</span>
+
+          <div class="well-editor-form">
+            <div class="well-editor-form__section" data-well-editor-section="oil">
+              <h3 class="well-editor-form__title">Oil Forecast Inputs</h3>
+              <div class="well-editor-field">
+                <label for="wellOilQi">Oil qi (BBL)</label>
+                <input id="wellOilQi" type="range" min="0" max="10000" step="10" data-field="OIL_CALC_QI">
+                <span class="well-editor-field__value" data-field-value="OIL_CALC_QI">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellOilQf">Oil qf min (BBL)</label>
+                <input id="wellOilQf" type="range" min="0" max="500" step="1" data-field="OIL_Q_MIN">
+                <span class="well-editor-field__value" data-field-value="OIL_Q_MIN">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellOilDi">Oil Di (annual)</label>
+                <input id="wellOilDi" type="range" min="0" max="1" step="0.01" data-field="OIL_EMPIRICAL_DI">
+                <span class="well-editor-field__value" data-field-value="OIL_EMPIRICAL_DI">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellOilB">Oil b-factor</label>
+                <input id="wellOilB" type="range" min="0.8" max="2" step="0.01" data-field="OIL_CALC_B_FACTOR">
+                <span class="well-editor-field__value" data-field-value="OIL_CALC_B_FACTOR">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellOilDmin">Oil terminal decline (annual)</label>
+                <input id="wellOilDmin" type="range" min="0" max="0.5" step="0.005" data-field="OIL_D_MIN">
+                <span class="well-editor-field__value" data-field-value="OIL_D_MIN">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellOilDeclineType">Oil Decline Type</label>
+                <select id="wellOilDeclineType" data-field="OIL_DECLINE_TYPE">
+                  <option value="EXP">Exponential</option>
+                  <option value="HYP">Hyperbolic</option>
+                </select>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellOilStart">Oil Forecast Start</label>
+                <input id="wellOilStart" type="range" data-field="FCST_START_OIL">
+                <span class="well-editor-field__value" data-field-value="FCST_START_OIL">--</span>
+              </div>
+            </div>
+
+            <div class="well-editor-form__section" data-well-editor-section="gas" hidden>
+              <h3 class="well-editor-form__title">Gas Forecast Inputs</h3>
+              <div class="well-editor-field">
+                <label for="wellGasQi">Gas qi (MCF)</label>
+                <input id="wellGasQi" type="range" min="0" max="50000" step="50" data-field="GAS_CALC_QI">
+                <span class="well-editor-field__value" data-field-value="GAS_CALC_QI">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellGasQf">Gas qf min (MCF)</label>
+                <input id="wellGasQf" type="range" min="0" max="1000" step="1" data-field="GAS_Q_MIN">
+                <span class="well-editor-field__value" data-field-value="GAS_Q_MIN">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellGasDi">Gas Di (annual)</label>
+                <input id="wellGasDi" type="range" min="0" max="1" step="0.01" data-field="GAS_EMPIRICAL_DI">
+                <span class="well-editor-field__value" data-field-value="GAS_EMPIRICAL_DI">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellGasB">Gas b-factor</label>
+                <input id="wellGasB" type="range" min="0.8" max="2" step="0.01" data-field="GAS_CALC_B_FACTOR">
+                <span class="well-editor-field__value" data-field-value="GAS_CALC_B_FACTOR">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellGasDmin">Gas terminal decline (annual)</label>
+                <input id="wellGasDmin" type="range" min="0" max="0.5" step="0.005" data-field="GAS_D_MIN">
+                <span class="well-editor-field__value" data-field-value="GAS_D_MIN">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellGasDeclineType">Gas Decline Type</label>
+                <select id="wellGasDeclineType" data-field="GAS_DECLINE_TYPE">
+                  <option value="EXP">Exponential</option>
+                  <option value="HYP">Hyperbolic</option>
+                </select>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellGasStart">Gas Forecast Start</label>
+                <input id="wellGasStart" type="range" data-field="FCST_START_GAS">
+                <span class="well-editor-field__value" data-field-value="FCST_START_GAS">--</span>
+              </div>
+              <div class="well-editor-field">
+                <label for="wellGasYears">Gas Forecast Years</label>
+                <input id="wellGasYears" type="range" min="0" max="50" step="1" data-field="GAS_FCST_YRS">
+                <span class="well-editor-field__value" data-field-value="GAS_FCST_YRS">--</span>
+              </div>
+            </div>
           </div>
-          <div class="well-editor-field">
-            <label for="wellGasDi">Gas Di (annual)</label>
-            <input id="wellGasDi" type="range" min="0" max="1" step="0.01" data-field="GAS_EMPIRICAL_DI">
-            <span class="well-editor-field__value" data-field-value="GAS_EMPIRICAL_DI">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellGasB">Gas b-factor</label>
-            <input id="wellGasB" type="range" min="0.8" max="2" step="0.01" data-field="GAS_CALC_B_FACTOR">
-            <span class="well-editor-field__value" data-field-value="GAS_CALC_B_FACTOR">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellGasDmin">Gas terminal decline (annual)</label>
-            <input id="wellGasDmin" type="range" min="0" max="0.5" step="0.005" data-field="GAS_D_MIN">
-            <span class="well-editor-field__value" data-field-value="GAS_D_MIN">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellGasDeclineType">Gas Decline Type</label>
-            <select id="wellGasDeclineType" data-field="GAS_DECLINE_TYPE">
-              <option value="EXP">Exponential</option>
-              <option value="HYP">Hyperbolic</option>
-            </select>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellGasStart">Gas Forecast Start</label>
-            <input id="wellGasStart" type="range" data-field="FCST_START_GAS">
-            <span class="well-editor-field__value" data-field-value="FCST_START_GAS">--</span>
-          </div>
-          <div class="well-editor-field">
-            <label for="wellGasYears">Gas Forecast Years</label>
-            <input id="wellGasYears" type="range" min="0" max="50" step="1" data-field="GAS_FCST_YRS">
-            <span class="well-editor-field__value" data-field-value="GAS_FCST_YRS">--</span>
+
+          <div class="well-editor-actions">
+            <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
           </div>
         </div>
-      </div>
-
-      <div class="well-editor-actions">
-        <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
       </div>
     </div>
   </div>

@@ -1802,6 +1802,8 @@ window.syncRoyaltyPanelHeight = () => {
 
     const WELL_EDITOR_FIELDS = Array.from(document.querySelectorAll('[data-field]'));
     const WELL_EDITOR_VALUE_FIELDS = Array.from(document.querySelectorAll('[data-field-value]'));
+    const WELL_EDITOR_TABS = Array.from(document.querySelectorAll('[data-well-editor-tab]'));
+    const WELL_EDITOR_SECTIONS = Array.from(document.querySelectorAll('[data-well-editor-section]'));
 
     const formatNumber = (value, decimals = 0) => {
       const num = Number(value);
@@ -2296,6 +2298,22 @@ window.syncRoyaltyPanelHeight = () => {
       });
     });
 
+    const setWellEditorTab = (tab) => {
+      WELL_EDITOR_TABS.forEach((button) => {
+        const isActive = button.dataset.wellEditorTab === tab;
+        button.classList.toggle('is-active', isActive);
+      });
+      WELL_EDITOR_SECTIONS.forEach((section) => {
+        section.hidden = section.dataset.wellEditorSection !== tab;
+      });
+    };
+
+    WELL_EDITOR_TABS.forEach((button) => {
+      button.addEventListener('click', () => {
+        setWellEditorTab(button.dataset.wellEditorTab);
+      });
+    });
+
     const wellEditorOverlays = WELL_EDITOR_ELEMENTS.modal?.querySelectorAll('[data-well-editor-close]') || [];
     wellEditorOverlays.forEach((el) =>
       el.addEventListener('click', (event) => {
@@ -2317,6 +2335,7 @@ window.syncRoyaltyPanelHeight = () => {
     window.openWellEditor = async function openWellEditor(api) {
       if (!api) return;
       try {
+        setWellEditorTab('oil');
         setWellEditorStatus('Loading well data...');
         const meta = getWellMeta(api);
         WELL_EDITOR_STATE.api = api;

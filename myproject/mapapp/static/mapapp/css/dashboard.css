@@ -2133,6 +2133,49 @@ input#year[type="range"] {
       height: 300px;
     }
 
+    .well-editor-layout {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .well-editor-left {
+      flex: 1 1 60%;
+      min-width: 0;
+    }
+
+    .well-editor-right {
+      flex: 0 0 320px;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .well-editor-toggle {
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(248, 250, 252, 0.08);
+      padding: 0.4rem;
+      border-radius: 999px;
+    }
+
+    .well-editor-toggle__button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: #e2e8f0;
+      padding: 0.4rem 0.6rem;
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .well-editor-toggle__button.is-active {
+      background: #ffffff;
+      color: #0f172a;
+    }
+
     .well-editor-metrics {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -2219,6 +2262,15 @@ input#year[type="range"] {
     }
 
     @media (max-width: 900px) {
+      .well-editor-layout {
+        flex-direction: column;
+      }
+
+      .well-editor-right {
+        width: 100%;
+        max-width: 100%;
+      }
+
       #wellEditorChart {
         height: 260px;
       }
