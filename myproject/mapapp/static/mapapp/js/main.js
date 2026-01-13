@@ -1896,6 +1896,77 @@ window.syncRoyaltyPanelHeight = () => {
       WELL_EDITOR_FIELDS.forEach((field) => updateFieldLabel(field.dataset.field));
     };
 
+    const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const setRangeAttributes = (fieldName, { min, max, step }) => {
+      const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
+      if (!field || field.type !== 'range') return;
+      if (min !== undefined) field.min = min;
+      if (max !== undefined) field.max = max;
+      if (step !== undefined) field.step = step;
+      const numericValue = Number(field.value);
+      if (Number.isFinite(numericValue) && min !== undefined && max !== undefined) {
+        field.value = clampValue(numericValue, Number(min), Number(max));
+      }
+    };
+
+    const getProductionSeriesAfterStart = (rows, startDate, type) => {
+      if (!Array.isArray(rows) || !startDate) return [];
+      const key = type === 'gas' ? 'GASPROD_MCF' : 'LIQUIDSPROD_BBL';
+      return rows
+        .map((row) => ({
+          date: parseDate(row.PRODUCINGMONTH || row.ProducingMonth || row.producingmonth),
+          value: Number(row[key]) || 0,
+        }))
+        .filter((row) => row.date && row.date >= startDate)
+        .map((row) => row.value)
+        .filter((value) => value > 0);
+    };
+
+    const updateQiRange = (type, startDate) => {
+      const fieldName = type === 'gas' ? 'GAS_CALC_QI' : 'OIL_CALC_QI';
+      const series = getProductionSeriesAfterStart(WELL_EDITOR_STATE.production, startDate, type);
+      if (!series.length) {
+        setRangeAttributes(fieldName, { min: 1, max: 2, step: 1 });
+        updateFieldLabel(fieldName);
+        return;
+      }
+      const minObserved = Math.min(...series);
+      const maxObserved = Math.max(...series);
+      const minRange = Math.max(1, 0.75 * minObserved);
+      const maxRange = Math.max(2, 1.25 * maxObserved);
+      setRangeAttributes(fieldName, { min: minRange, max: maxRange, step: 1 });
+      updateFieldLabel(fieldName);
+    };
+
+    const updateDeclineRanges = (prefix) => {
+      const declineField = `${prefix}_EMPIRICAL_DI`;
+      const dminField = `${prefix}_D_MIN`;
+      const bField = `${prefix}_CALC_B_FACTOR`;
+      const typeField = `${prefix}_DECLINE_TYPE`;
+      const typeValue = getFieldValue(typeField) || 'EXP';
+
+      if (typeValue === 'HYP') {
+        setRangeAttributes(declineField, { min: 0.002, max: 0.99, step: 0.001 });
+        setRangeAttributes(dminField, { min: 0.002, max: 0.99, step: 0.001 });
+        setRangeAttributes(bField, { min: 0.75, max: 0.95, step: 0.01 });
+      } else {
+        setRangeAttributes(declineField, { min: 0.005, max: 1.6, step: 0.005 });
+        setRangeAttributes(dminField, { min: 0.002, max: 0.99, step: 0.001 });
+        setRangeAttributes(bField, { min: 0.75, max: 0.95, step: 0.01 });
+      }
+
+      updateFieldLabel(declineField);
+      updateFieldLabel(dminField);
+      updateFieldLabel(bField);
+    };
+
+    const initializeFixedRanges = () => {
+      setRangeAttributes('OIL_Q_MIN', { min: 10, max: 1000, step: 1 });
+      setRangeAttributes('GAS_Q_MIN', { min: 10, max: 1000, step: 1 });
+      setRangeAttributes('GAS_FCST_YRS', { min: 10, max: 74, step: 1 });
+    };
+
     const calculateDeclineRates = (
       qi,
       qf,
@@ -1978,7 +2049,7 @@ window.syncRoyaltyPanelHeight = () => {
         const gasDeclineType = params.GAS_DECLINE_TYPE || 'EXP';
         const gasDecline = Number(params.GAS_EMPIRICAL_DI) || 0;
         const gasB = Number(params.GAS_CALC_B_FACTOR);
-        const gasBFactor = !Number.isFinite(gasB) || gasB < 0.8 ? 0.8 : gasB;
+        const gasBFactor = !Number.isFinite(gasB) || gasB < 0.75 ? 0.75 : gasB;
         const gasTerminal = Number(params.GAS_D_MIN) || 0;
 
         const gasRates = gasStart
@@ -1990,7 +2061,7 @@ window.syncRoyaltyPanelHeight = () => {
         const oilDeclineType = params.OIL_DECLINE_TYPE || 'EXP';
         const oilDecline = Number(params.OIL_EMPIRICAL_DI) || 0;
         const oilB = Number(params.OIL_CALC_B_FACTOR);
-        const oilBFactor = !Number.isFinite(oilB) || oilB < 0.8 ? 0.8 : oilB;
+        const oilBFactor = !Number.isFinite(oilB) || oilB < 0.75 ? 0.75 : oilB;
         const oilTerminal = Number(params.OIL_D_MIN) || 0;
 
         const oilRates = oilStart
@@ -2242,6 +2313,12 @@ window.syncRoyaltyPanelHeight = () => {
       setFieldValue('GAS_DECLINE_TYPE', params.GAS_DECLINE_TYPE || 'EXP');
       setFieldValue('GAS_FCST_YRS', params.GAS_FCST_YRS ?? 0);
 
+      initializeFixedRanges();
+      updateDeclineRanges('OIL');
+      updateDeclineRanges('GAS');
+      updateQiRange('oil', sliderValueToDate(getFieldValue('FCST_START_OIL')));
+      updateQiRange('gas', sliderValueToDate(getFieldValue('FCST_START_GAS')));
+
       updateAllFieldLabels();
     };
 
@@ -2291,8 +2368,20 @@ window.syncRoyaltyPanelHeight = () => {
       field.addEventListener('input', () => {
         if (field.dataset.field === 'FCST_START_OIL' || field.dataset.field === 'FCST_START_GAS') {
           updateFieldLabel(field.dataset.field);
+          const startDate = sliderValueToDate(field.value);
+          if (field.dataset.field === 'FCST_START_OIL') {
+            updateQiRange('oil', startDate);
+          } else {
+            updateQiRange('gas', startDate);
+          }
         } else {
           updateFieldLabel(field.dataset.field);
+        }
+        if (field.dataset.field === 'OIL_DECLINE_TYPE') {
+          updateDeclineRanges('OIL');
+        }
+        if (field.dataset.field === 'GAS_DECLINE_TYPE') {
+          updateDeclineRanges('GAS');
         }
         updateWellEditorForecast();
       });
