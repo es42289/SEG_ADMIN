@@ -2431,7 +2431,10 @@ window.syncRoyaltyPanelHeight = () => {
         WELL_EDITOR_STATE.ownerInterest = meta.ownerInterest;
         WELL_EDITOR_STATE.baseNriValue = meta.pv17;
         if (WELL_EDITOR_ELEMENTS.api) WELL_EDITOR_ELEMENTS.api.textContent = api;
-        if (WELL_EDITOR_ELEMENTS.title) WELL_EDITOR_ELEMENTS.title.textContent = meta.name || api;
+        if (WELL_EDITOR_ELEMENTS.title) {
+          const baseName = meta.name || api;
+          WELL_EDITOR_ELEMENTS.title.textContent = `${baseName} (${api})`;
+        }
 
         const data = await loadWellEditorData(api);
         WELL_EDITOR_STATE.production = data.production || [];
