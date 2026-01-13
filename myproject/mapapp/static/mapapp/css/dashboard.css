@@ -685,6 +685,158 @@ body {
   color: #9ee0ff;
 }
 
+.well-dca-modal {
+  width: min(1100px, 94vw);
+}
+
+.well-dca-section {
+  margin-bottom: 1.5rem;
+}
+
+.well-dca-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+
+.well-dca-section__title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.well-dca-section__status {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.well-dca-chart {
+  width: 100%;
+  min-height: 320px;
+  border-radius: 12px;
+  border: 1px solid rgba(158, 224, 255, 0.35);
+  background: #ffffff;
+  padding: 0.75rem;
+}
+
+.well-dca-metrics {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.well-dca-metric {
+  background: rgba(8, 56, 76, 0.6);
+  border: 1px solid rgba(158, 224, 255, 0.25);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+}
+
+.well-dca-metric--wide {
+  grid-column: 1 / -1;
+}
+
+.well-dca-metric__label {
+  display: block;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 0.35rem;
+}
+
+.well-dca-metric__value {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.well-dca-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.well-dca-controls__group {
+  border: 1px solid rgba(158, 224, 255, 0.25);
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(8, 56, 76, 0.65);
+}
+
+.well-dca-controls__title {
+  margin-top: 0;
+  margin-bottom: 0.85rem;
+  font-size: 1.05rem;
+}
+
+.well-dca-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.well-dca-field__label {
+  font-size: 0.9rem;
+}
+
+.well-dca-field__inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.well-dca-field__inputs input[type="range"] {
+  flex: 1;
+}
+
+.well-dca-field__inputs input[type="number"] {
+  width: 96px;
+  font: inherit;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  border: 1px solid rgba(3, 59, 81, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+  color: #05344c;
+}
+
+.well-dca-field__select {
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid rgba(3, 59, 81, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+  color: #05344c;
+}
+
+.well-dca-field__value {
+  min-width: 90px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.well-dca-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.well-edit-button {
+  font: inherit;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.well-edit-button:hover,
+.well-edit-button:focus {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 .profile-form.is-disabled .profile-field__input {
   opacity: 0.6;
   pointer-events: none;

@@ -180,6 +180,168 @@
       <div id="feedbackResponseMessage" class="profile-modal__message" role="status" aria-live="polite"></div>
     </div>
   </div>
+  <div id="wellDcaModal" class="profile-modal" aria-hidden="true">
+    <div class="profile-modal__overlay" data-well-dca-close></div>
+    <div class="profile-modal__dialog well-dca-modal" role="dialog" aria-modal="true" aria-labelledby="wellDcaTitle">
+      <button type="button" class="profile-modal__close" data-well-dca-close aria-label="Close well forecast editor">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <div class="profile-modal__logo">
+        <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
+        <div>
+          <h2 id="wellDcaTitle" class="profile-modal__title">Well Forecast Editor</h2>
+          <p class="profile-modal__subtitle" id="wellDcaSubtitle">Edit decline curve inputs for a single well.</p>
+        </div>
+      </div>
+      <section class="well-dca-section">
+        <div class="well-dca-section__header">
+          <h3 class="well-dca-section__title">Production History & Forecast</h3>
+          <span id="wellDcaStatus" class="well-dca-section__status">Ready.</span>
+        </div>
+        <div class="well-dca-chart" id="wellDcaChart"></div>
+        <div class="well-dca-metrics">
+          <div class="well-dca-metric">
+            <span class="well-dca-metric__label">Gross Oil EUR</span>
+            <span class="well-dca-metric__value" id="wellDcaGrossOil">--</span>
+          </div>
+          <div class="well-dca-metric">
+            <span class="well-dca-metric__label">Gross Gas EUR</span>
+            <span class="well-dca-metric__value" id="wellDcaGrossGas">--</span>
+          </div>
+          <div class="well-dca-metric">
+            <span class="well-dca-metric__label">Net Oil EUR</span>
+            <span class="well-dca-metric__value" id="wellDcaNetOil">--</span>
+          </div>
+          <div class="well-dca-metric">
+            <span class="well-dca-metric__label">Net Gas EUR</span>
+            <span class="well-dca-metric__value" id="wellDcaNetGas">--</span>
+          </div>
+          <div class="well-dca-metric well-dca-metric--wide">
+            <span class="well-dca-metric__label">Estimated NRI Value (Forecast)</span>
+            <span class="well-dca-metric__value" id="wellDcaNriValue">--</span>
+          </div>
+        </div>
+      </section>
+      <section class="well-dca-controls">
+        <div class="well-dca-controls__group">
+          <h3 class="well-dca-controls__title">Oil Inputs</h3>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="oilQiRange">Oil Qi (BBL)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="oilQiRange" min="0" max="5000" step="10">
+              <input type="number" id="oilQiInput" min="0" max="5000" step="10">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="oilQMinRange">Oil Qmin (BBL)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="oilQMinRange" min="0" max="1000" step="1">
+              <input type="number" id="oilQMinInput" min="0" max="1000" step="1">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="oilDeclineType">Oil Decline Type</label>
+            <select id="oilDeclineType" class="well-dca-field__select">
+              <option value="EXP">Exponential</option>
+              <option value="HYP">Hyperbolic</option>
+            </select>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="oilDiRange">Oil Di (annual)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="oilDiRange" min="0" max="2" step="0.01">
+              <input type="number" id="oilDiInput" min="0" max="2" step="0.01">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="oilBFactorRange">Oil b-Factor</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="oilBFactorRange" min="0.4" max="1.5" step="0.01">
+              <input type="number" id="oilBFactorInput" min="0.4" max="1.5" step="0.01">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="oilDMinRange">Oil Dmin (annual)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="oilDMinRange" min="0" max="0.5" step="0.005">
+              <input type="number" id="oilDMinInput" min="0" max="0.5" step="0.005">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="oilStartRange">Oil Forecast Start</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="oilStartRange" min="0" max="0" step="1">
+              <span class="well-dca-field__value" id="oilStartValue">--</span>
+            </div>
+          </div>
+        </div>
+        <div class="well-dca-controls__group">
+          <h3 class="well-dca-controls__title">Gas Inputs</h3>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasQiRange">Gas Qi (MCF)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="gasQiRange" min="0" max="50000" step="100">
+              <input type="number" id="gasQiInput" min="0" max="50000" step="100">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasQMinRange">Gas Qmin (MCF)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="gasQMinRange" min="0" max="5000" step="10">
+              <input type="number" id="gasQMinInput" min="0" max="5000" step="10">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasDeclineType">Gas Decline Type</label>
+            <select id="gasDeclineType" class="well-dca-field__select">
+              <option value="EXP">Exponential</option>
+              <option value="HYP">Hyperbolic</option>
+            </select>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasDiRange">Gas Di (annual)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="gasDiRange" min="0" max="2" step="0.01">
+              <input type="number" id="gasDiInput" min="0" max="2" step="0.01">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasBFactorRange">Gas b-Factor</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="gasBFactorRange" min="0.4" max="1.5" step="0.01">
+              <input type="number" id="gasBFactorInput" min="0.4" max="1.5" step="0.01">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasDMinRange">Gas Dmin (annual)</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="gasDMinRange" min="0" max="0.5" step="0.005">
+              <input type="number" id="gasDMinInput" min="0" max="0.5" step="0.005">
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasStartRange">Gas Forecast Start</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="gasStartRange" min="0" max="0" step="1">
+              <span class="well-dca-field__value" id="gasStartValue">--</span>
+            </div>
+          </div>
+          <div class="well-dca-field">
+            <label class="well-dca-field__label" for="gasFcstYearsRange">Gas Forecast Years</label>
+            <div class="well-dca-field__inputs">
+              <input type="range" id="gasFcstYearsRange" min="1" max="50" step="1">
+              <input type="number" id="gasFcstYearsInput" min="1" max="50" step="1">
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="well-dca-actions">
+        <button type="button" class="feedback-response__button feedback-response__button--ghost" data-well-dca-close>Cancel</button>
+        <button type="button" class="feedback-response__button" id="wellDcaSave">Save Parameters</button>
+      </div>
+      <div id="wellDcaMessage" class="profile-modal__message" role="status" aria-live="polite"></div>
+    </div>
+  </div>
   <div id="executiveDashModal" class="profile-modal" aria-hidden="true">
     <div class="profile-modal__overlay" data-executive-close></div>
     <div class="profile-modal__dialog executive-modal" role="dialog" aria-modal="true" aria-labelledby="executiveDashTitle">
@@ -444,6 +606,7 @@
   <table id="userWellsTable" style="width:100%; border-collapse:collapse;">
     <thead>
       <tr>
+        <th style="width:70px;">Edit</th>
         <th style="width:48px;">Select</th>
         <th>Well API</th>
         <th>NRI</th>

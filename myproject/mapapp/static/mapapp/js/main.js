@@ -1556,8 +1556,61 @@ window.syncRoyaltyPanelHeight = () => {
     }
 
     const ROYALTY_RATE_KEY = 'pv17';
+    const WELL_DCA_MODAL_ID = 'wellDcaModal';
+    const WELL_DCA_CHART_ID = 'wellDcaChart';
+    const WELL_DCA_SAVE_ID = 'wellDcaSave';
+    const WELL_DCA_MESSAGE_ID = 'wellDcaMessage';
+    const WELL_DCA_STATUS_ID = 'wellDcaStatus';
+    const WELL_DCA_SUBTITLE_ID = 'wellDcaSubtitle';
+    const WELL_DCA_DEFAULT_PARAMS = {
+      OIL_CALC_QI: 0,
+      OIL_Q_MIN: 0,
+      OIL_DECLINE_TYPE: 'EXP',
+      OIL_EMPIRICAL_DI: 0,
+      OIL_CALC_B_FACTOR: 0.8,
+      OIL_D_MIN: 0,
+      GAS_CALC_QI: 0,
+      GAS_Q_MIN: 0,
+      GAS_DECLINE_TYPE: 'EXP',
+      GAS_EMPIRICAL_DI: 0,
+      GAS_CALC_B_FACTOR: 0.8,
+      GAS_D_MIN: 0,
+      GAS_FCST_YRS: 30,
+      FCST_START_OIL: null,
+      FCST_START_GAS: null,
+      ECON_SCENARIO: 'BASE'
+    };
+    const WELL_DCA_FIELD_CONFIGS = [
+      { key: 'OIL_CALC_QI', rangeId: 'oilQiRange', inputId: 'oilQiInput', defaultValue: 0 },
+      { key: 'OIL_Q_MIN', rangeId: 'oilQMinRange', inputId: 'oilQMinInput', defaultValue: 0 },
+      { key: 'OIL_EMPIRICAL_DI', rangeId: 'oilDiRange', inputId: 'oilDiInput', defaultValue: 0 },
+      { key: 'OIL_CALC_B_FACTOR', rangeId: 'oilBFactorRange', inputId: 'oilBFactorInput', defaultValue: 0.8 },
+      { key: 'OIL_D_MIN', rangeId: 'oilDMinRange', inputId: 'oilDMinInput', defaultValue: 0 },
+      { key: 'GAS_CALC_QI', rangeId: 'gasQiRange', inputId: 'gasQiInput', defaultValue: 0 },
+      { key: 'GAS_Q_MIN', rangeId: 'gasQMinRange', inputId: 'gasQMinInput', defaultValue: 0 },
+      { key: 'GAS_EMPIRICAL_DI', rangeId: 'gasDiRange', inputId: 'gasDiInput', defaultValue: 0 },
+      { key: 'GAS_CALC_B_FACTOR', rangeId: 'gasBFactorRange', inputId: 'gasBFactorInput', defaultValue: 0.8 },
+      { key: 'GAS_D_MIN', rangeId: 'gasDMinRange', inputId: 'gasDMinInput', defaultValue: 0 },
+      { key: 'GAS_FCST_YRS', rangeId: 'gasFcstYearsRange', inputId: 'gasFcstYearsInput', defaultValue: 30 },
+    ];
+    const WELL_DCA_DATE_FIELDS = [
+      { key: 'FCST_START_OIL', rangeId: 'oilStartRange', labelId: 'oilStartValue' },
+      { key: 'FCST_START_GAS', rangeId: 'gasStartRange', labelId: 'gasStartValue' },
+    ];
+    const WELL_DCA_CONTROL_IDS = {
+      oilDeclineType: 'oilDeclineType',
+      gasDeclineType: 'gasDeclineType',
+      grossOil: 'wellDcaGrossOil',
+      grossGas: 'wellDcaGrossGas',
+      netOil: 'wellDcaNetOil',
+      netGas: 'wellDcaNetGas',
+      nriValue: 'wellDcaNriValue',
+    };
     window.wellPvCells = window.wellPvCells || {};
     window.latestPerWellPvMap = window.latestPerWellPvMap || null;
+    window.wellMetaByApi = window.wellMetaByApi || {};
+    let wellDcaState = null;
+    let wellDcaUpdateTimer = null;
 
     const formatCurrencyNoCents = (value) => {
       const num = Number(value);
@@ -1592,6 +1645,523 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
+    function formatMetricValue(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+      return Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    function formatCurrencyValue(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+      return '$' + Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    }
+
+    function parseDateValue(value) {
+      if (!value) return null;
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return null;
+      return new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1));
+    }
+
+    function monthKeyFromDate(date) {
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    }
+
+    function monthIndex(date) {
+      return date.getUTCFullYear() * 12 + date.getUTCMonth();
+    }
+
+    function addMonths(date, months) {
+      return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+    }
+
+    function clampNumber(value, min, max) {
+      if (!Number.isFinite(value)) return min;
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function toNumber(value, fallback = 0) {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    }
+
+    function calculateDeclineRates(qi, qf, declineType, bFactor, initialDecline, terminalDecline, maxMonths = 600) {
+      const rates = [];
+      let currentRate = qi;
+
+      if (declineType === 'EXP') {
+        const monthlyDecline = 1 - Math.exp(-initialDecline / 12);
+        while (currentRate > qf && rates.length < maxMonths) {
+          rates.push(currentRate);
+          currentRate *= (1 - monthlyDecline);
+        }
+      } else {
+        let t = 0;
+        const monthlyTerminal = 1 - Math.exp(-terminalDecline / 12);
+        while (currentRate > qf && rates.length < maxMonths) {
+          const currentDecline = initialDecline / (1 + bFactor * initialDecline * t / 12);
+          if (currentDecline <= terminalDecline) {
+            while (currentRate > qf && rates.length < maxMonths) {
+              rates.push(currentRate);
+              currentRate *= (1 - monthlyTerminal);
+            }
+            break;
+          }
+          rates.push(currentRate);
+          currentRate = qi / Math.pow(1 + bFactor * initialDecline * (t + 1) / 12, 1 / bFactor);
+          t += 1;
+        }
+      }
+      return rates;
+    }
+
+    function calcDecline(prdRows, params) {
+      const maxMonths = 600;
+      const productionMap = new Map();
+      let minProdDate = null;
+      let maxProdDate = null;
+
+      (prdRows || []).forEach((row) => {
+        const dateVal = parseDateValue(row.PRODUCINGMONTH || row.producingmonth || row.ProducingMonth);
+        if (!dateVal) return;
+        const key = monthKeyFromDate(dateVal);
+        const bucket = productionMap.get(key) || { date: dateVal, oil: 0, gas: 0 };
+        bucket.oil += toNumber(row.LIQUIDSPROD_BBL || row.liquidsprod_bbl || row.OIL_BBL);
+        bucket.gas += toNumber(row.GASPROD_MCF || row.gasprod_mcf || row.GAS_MCF);
+        productionMap.set(key, bucket);
+        if (!minProdDate || dateVal < minProdDate) minProdDate = dateVal;
+        if (!maxProdDate || dateVal > maxProdDate) maxProdDate = dateVal;
+      });
+
+      const oilFcstStart = parseDateValue(params.FCST_START_OIL);
+      const gasFcstStart = parseDateValue(params.FCST_START_GAS);
+      const fcstDates = [oilFcstStart, gasFcstStart].filter(Boolean);
+      const earliestFcst = fcstDates.length ? fcstDates.reduce((a, b) => (a < b ? a : b)) : null;
+
+      let forecastDates = [];
+      if (earliestFcst) {
+        forecastDates = Array.from({ length: maxMonths }, (_, idx) => addMonths(earliestFcst, idx));
+      } else if (productionMap.size) {
+        forecastDates = Array.from(productionMap.values()).map((row) => row.date);
+      }
+
+      const forecastMap = new Map();
+      forecastDates.forEach((date) => {
+        forecastMap.set(monthKeyFromDate(date), { date, oilFcst: 0, gasFcst: 0 });
+      });
+
+      if (gasFcstStart) {
+        let gasBFactor = toNumber(params.GAS_CALC_B_FACTOR, 0.8);
+        if (gasBFactor < 0.8) gasBFactor = 0.8;
+        const gasRates = calculateDeclineRates(
+          toNumber(params.GAS_CALC_QI, 0),
+          toNumber(params.GAS_Q_MIN, 0),
+          params.GAS_DECLINE_TYPE || 'EXP',
+          gasBFactor,
+          toNumber(params.GAS_EMPIRICAL_DI, 0),
+          toNumber(params.GAS_D_MIN, 0),
+          maxMonths
+        );
+        const gasOffset = Math.max(0, monthIndex(gasFcstStart) - monthIndex(earliestFcst || gasFcstStart));
+        gasRates.slice(0, Math.max(0, maxMonths - gasOffset)).forEach((value, idx) => {
+          const date = addMonths(earliestFcst || gasFcstStart, gasOffset + idx);
+          const key = monthKeyFromDate(date);
+          const bucket = forecastMap.get(key) || { date, oilFcst: 0, gasFcst: 0 };
+          bucket.gasFcst = value;
+          forecastMap.set(key, bucket);
+        });
+      }
+
+      if (oilFcstStart) {
+        let oilBFactor = toNumber(params.OIL_CALC_B_FACTOR, 0.8);
+        if (oilBFactor < 0.8) oilBFactor = 0.8;
+        const oilRates = calculateDeclineRates(
+          toNumber(params.OIL_CALC_QI, 0),
+          toNumber(params.OIL_Q_MIN, 0),
+          params.OIL_DECLINE_TYPE || 'EXP',
+          oilBFactor,
+          toNumber(params.OIL_EMPIRICAL_DI, 0),
+          toNumber(params.OIL_D_MIN, 0),
+          maxMonths
+        );
+        const oilOffset = Math.max(0, monthIndex(oilFcstStart) - monthIndex(earliestFcst || oilFcstStart));
+        oilRates.slice(0, Math.max(0, maxMonths - oilOffset)).forEach((value, idx) => {
+          const date = addMonths(earliestFcst || oilFcstStart, oilOffset + idx);
+          const key = monthKeyFromDate(date);
+          const bucket = forecastMap.get(key) || { date, oilFcst: 0, gasFcst: 0 };
+          bucket.oilFcst = value;
+          forecastMap.set(key, bucket);
+        });
+      }
+
+      const combinedKeys = new Set([
+        ...productionMap.keys(),
+        ...forecastMap.keys(),
+      ]);
+
+      const rows = Array.from(combinedKeys).map((key) => {
+        const prod = productionMap.get(key);
+        const fcst = forecastMap.get(key);
+        const date = prod?.date || fcst?.date;
+        return {
+          date,
+          oil: prod ? prod.oil : 0,
+          gas: prod ? prod.gas : 0,
+          oilFcst: fcst ? fcst.oilFcst : 0,
+          gasFcst: fcst ? fcst.gasFcst : 0,
+        };
+      }).filter((row) => row.date);
+
+      rows.sort((a, b) => a.date - b.date);
+
+      const cutoffDate = new Date(Date.UTC(2050, 11, 31));
+      const filtered = rows.filter((row) => row.date <= cutoffDate);
+
+      const gasYears = toNumber(params.GAS_FCST_YRS, null);
+      if (Number.isFinite(gasYears) && filtered.length) {
+        const gasCutoff = addMonths(filtered[0].date, Math.round(gasYears * 12));
+        filtered.forEach((row) => {
+          if (row.date > gasCutoff) {
+            row.gasFcst = null;
+          }
+        });
+      }
+
+      return {
+        rows: filtered,
+        minProdDate,
+        maxProdDate,
+      };
+    }
+
+    async function fetchWellDcaData(api) {
+      const resp = await fetch(`/well-dca-inputs/?api=${encodeURIComponent(api)}`);
+      if (!resp.ok) {
+        throw new Error(`Unable to load well data (${resp.status})`);
+      }
+      return resp.json();
+    }
+
+    async function fetchPriceDeckRows(deckName) {
+      if (!deckName) return [];
+      window.priceDeckCache = window.priceDeckCache || {};
+      if (window.priceDeckCache[deckName]) return window.priceDeckCache[deckName];
+      const resp = await fetch(`/price-decks/?deck=${encodeURIComponent(deckName)}`);
+      const data = await resp.json();
+      const rows = data.data || [];
+      window.priceDeckCache[deckName] = rows;
+      return rows;
+    }
+
+    function resolveActiveDeckName() {
+      const deckSelect = document.getElementById('priceDeckSelect');
+      return deckSelect && deckSelect.value ? deckSelect.value : null;
+    }
+
+    function updateWellDcaChart(rows) {
+      const chartEl = document.getElementById(WELL_DCA_CHART_ID);
+      if (!chartEl || !window.Plotly) return;
+
+      const x = rows.map((row) => monthKeyFromDate(row.date));
+      const oilHist = rows.map((row) => row.oil > 0 ? row.oil : null);
+      const gasHist = rows.map((row) => row.gas > 0 ? row.gas : null);
+      const oilFcst = rows.map((row) => row.oilFcst > 0 ? row.oilFcst : null);
+      const gasFcst = rows.map((row) => row.gasFcst > 0 ? row.gasFcst : null);
+
+      const traces = [
+        { name: 'Oil History (BBL)', x, y: oilHist, mode: 'lines', line: { color: '#1e8f4e', width: 2 } },
+        { name: 'Gas History (MCF)', x, y: gasHist, mode: 'lines', line: { color: '#d62728', width: 2 } },
+        { name: 'Oil Forecast (BBL)', x, y: oilFcst, mode: 'lines', line: { color: '#1e8f4e', width: 2, dash: 'dot' } },
+        { name: 'Gas Forecast (MCF)', x, y: gasFcst, mode: 'lines', line: { color: '#d62728', width: 2, dash: 'dot' } },
+      ];
+
+      const yValues = [...oilHist, ...gasHist, ...oilFcst, ...gasFcst].filter((val) => val && val > 0);
+      const yMin = yValues.length ? Math.min(...yValues) : 1;
+      const yMax = yValues.length ? Math.max(...yValues) : 10;
+      const yRange = [Math.log10(yMin), Math.log10(yMax * 1.15)];
+
+      const layout = {
+        height: chartEl.clientHeight || 340,
+        margin: { l: 50, r: 30, t: 10, b: 50 },
+        showlegend: true,
+        legend: { x: 0.98, y: 0.98, xanchor: 'right', bgcolor: '#fff', bordercolor: '#1f293a33', borderwidth: 1 },
+        xaxis: { title: 'Production Month', tickangle: -45, automargin: true },
+        yaxis: { title: 'MCF or BBL per Month', type: 'log', range: yRange, gridcolor: '#1f293a1f' },
+        paper_bgcolor: '#fff',
+        plot_bgcolor: '#fff',
+        font: { color: '#1f293a' },
+        dragmode: 'pan',
+      };
+
+      Plotly.react(chartEl, traces, layout, { ...BASE_PLOT_CONFIG });
+    }
+
+    function updateWellDcaMetrics(rows, ownerInterest, forecastRows, params) {
+      const grossOil = rows.reduce((sum, row) => sum + toNumber(row.oil) + toNumber(row.oilFcst), 0);
+      const grossGas = rows.reduce((sum, row) => sum + toNumber(row.gas) + toNumber(row.gasFcst), 0);
+      const netOil = ownerInterest !== null && ownerInterest !== undefined
+        ? grossOil * ownerInterest
+        : null;
+      const netGas = ownerInterest !== null && ownerInterest !== undefined
+        ? grossGas * ownerInterest
+        : null;
+
+      const grossOilEl = document.getElementById(WELL_DCA_CONTROL_IDS.grossOil);
+      const grossGasEl = document.getElementById(WELL_DCA_CONTROL_IDS.grossGas);
+      const netOilEl = document.getElementById(WELL_DCA_CONTROL_IDS.netOil);
+      const netGasEl = document.getElementById(WELL_DCA_CONTROL_IDS.netGas);
+      if (grossOilEl) grossOilEl.textContent = formatMetricValue(grossOil);
+      if (grossGasEl) grossGasEl.textContent = formatMetricValue(grossGas);
+      if (netOilEl) netOilEl.textContent = formatMetricValue(netOil);
+      if (netGasEl) netGasEl.textContent = formatMetricValue(netGas);
+
+      updateEstimatedNriValue(forecastRows, ownerInterest, params);
+    }
+
+    async function updateEstimatedNriValue(rows, ownerInterest, params) {
+      const nriEl = document.getElementById(WELL_DCA_CONTROL_IDS.nriValue);
+      if (!nriEl) return;
+      if (ownerInterest === null || ownerInterest === undefined || !rows.length) {
+        nriEl.textContent = '--';
+        return;
+      }
+      const deckName = resolveActiveDeckName();
+      if (!deckName) {
+        nriEl.textContent = '--';
+        return;
+      }
+
+      const deckRows = await fetchPriceDeckRows(deckName);
+      const deckMap = new Map();
+      deckRows.forEach((row) => {
+        const date = parseDateValue(row.MONTH_DATE);
+        if (!date) return;
+        deckMap.set(monthKeyFromDate(date), {
+          oil: toNumber(row.OIL, 0),
+          gas: toNumber(row.GAS, 0),
+        });
+      });
+
+      let total = 0;
+      rows.forEach((row) => {
+        const key = monthKeyFromDate(row.date);
+        const prices = deckMap.get(key);
+        if (!prices) return;
+        const oilValue = toNumber(row.oilFcst, 0) * prices.oil;
+        const gasValue = toNumber(row.gasFcst, 0) * prices.gas;
+        total += (oilValue + gasValue) * ownerInterest;
+      });
+      nriEl.textContent = formatCurrencyValue(total);
+    }
+
+    function setWellDcaStatus(text, isError = false) {
+      const statusEl = document.getElementById(WELL_DCA_STATUS_ID);
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.style.color = isError ? '#ffb8b8' : 'rgba(255,255,255,0.78)';
+    }
+
+    function setWellDcaMessage(text, variant = '') {
+      const msgEl = document.getElementById(WELL_DCA_MESSAGE_ID);
+      if (!msgEl) return;
+      msgEl.textContent = text || '';
+      msgEl.className = `profile-modal__message${variant ? ` profile-modal__message--${variant}` : ''}`;
+    }
+
+    function setParamValue(key, value) {
+      if (!wellDcaState) return;
+      wellDcaState.params[key] = value;
+    }
+
+    function scheduleWellDcaUpdate() {
+      if (wellDcaUpdateTimer) window.clearTimeout(wellDcaUpdateTimer);
+      wellDcaUpdateTimer = window.setTimeout(() => {
+        if (!wellDcaState) return;
+        const result = calcDecline(wellDcaState.productionRows, wellDcaState.params);
+        wellDcaState.forecastRows = result.rows;
+        updateWellDcaChart(result.rows);
+        updateWellDcaMetrics(result.rows, wellDcaState.ownerInterest, result.rows, wellDcaState.params);
+        setWellDcaStatus('Preview updated.');
+      }, 150);
+    }
+
+    function bindRangeInputs() {
+      WELL_DCA_FIELD_CONFIGS.forEach((config) => {
+        const range = document.getElementById(config.rangeId);
+        const input = document.getElementById(config.inputId);
+        if (!range || !input) return;
+        const sync = (value) => {
+          range.value = value;
+          input.value = value;
+          setParamValue(config.key, toNumber(value, config.defaultValue));
+          scheduleWellDcaUpdate();
+        };
+        range.addEventListener('input', (event) => sync(event.target.value));
+        input.addEventListener('input', (event) => sync(event.target.value));
+      });
+
+      const oilDecline = document.getElementById(WELL_DCA_CONTROL_IDS.oilDeclineType);
+      if (oilDecline) {
+        oilDecline.addEventListener('change', (event) => {
+          setParamValue('OIL_DECLINE_TYPE', event.target.value);
+          scheduleWellDcaUpdate();
+        });
+      }
+      const gasDecline = document.getElementById(WELL_DCA_CONTROL_IDS.gasDeclineType);
+      if (gasDecline) {
+        gasDecline.addEventListener('change', (event) => {
+          setParamValue('GAS_DECLINE_TYPE', event.target.value);
+          scheduleWellDcaUpdate();
+        });
+      }
+
+      WELL_DCA_DATE_FIELDS.forEach((config) => {
+        const range = document.getElementById(config.rangeId);
+        const label = document.getElementById(config.labelId);
+        if (!range || !label) return;
+        range.addEventListener('input', () => {
+          if (!wellDcaState || !wellDcaState.dateBounds) return;
+          const startDate = wellDcaState.dateBounds.start;
+          const date = addMonths(startDate, Number(range.value));
+          const iso = monthKeyFromDate(date);
+          label.textContent = iso;
+          setParamValue(config.key, iso);
+          scheduleWellDcaUpdate();
+        });
+      });
+
+      const saveButton = document.getElementById(WELL_DCA_SAVE_ID);
+      if (saveButton) {
+        saveButton.addEventListener('click', saveWellDcaParameters);
+      }
+
+      const closeButtons = document.querySelectorAll('[data-well-dca-close]');
+      closeButtons.forEach((btn) => {
+        btn.addEventListener('click', closeWellDcaModal);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        const modal = document.getElementById(WELL_DCA_MODAL_ID);
+        if (!modal || !modal.classList.contains('is-visible')) return;
+        closeWellDcaModal();
+      });
+    }
+
+    function applyControlValues(params, dateBounds) {
+      WELL_DCA_FIELD_CONFIGS.forEach((config) => {
+        const range = document.getElementById(config.rangeId);
+        const input = document.getElementById(config.inputId);
+        if (!range || !input) return;
+        const value = toNumber(params[config.key], config.defaultValue);
+        range.value = value;
+        input.value = value;
+      });
+
+      const oilDecline = document.getElementById(WELL_DCA_CONTROL_IDS.oilDeclineType);
+      if (oilDecline) oilDecline.value = params.OIL_DECLINE_TYPE || 'EXP';
+      const gasDecline = document.getElementById(WELL_DCA_CONTROL_IDS.gasDeclineType);
+      if (gasDecline) gasDecline.value = params.GAS_DECLINE_TYPE || 'EXP';
+
+      WELL_DCA_DATE_FIELDS.forEach((config) => {
+        const range = document.getElementById(config.rangeId);
+        const label = document.getElementById(config.labelId);
+        if (!range || !label) return;
+        if (!dateBounds) {
+          range.disabled = true;
+          label.textContent = '--';
+          return;
+        }
+        range.disabled = false;
+        const months = Math.max(0, monthIndex(dateBounds.end) - monthIndex(dateBounds.start));
+        range.min = 0;
+        range.max = months;
+        const currentDate = parseDateValue(params[config.key]) || dateBounds.end;
+        const clampedIndex = clampNumber(monthIndex(currentDate) - monthIndex(dateBounds.start), 0, months);
+        range.value = clampedIndex;
+        const displayDate = addMonths(dateBounds.start, clampedIndex);
+        label.textContent = monthKeyFromDate(displayDate);
+        setParamValue(config.key, monthKeyFromDate(displayDate));
+      });
+    }
+
+    async function openWellDcaModal(api) {
+      const modal = document.getElementById(WELL_DCA_MODAL_ID);
+      if (!modal) return;
+      modal.classList.add('is-visible');
+      modal.setAttribute('aria-hidden', 'false');
+      setWellDcaMessage('');
+      setWellDcaStatus('Loading well data...');
+
+      try {
+        const payload = await fetchWellDcaData(api);
+        const baseParams = { ...WELL_DCA_DEFAULT_PARAMS, ...(payload.params || {}) };
+        const prodRows = payload.production || [];
+        const declineResult = calcDecline(prodRows, baseParams);
+        const meta = window.wellMetaByApi[api] || {};
+        const dateBounds = declineResult.minProdDate && declineResult.maxProdDate
+          ? { start: declineResult.minProdDate, end: declineResult.maxProdDate }
+          : null;
+
+        wellDcaState = {
+          api,
+          params: baseParams,
+          productionRows: prodRows,
+          forecastRows: declineResult.rows,
+          ownerInterest: meta.ownerInterest,
+          dateBounds,
+        };
+
+        const subtitle = document.getElementById(WELL_DCA_SUBTITLE_ID);
+        if (subtitle) {
+          subtitle.textContent = `${meta.name || 'Well'} · ${api}`;
+        }
+
+        applyControlValues(baseParams, dateBounds);
+        updateWellDcaChart(declineResult.rows);
+        updateWellDcaMetrics(declineResult.rows, meta.ownerInterest, declineResult.rows, baseParams);
+        setWellDcaStatus('Ready.');
+      } catch (error) {
+        console.error('Well DCA modal error:', error);
+        setWellDcaStatus('Unable to load well data.', true);
+        setWellDcaMessage('Unable to load well data. Please try again.', 'error');
+      }
+    }
+
+    function closeWellDcaModal() {
+      const modal = document.getElementById(WELL_DCA_MODAL_ID);
+      if (!modal) return;
+      modal.classList.remove('is-visible');
+      modal.setAttribute('aria-hidden', 'true');
+      wellDcaState = null;
+    }
+
+    async function saveWellDcaParameters() {
+      if (!wellDcaState) return;
+      setWellDcaMessage('');
+      setWellDcaStatus('Saving parameters...');
+      const payload = {
+        api: wellDcaState.api,
+        params: wellDcaState.params,
+      };
+      try {
+        const resp = await fetch('/well-dca-inputs/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+          const errorData = await resp.json().catch(() => ({}));
+          throw new Error(errorData.detail || `Save failed (${resp.status})`);
+        }
+        setWellDcaStatus('Saved.');
+        setWellDcaMessage('Parameters saved to Snowflake.', 'success');
+      } catch (error) {
+        console.error('Save well params error:', error);
+        setWellDcaStatus('Save failed.', true);
+        setWellDcaMessage('Save failed. Please check Snowflake inputs and try again.', 'error');
+      }
+    }
+
     function renderUserWellsTable(data) {
       const table = document.getElementById('userWellsTable');
       if (!table) return;
@@ -1600,6 +2170,7 @@ window.syncRoyaltyPanelHeight = () => {
 
       tbody.innerHTML = '';
       window.wellPvCells = {};
+      window.wellMetaByApi = {};
 
       const validApis = (data.api_uwi || []).filter(Boolean);
       pruneSelectedApis(validApis);
@@ -1608,7 +2179,7 @@ window.syncRoyaltyPanelHeight = () => {
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 16;
+        cell.colSpan = 17;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -1637,6 +2208,18 @@ window.syncRoyaltyPanelHeight = () => {
         if (apiValue) {
           row.dataset.api = apiValue;
         }
+
+        const editCell = document.createElement('td');
+        editCell.classList.add('well-edit-cell');
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.classList.add('well-edit-button');
+        editButton.textContent = 'Edit';
+        editButton.dataset.api = apiValue;
+        editButton.dataset.index = i;
+        editButton.disabled = !apiValue;
+        editCell.appendChild(editButton);
+        row.appendChild(editCell);
 
         const selectionCell = document.createElement('td');
         selectionCell.classList.add('well-select-cell');
@@ -1691,6 +2274,17 @@ window.syncRoyaltyPanelHeight = () => {
           }
         });
         tbody.appendChild(row);
+
+        if (apiValue) {
+          window.wellMetaByApi[apiValue] = {
+            api: apiValue,
+            name: data.name && data.name[i] ? data.name[i] : '',
+            ownerInterest: data.owner_interest && data.owner_interest[i] != null
+              ? Number(data.owner_interest[i])
+              : null,
+            lastProdDate: data.last_prod_date && data.last_prod_date[i] ? data.last_prod_date[i] : null,
+          };
+        }
       }
 
       if (window.latestPerWellPvMap) {
@@ -1716,6 +2310,19 @@ window.syncRoyaltyPanelHeight = () => {
           notifySelectionChange();
         });
         table._selectionListenerAttached = true;
+      }
+
+      if (!table._editListenerAttached) {
+        table.addEventListener('click', (event) => {
+          const target = event.target;
+          if (!target || !target.classList || !target.classList.contains('well-edit-button')) {
+            return;
+          }
+          const api = target.dataset.api;
+          if (!api) return;
+          openWellDcaModal(api);
+        });
+        table._editListenerAttached = true;
       }
 
       if (!table._bulkSelectionListenerAttached) {
@@ -3091,3 +3698,5 @@ window.syncRoyaltyPanelHeight = () => {
       if (!feedbackResponseState.isOpen || feedbackResponseState.saving) return;
       hideFeedbackResponseModal();
     });
+
+    bindRangeInputs();
