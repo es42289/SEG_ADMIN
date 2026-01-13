@@ -1841,9 +1841,12 @@ window.syncRoyaltyPanelHeight = () => {
     const getWellMeta = (api) => {
       const idx = getWellIndexByApi(api);
       if (idx < 0) return {};
+      const pvMap = window.latestPerWellPvMap || {};
+      const pvEntry = pvMap[api] || pvMap[api?.replace?.(/-/g, '')];
+      const pv17 = pvEntry && typeof pvEntry === 'object' ? Number(pvEntry.pv17) : null;
       return {
         ownerInterest: Number(userWellData.owner_interest?.[idx]) || 0,
-        pv17: Number(userWellData.pv17?.[idx]) || 0,
+        pv17: Number.isFinite(pv17) ? pv17 : Number(userWellData.pv17?.[idx]) || 0,
         name: userWellData.name?.[idx] || api,
       };
     };
@@ -2130,7 +2133,9 @@ window.syncRoyaltyPanelHeight = () => {
 
       const updatedNet = netOil + netGas;
       const baseNet = WELL_EDITOR_STATE.baseNetEur || updatedNet || 1;
-      const baseValue = WELL_EDITOR_STATE.baseNriValue || 0;
+      const baseValue = Number.isFinite(WELL_EDITOR_STATE.baseNriValue)
+        ? WELL_EDITOR_STATE.baseNriValue
+        : 0;
       const estimatedValue = baseNet > 0 ? baseValue * (updatedNet / baseNet) : baseValue;
       if (WELL_EDITOR_ELEMENTS.nriValue) WELL_EDITOR_ELEMENTS.nriValue.textContent = formatCurrency(estimatedValue);
       return { grossOil, grossGas, netOil, netGas };
@@ -2175,6 +2180,24 @@ window.syncRoyaltyPanelHeight = () => {
         throw new Error(text || 'Unable to load well inputs.');
       }
       return response.json();
+    };
+
+    const fetchWellPvValue = async (api) => {
+      const deckSelect = document.getElementById('priceDeckSelect');
+      const params = new URLSearchParams();
+      if (deckSelect && deckSelect.value) {
+        params.set('deck', deckSelect.value);
+      }
+      params.set('apis', api);
+      const response = await fetch(`/econ-data/?${params.toString()}`);
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      const perWell = data?.per_well_pv || {};
+      const entry = perWell[api] || perWell[api.replace(/-/g, '')];
+      const pv17 = entry && typeof entry === 'object' ? Number(entry.pv17) : null;
+      return Number.isFinite(pv17) ? pv17 : null;
     };
 
     const applyWellEditorParams = (params, lastProdDate, firstProdDate) => {
@@ -2313,6 +2336,11 @@ window.syncRoyaltyPanelHeight = () => {
         const metrics = updateWellEditorMetrics(combined);
         WELL_EDITOR_STATE.baseMetrics = metrics;
         WELL_EDITOR_STATE.baseNetEur = metrics.netOil + metrics.netGas;
+        const pvValue = await fetchWellPvValue(api);
+        if (Number.isFinite(pvValue)) {
+          WELL_EDITOR_STATE.baseNriValue = pvValue;
+          updateWellEditorMetrics(combined);
+        }
         setWellEditorStatus('');
         showWellEditor();
       } catch (error) {
