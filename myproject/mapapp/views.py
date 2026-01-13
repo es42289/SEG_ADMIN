@@ -1,6 +1,7 @@
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from functools import lru_cache
 
 import numpy as np
@@ -433,6 +434,16 @@ def _format_timestamp_for_json(value):
             value = value.astimezone(timezone.utc)
         return value.isoformat().replace('+00:00', 'Z')
     return str(value)
+
+
+def _json_safe_value(value):
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    return value
 
 
 def _parse_iso_timestamp(value):
@@ -1185,6 +1196,148 @@ def bulk_well_production(request):
         except Exception:
             pass
         conn.close()
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def well_dca_inputs(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    if request.method == "GET":
+        api = request.GET.get("api")
+        if not api:
+            return JsonResponse({"detail": "api is required."}, status=400)
+
+        conn = get_snowflake_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                SELECT PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF, API_UWI
+                FROM WELLS.MINERALS.RAW_PROD_DATA
+                WHERE API_UWI = %s
+                ORDER BY PRODUCINGMONTH
+                """,
+                (api,),
+            )
+            prod_rows = cur.fetchall()
+            prod_cols = [d[0] for d in cur.description]
+            production = [
+                {col: _json_safe_value(val) for col, val in zip(prod_cols, row)}
+                for row in prod_rows
+            ]
+
+            cur.execute(
+                """
+                SELECT *
+                FROM WELLS.MINERALS.ECON_INPUT_1PASS
+                WHERE API_UWI = %s
+                ORDER BY LAST_EDIT_DATE
+                LIMIT 1
+                """,
+                (api,),
+            )
+            param_row = cur.fetchone()
+            param_cols = [d[0] for d in cur.description] if cur.description else []
+            params = (
+                {col: _json_safe_value(val) for col, val in zip(param_cols, param_row)}
+                if param_row
+                else {}
+            )
+
+            return JsonResponse({"production": production, "params": params})
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass
+            conn.close()
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"detail": "Invalid JSON body."}, status=400)
+
+    api = payload.get("api")
+    params = payload.get("params") or {}
+    if not api:
+        return JsonResponse({"detail": "api is required."}, status=400)
+
+    econ_scenario = params.get("ECON_SCENARIO")
+
+    columns = [
+        "API_UWI",
+        "ECON_SCENARIO",
+        "OIL_CALC_QI",
+        "OIL_Q_MIN",
+        "OIL_DECLINE_TYPE",
+        "OIL_EMPIRICAL_DI",
+        "OIL_CALC_B_FACTOR",
+        "OIL_D_MIN",
+        "FCST_START_OIL",
+        "GAS_CALC_QI",
+        "GAS_Q_MIN",
+        "GAS_DECLINE_TYPE",
+        "GAS_EMPIRICAL_DI",
+        "GAS_CALC_B_FACTOR",
+        "GAS_D_MIN",
+        "FCST_START_GAS",
+        "GAS_FCST_YRS",
+    ]
+
+    values = [
+        api,
+        econ_scenario,
+        params.get("OIL_CALC_QI"),
+        params.get("OIL_Q_MIN"),
+        params.get("OIL_DECLINE_TYPE"),
+        params.get("OIL_EMPIRICAL_DI"),
+        params.get("OIL_CALC_B_FACTOR"),
+        params.get("OIL_D_MIN"),
+        params.get("FCST_START_OIL"),
+        params.get("GAS_CALC_QI"),
+        params.get("GAS_Q_MIN"),
+        params.get("GAS_DECLINE_TYPE"),
+        params.get("GAS_EMPIRICAL_DI"),
+        params.get("GAS_CALC_B_FACTOR"),
+        params.get("GAS_D_MIN"),
+        params.get("FCST_START_GAS"),
+        params.get("GAS_FCST_YRS"),
+    ]
+
+    source_columns = ", ".join([f"%s AS {col}" for col in columns])
+    update_assignments = ", ".join([f"{col} = source.{col}" for col in columns if col != "API_UWI"])
+    insert_columns = ", ".join(columns + ["LAST_EDIT_DATE"])
+    insert_values = ", ".join([f"source.{col}" for col in columns] + ["CURRENT_TIMESTAMP"])
+
+    merge_sql = f"""
+        MERGE INTO WELLS.MINERALS.ECON_INPUT_1PASS AS target
+        USING (SELECT {source_columns}) AS source
+        ON target.API_UWI = source.API_UWI
+           AND (
+             target.ECON_SCENARIO = source.ECON_SCENARIO
+             OR (target.ECON_SCENARIO IS NULL AND source.ECON_SCENARIO IS NULL)
+           )
+        WHEN MATCHED THEN UPDATE SET {update_assignments},
+             LAST_EDIT_DATE = CURRENT_TIMESTAMP
+        WHEN NOT MATCHED THEN INSERT ({insert_columns})
+        VALUES ({insert_values})
+    """
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(merge_sql, values)
+        conn.commit()
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+    return JsonResponse({"saved": True, "api": api})
 
 
 def fetch_price_decks():

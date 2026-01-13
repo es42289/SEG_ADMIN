@@ -685,6 +685,130 @@ body {
   color: #9ee0ff;
 }
 
+.well-editor-modal__dialog {
+  width: min(1100px, 96vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.well-editor__content {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.well-editor__chart {
+  min-height: 360px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #1f293a33;
+  padding: 8px;
+}
+
+.well-editor__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.well-editor__metric,
+.well-editor__nri {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.well-editor__metric-label {
+  display: block;
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.well-editor__metric-value {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.well-editor__nri {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.well-editor__controls {
+  display: grid;
+  gap: 16px;
+}
+
+.well-editor__group {
+  border: 1px solid #1f293a33;
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.well-editor__group-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #0f172a;
+}
+
+.well-editor__field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.well-editor__field-label {
+  font-size: 12px;
+  color: #475569;
+}
+
+.well-editor__field-range {
+  display: grid;
+  grid-template-columns: 1fr 90px;
+  align-items: center;
+  gap: 12px;
+}
+
+.well-editor__field-range input[type="range"] {
+  width: 100%;
+}
+
+.well-editor__field-range input[type="number"],
+.well-editor__field-range input[type="date"],
+.well-editor__field-range select {
+  width: 100%;
+  border: 1px solid #cbd5f5;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  background: #fff;
+}
+
+.well-editor__actions {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.well-editor__save {
+  background: #156082;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.well-editor__save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .profile-form.is-disabled .profile-field__input {
   opacity: 0.6;
   pointer-events: none;
@@ -2017,6 +2141,26 @@ input#year[type="range"] {
 
     #userWellsTable .well-select-cell {
       text-align: center;
+    }
+
+    #userWellsTable .well-edit-cell {
+      text-align: center;
+    }
+
+    #userWellsTable .well-edit-button {
+      background: #ffffff;
+      color: #156082;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10pt;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #userWellsTable .well-edit-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     #userWellsTable .well-select-input {
