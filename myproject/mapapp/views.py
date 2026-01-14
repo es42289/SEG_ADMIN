@@ -1749,34 +1749,72 @@ def fetch_forecasts_for_apis(apis):
         return pd.DataFrame(columns=base_columns)
 
     conn = get_snowflake_connection()
-    cur = conn.cursor()
-    apis_clean = [a.replace("-", "") for a in apis]
-    placeholders = ",".join(["%s"] * len(apis_clean))
-    sql = (
-        "SELECT *, REPLACE(API_UWI, '-', '') AS API_NODASH "
-        "FROM WELLS.MINERALS.FORECASTS "
-        f"WHERE REPLACE(API_UWI, '-', '') IN ({placeholders})"
-    )
-    cur.execute(sql, apis_clean)
-    rows = cur.fetchall()
-    cols = [c[0] for c in cur.description]
-    conn.close()
+    cur = conn.cursor(DictCursor)
+    apis = [str(a).strip() for a in apis if str(a).strip()]
+    CHUNK = 1000
+    production_rows = []
+    params_by_api = {}
+    try:
+        for i in range(0, len(apis), CHUNK):
+            chunk = apis[i : i + CHUNK]
+            placeholders = ",".join(["%s"] * len(chunk))
+            cur.execute(
+                f"""
+                SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF
+                FROM WELLS.MINERALS.RAW_PROD_DATA
+                WHERE API_UWI IN ({placeholders})
+                ORDER BY API_UWI, PRODUCINGMONTH
+                """,
+                chunk,
+            )
+            production_rows.extend(cur.fetchall() or [])
 
-    df = pd.DataFrame(rows, columns=cols or base_columns)
-    # Ensure we have a proper datetime column for monthly aggregation
+            cur.execute(
+                f"""
+                SELECT *
+                FROM (
+                    SELECT *,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY API_UWI
+                            ORDER BY LAST_EDIT_DATE DESC
+                        ) AS rn
+                    FROM WELLS.MINERALS.ECON_INPUT_1PASS
+                    WHERE API_UWI IN ({placeholders})
+                )
+                WHERE rn = 1
+                """,
+                chunk,
+            )
+            for row in cur.fetchall() or []:
+                params_by_api[row.get("API_UWI")] = row
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+    production_df = pd.DataFrame(
+        production_rows,
+        columns=["API_UWI", "PRODUCINGMONTH", "LIQUIDSPROD_BBL", "GASPROD_MCF"],
+    )
+    forecasts = []
+    for api in apis:
+        prd = production_df[production_df["API_UWI"] == api].copy()
+        if prd.empty:
+            prd = pd.DataFrame(
+                columns=["API_UWI", "PRODUCINGMONTH", "LIQUIDSPROD_BBL", "GASPROD_MCF"]
+            )
+        params = params_by_api.get(api, {})
+        fc = _calc_decline_forecast(prd, params)
+        forecasts.append(fc)
+
+    df = pd.concat(forecasts, ignore_index=True) if forecasts else pd.DataFrame()
+    if df.empty:
+        df = pd.DataFrame(columns=base_columns)
+
     df["PRODUCINGMONTH"] = pd.to_datetime(df["PRODUCINGMONTH"], errors="coerce")
     df = df.dropna(subset=["PRODUCINGMONTH"])
-
-    # Normalize forecast column names regardless of case in the source table
-    rename_map = {}
-    for col in df.columns:
-        upper = col.upper()
-        if upper == "OILFCST_BBL":
-            rename_map[col] = "OilFcst_BBL"
-        elif upper == "GASFCST_MCF":
-            rename_map[col] = "GasFcst_MCF"
-    if rename_map:
-        df = df.rename(columns=rename_map)
 
     for col in ["OilFcst_BBL", "GasFcst_MCF"]:
         if col not in df.columns:
