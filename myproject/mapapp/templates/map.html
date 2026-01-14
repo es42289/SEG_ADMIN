@@ -609,9 +609,63 @@
           </div>
 
           <div class="well-editor-actions">
+            <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
             <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="fastEditModal" class="fast-edit-modal" aria-hidden="true">
+    <div class="fast-edit-modal__overlay" data-fast-edit-close></div>
+    <div class="fast-edit-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="fastEditTitle">
+      <button type="button" class="fast-edit-modal__close" data-fast-edit-close aria-label="Close fast edit dialog">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <header class="fast-edit-modal__header">
+        <div>
+          <p class="fast-edit-modal__eyebrow">Fast Edit Mode</p>
+          <h2 id="fastEditTitle" class="fast-edit-modal__title">Production History &amp; Forecast</h2>
+        </div>
+        <div class="fast-edit-modal__controls">
+          <button type="button" class="fast-edit-toggle is-active" data-fast-edit-mode="gas">Gas Joysticks</button>
+          <button type="button" class="fast-edit-toggle" data-fast-edit-mode="oil">Oil Joysticks</button>
+        </div>
+      </header>
+
+      <div class="fast-edit-modal__chart">
+        <div id="fastEditChart"></div>
+        <div class="fast-edit-kpis">
+          <div class="fast-edit-kpi">
+            <span class="fast-edit-kpi__label">EUR OIL</span>
+            <span id="fastEditEurOil" class="fast-edit-kpi__value">--</span>
+          </div>
+          <div class="fast-edit-kpi">
+            <span class="fast-edit-kpi__label">EUR GAS</span>
+            <span id="fastEditEurGas" class="fast-edit-kpi__value">--</span>
+          </div>
+          <div class="fast-edit-kpi">
+            <span class="fast-edit-kpi__label">Estimated NRI</span>
+            <span id="fastEditNriValue" class="fast-edit-kpi__value">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="fast-edit-readout">
+        <div><strong>qi:</strong> <span id="fastEditQi">--</span></div>
+        <div><strong>Di:</strong> <span id="fastEditDi">--</span></div>
+        <div><strong>b:</strong> <span id="fastEditB">--</span></div>
+        <div><strong>Start:</strong> <span id="fastEditStart">--</span></div>
+      </div>
+
+      <div class="fast-edit-joysticks">
+        <div class="fast-edit-joystick fast-edit-joystick--left" id="fastEditJoystickLeft">
+          <div class="fast-edit-joystick__label">↕ qi<br>↔ Start</div>
+        </div>
+        <div class="fast-edit-joystick fast-edit-joystick--right" id="fastEditJoystickRight">
+          <div class="fast-edit-joystick__label">↕ Dᵢ ↔ b</div>
         </div>
       </div>
     </div>
