@@ -1283,26 +1283,14 @@ def save_well_dca_inputs(request):
     conn = get_snowflake_connection()
     cur = conn.cursor()
     try:
-        set_clause = ", ".join([f"{col} = %s" for col in columns])
-        update_sql = f"""
-            UPDATE WELLS.MINERALS.ECON_INPUT_1PASS
-            SET {set_clause},
-                LAST_EDIT_DATE = CURRENT_TIMESTAMP()
-            WHERE API_UWI = %s
+        insert_cols = ", ".join(["API_UWI"] + columns + ["LAST_EDIT_DATE"])
+        insert_placeholders = ", ".join(["%s"] * (len(columns) + 2))
+        insert_sql = f"""
+            INSERT INTO WELLS.MINERALS.ECON_INPUT_1PASS ({insert_cols})
+            VALUES ({insert_placeholders})
         """
-        update_params = [values[col] for col in columns] + [api]
-        cur.execute(update_sql, update_params)
-        updated = cur.rowcount
-
-        if updated == 0:
-            insert_cols = ", ".join(["API_UWI"] + columns + ["LAST_EDIT_DATE"])
-            insert_placeholders = ", ".join(["%s"] * (len(columns) + 2))
-            insert_sql = f"""
-                INSERT INTO WELLS.MINERALS.ECON_INPUT_1PASS ({insert_cols})
-                VALUES ({insert_placeholders})
-            """
-            insert_params = [api] + [values[col] for col in columns] + [datetime.utcnow()]
-            cur.execute(insert_sql, insert_params)
+        insert_params = [api] + [values[col] for col in columns] + [datetime.utcnow()]
+        cur.execute(insert_sql, insert_params)
         conn.commit()
         return JsonResponse({"saved": True})
     except snowflake_errors.Error:
