@@ -2547,10 +2547,11 @@ window.syncRoyaltyPanelHeight = () => {
     const applyFastEditMovement = (dx, dy, isLeftPad) => {
       const fields = getFastEditFields();
       if (isLeftPad) {
-        const dateDelta = Math.round(dx / 6);
-        if (dateDelta !== 0) {
-          adjustRangeFieldBy(fields.start, dateDelta);
+        let dateDelta = getRangeDelta(fields.start, dx, 120);
+        if (dateDelta === 0 && dx !== 0) {
+          dateDelta = Math.sign(dx);
         }
+        adjustRangeFieldBy(fields.start, dateDelta);
         const qiDelta = getRangeDelta(fields.qi, -dy);
         if (qiDelta !== 0) {
           adjustRangeFieldBy(fields.qi, qiDelta);
