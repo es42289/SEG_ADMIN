@@ -2279,6 +2279,21 @@ input#year[type="range"] {
       gap: 0.6rem;
     }
 
+    .well-editor-fast-edit {
+      background: #fbbf24;
+      color: #0f172a;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+    }
+
+    .well-editor-fast-edit:hover {
+      background: #f59e0b;
+    }
+
     .well-editor-download {
       background: transparent;
       color: #f8fafc;
@@ -2326,6 +2341,176 @@ input#year[type="range"] {
     .well-editor-save:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    .well-fast-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1300;
+      display: none;
+    }
+
+    .well-fast-modal.is-open {
+      display: block;
+    }
+
+    .well-fast-modal__overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(4, 15, 25, 0.82);
+    }
+
+    .well-fast-modal__dialog {
+      position: relative;
+      z-index: 1;
+      width: 100vw;
+      height: 100vh;
+      background: #0b2232;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 1.5rem 1.2rem;
+      overflow: hidden;
+    }
+
+    .well-fast-modal__close {
+      position: absolute;
+      top: 1rem;
+      right: 1.2rem;
+      border: none;
+      background: rgba(248, 250, 252, 0.12);
+      color: #f8fafc;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .well-fast-modal__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-right: 3rem;
+    }
+
+    .well-fast-modal__eyebrow {
+      margin: 0 0 0.25rem;
+      font-size: 0.85rem;
+      color: #93c5fd;
+    }
+
+    .well-fast-modal__title {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .well-fast-toggle {
+      border: none;
+      background: #1d4ed8;
+      color: #f8fafc;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .well-fast-modal__chart {
+      position: relative;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 0.5rem;
+      margin: 0.75rem 0;
+      flex: 1;
+      min-height: 0;
+    }
+
+    #wellFastChart {
+      width: 100%;
+      height: 100%;
+      min-height: 280px;
+    }
+
+    .well-fast-kpis {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: rgba(15, 23, 42, 0.85);
+      color: #f8fafc;
+      padding: 0.6rem 0.8rem;
+      border-radius: 10px;
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+
+    .well-fast-kpi__label {
+      display: block;
+      font-size: 0.7rem;
+      color: #cbd5f5;
+      letter-spacing: 0.04em;
+    }
+
+    .well-fast-kpi__value {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .well-fast-joysticks {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+      padding: 0.5rem 0.25rem 0;
+    }
+
+    .well-fast-joystick {
+      width: min(22vw, 160px);
+      height: min(22vw, 160px);
+      border-radius: 50%;
+      border: 2px solid rgba(59, 130, 246, 0.6);
+      background: rgba(59, 130, 246, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #bfdbfe;
+      font-weight: 700;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .well-fast-joystick--slope {
+      border-color: rgba(248, 113, 113, 0.6);
+      background: rgba(248, 113, 113, 0.08);
+      color: #fecaca;
+    }
+
+    .well-fast-joystick__label {
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    @media (max-width: 900px) and (orientation: portrait) {
+      .well-fast-modal__dialog {
+        width: 100vh;
+        height: 100vw;
+        transform: rotate(90deg) translateY(-100%);
+        transform-origin: top left;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .well-fast-modal__header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .well-fast-kpis {
+        font-size: 0.75rem;
+      }
     }
 
     .mobile-experience-disclaimer {

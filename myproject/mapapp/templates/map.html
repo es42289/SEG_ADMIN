@@ -609,9 +609,53 @@
           </div>
 
           <div class="well-editor-actions">
+            <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
             <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="wellFastModal" class="well-fast-modal" aria-hidden="true">
+    <div class="well-fast-modal__overlay" data-well-fast-close></div>
+    <div class="well-fast-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wellFastTitle">
+      <button type="button" class="well-fast-modal__close" data-well-fast-close aria-label="Close fast edit dialog">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <header class="well-fast-modal__header">
+        <div>
+          <p class="well-fast-modal__eyebrow">Fast Edit</p>
+          <h2 id="wellFastTitle" class="well-fast-modal__title">Well Fast Edit</h2>
+        </div>
+        <button type="button" id="wellFastToggle" class="well-fast-toggle">Thumbs: Gas</button>
+      </header>
+
+      <div class="well-fast-modal__chart">
+        <div id="wellFastChart"></div>
+        <div class="well-fast-kpis">
+          <div class="well-fast-kpi">
+            <span class="well-fast-kpi__label">EUR OIL</span>
+            <strong id="wellFastEurOil" class="well-fast-kpi__value">--</strong>
+          </div>
+          <div class="well-fast-kpi">
+            <span class="well-fast-kpi__label">EUR GAS</span>
+            <strong id="wellFastEurGas" class="well-fast-kpi__value">--</strong>
+          </div>
+          <div class="well-fast-kpi">
+            <span class="well-fast-kpi__label">Estimated NRI</span>
+            <strong id="wellFastNri" class="well-fast-kpi__value">--</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="well-fast-joysticks">
+        <div id="wellFastOrigin" class="well-fast-joystick" role="presentation">
+          <span class="well-fast-joystick__label">↕ qi<br>↔ start</span>
+        </div>
+        <div id="wellFastSlope" class="well-fast-joystick well-fast-joystick--slope" role="presentation">
+          <span class="well-fast-joystick__label">↕ Di<br>↔ b</span>
         </div>
       </div>
     </div>
