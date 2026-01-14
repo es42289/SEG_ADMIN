@@ -2238,6 +2238,13 @@ input#year[type="range"] {
       color: #f8fafc;
     }
 
+    .well-editor-metric__percent {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: rgba(248, 250, 252, 0.75);
+      margin-left: 0.35rem;
+    }
+
     .well-editor-status {
       margin-bottom: 0.75rem;
       font-size: 0.9rem;
