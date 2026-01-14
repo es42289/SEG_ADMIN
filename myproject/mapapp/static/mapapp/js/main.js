@@ -1798,6 +1798,7 @@ window.syncRoyaltyPanelHeight = () => {
       grossGas: document.getElementById('wellEditorGrossGasEur'),
       netOil: document.getElementById('wellEditorNetOilEur'),
       netGas: document.getElementById('wellEditorNetGasEur'),
+      nriPercent: document.getElementById('wellEditorNriPercent'),
       nriValue: document.getElementById('wellEditorNriValue'),
     };
 
@@ -2757,6 +2758,10 @@ window.syncRoyaltyPanelHeight = () => {
         WELL_EDITOR_STATE.api = api;
         WELL_EDITOR_STATE.ownerInterest = meta.ownerInterest;
         WELL_EDITOR_STATE.baseNriValue = meta.pv17;
+        if (WELL_EDITOR_ELEMENTS.nriPercent) {
+          const percent = Number.isFinite(meta.ownerInterest) ? meta.ownerInterest * 100 : 0;
+          WELL_EDITOR_ELEMENTS.nriPercent.textContent = percent.toFixed(2);
+        }
         if (WELL_EDITOR_ELEMENTS.title) {
           const baseName = meta.name || api;
           WELL_EDITOR_ELEMENTS.title.textContent = `${baseName} (${api})`;

@@ -479,12 +479,18 @@
           <p class="well-editor-modal__eyebrow">Well Forecast Editor</p>
           <h2 id="wellEditorTitle" class="well-editor-modal__title">Well Inputs</h2>
         </div>
+        <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
       </header>
 
       <div class="well-editor-layout">
         <div class="well-editor-left">
           <div class="well-editor-modal__chart">
             <div id="wellEditorChart"></div>
+          </div>
+
+          <div class="well-editor-actions">
+            <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
+            <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
           </div>
 
           <div class="well-editor-metrics">
@@ -505,7 +511,7 @@
               <span id="wellEditorNetGasEur" class="well-editor-metric__value">--</span>
             </div>
             <div class="well-editor-metric well-editor-metric--wide">
-              <span class="well-editor-metric__label">Estimated NRI Value</span>
+              <span class="well-editor-metric__label">Estimated NRI Value (NRI: <span id="wellEditorNriPercent">--</span>%)</span>
               <span id="wellEditorNriValue" class="well-editor-metric__value">--</span>
             </div>
           </div>
@@ -608,11 +614,6 @@
             </div>
           </div>
 
-          <div class="well-editor-actions">
-            <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
-            <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
-            <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
-          </div>
         </div>
       </div>
     </div>
