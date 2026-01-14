@@ -1788,7 +1788,6 @@ window.syncRoyaltyPanelHeight = () => {
 
     const WELL_EDITOR_ELEMENTS = {
       modal: document.getElementById('wellEditorModal'),
-      api: document.getElementById('wellEditorApi'),
       title: document.getElementById('wellEditorTitle'),
       chart: document.getElementById('wellEditorChart'),
       status: document.getElementById('wellEditorStatus'),
@@ -2430,7 +2429,6 @@ window.syncRoyaltyPanelHeight = () => {
         WELL_EDITOR_STATE.api = api;
         WELL_EDITOR_STATE.ownerInterest = meta.ownerInterest;
         WELL_EDITOR_STATE.baseNriValue = meta.pv17;
-        if (WELL_EDITOR_ELEMENTS.api) WELL_EDITOR_ELEMENTS.api.textContent = api;
         if (WELL_EDITOR_ELEMENTS.title) {
           const baseName = meta.name || api;
           WELL_EDITOR_ELEMENTS.title.textContent = `${baseName} (${api})`;
