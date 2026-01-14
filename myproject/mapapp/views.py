@@ -1284,12 +1284,12 @@ def save_well_dca_inputs(request):
     cur = conn.cursor()
     try:
         insert_cols = ", ".join(["API_UWI"] + columns + ["LAST_EDIT_DATE"])
-        insert_placeholders = ", ".join(["%s"] * (len(columns) + 2))
+        insert_placeholders = ", ".join(["%s"] * (len(columns) + 1))
         insert_sql = f"""
             INSERT INTO WELLS.MINERALS.ECON_INPUT_1PASS ({insert_cols})
-            VALUES ({insert_placeholders})
+            VALUES ({insert_placeholders}, CURRENT_TIMESTAMP())
         """
-        insert_params = [api] + [values[col] for col in columns] + [datetime.utcnow()]
+        insert_params = [api] + [values[col] for col in columns]
         cur.execute(insert_sql, insert_params)
         conn.commit()
         return JsonResponse({"saved": True})
