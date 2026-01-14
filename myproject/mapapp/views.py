@@ -6,7 +6,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 from snowflake.connector import DictCursor, errors as snowflake_errors
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -1315,6 +1315,351 @@ def save_well_dca_inputs(request):
         except Exception:
             pass
         conn.close()
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def export_well_dca_inputs(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    api = (payload.get("api") or "").strip()
+    params = payload.get("params") or {}
+    deck = payload.get("deck")
+    if not api:
+        return JsonResponse({"detail": "API is required."}, status=400)
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    try:
+        cur.execute(
+            """
+            SELECT API_UWI, PRODUCINGMONTH, LIQUIDSPROD_BBL, GASPROD_MCF
+            FROM WELLS.MINERALS.RAW_PROD_DATA
+            WHERE API_UWI = %s
+            ORDER BY PRODUCINGMONTH
+            """,
+            (api,),
+        )
+        prod_rows = cur.fetchall() or []
+        prd = pd.DataFrame(prod_rows)
+
+        if not params:
+            cur.execute(
+                """
+                SELECT *
+                FROM WELLS.MINERALS.ECON_INPUT_1PASS
+                WHERE API_UWI = %s
+                ORDER BY LAST_EDIT_DATE DESC
+                LIMIT 1
+                """,
+                (api,),
+            )
+            params = cur.fetchone() or {}
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+    forecast_df = _calc_decline_forecast(prd, params)
+    forecast_df["PRODUCINGMONTH"] = pd.to_datetime(
+        forecast_df["PRODUCINGMONTH"], errors="coerce"
+    )
+
+    price_df = fetch_price_decks()
+    deck_name = deck or _default_price_deck_name(price_df)
+    deck_df = get_blended_price_deck(deck_name, price_df)
+
+    user_email = get_effective_user_email(request)
+    owner_name = get_user_owner_name(user_email)
+    wells = _snowflake_user_wells(owner_name) if owner_name else []
+    interest_map = {w.get("api_uwi"): w.get("owner_interest") for w in wells}
+    owner_interest = float(interest_map.get(api) or 0)
+
+    fc = forecast_df.copy()
+    fc["OilVolWI"] = (
+        fc.get("LIQUIDSPROD_BBL").fillna(fc.get("OilFcst_BBL")).fillna(0)
+    )
+    fc["GasVolWI"] = (
+        fc.get("GASPROD_MCF").fillna(fc.get("GasFcst_MCF")).fillna(0)
+    )
+    fc["OwnerInterest"] = owner_interest
+
+    hist_oil = pd.to_numeric(fc.get("LIQUIDSPROD_BBL"), errors="coerce")
+    hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
+    fc["has_hist_volume"] = hist_oil.fillna(0).ne(0) | hist_gas.fillna(0).ne(0)
+
+    oil_basis_pct = 1.0
+    oil_basis_amt = 0.0
+    gas_basis_pct = 1.0
+    gas_basis_amt = 0.0
+    ngl_basis_pct = 0.3
+    ngl_basis_amt = 0.0
+    ngl_yield = 10.0
+    gas_shrink = 0.9
+    oil_gpt = gas_gpt = ngl_gpt = 0.0
+    oil_opt = gas_opt = ngl_opt = 0.0
+    oil_tax = 0.046
+    gas_tax = 0.075
+    ngl_tax = 0.046
+    ad_val_tax = 0.02
+    apply_nri_before_tax = True
+
+    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
+    fc = fc.merge(
+        deck_df[["MONTH_DATE", "OIL", "GAS"]],
+        left_on="PRODUCINGMONTH",
+        right_on="MONTH_DATE",
+        how="left",
+    )
+    fc[["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]] = fc[
+        ["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]
+    ].fillna(0)
+
+    if apply_nri_before_tax:
+        fc["OilVol"] = fc["OilVolWI"] * fc["OwnerInterest"]
+        fc["GasVol"] = fc["GasVolWI"] * fc["OwnerInterest"]
+    else:
+        fc["OilVol"] = fc["OilVolWI"]
+        fc["GasVol"] = fc["GasVolWI"]
+
+    net_gas = fc["GasVol"] * gas_shrink
+    fc["NGLVol"] = (net_gas / 1000.0) * ngl_yield
+    fc["RealOil"] = fc["OIL"] * oil_basis_pct + oil_basis_amt
+    fc["RealGas"] = fc["GAS"] * gas_basis_pct + gas_basis_amt
+    fc["RealNGL"] = fc["GAS"] * ngl_basis_pct + ngl_basis_amt
+    fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
+    fc["GasRevenue"] = net_gas * fc["RealGas"]
+    fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
+    fc["GrossRevenue"] = fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
+    fc["OilGPT"] = fc["OilVol"] * oil_gpt
+    fc["GasGPT"] = fc["GasVol"] * gas_gpt
+    fc["NGLGPT"] = fc["NGLVol"] * ngl_gpt
+    fc["GPT"] = fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]
+    fc["OilOPT"] = fc["OilVol"] * oil_opt
+    fc["GasOPT"] = fc["GasVol"] * gas_opt
+    fc["NGLOPT"] = fc["NGLVol"] * ngl_opt
+    fc["OPT"] = fc["OilOPT"] + fc["GasOPT"] + fc["NGLOPT"]
+    fc["OilSev"] = fc["OilRevenue"] * oil_tax
+    fc["GasSev"] = fc["GasRevenue"] * gas_tax
+    fc["NGLSev"] = fc["NGLRevenue"] * ngl_tax
+    fc["SevTax"] = fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]
+    fc["AdValTax"] = fc["GrossRevenue"] * ad_val_tax
+    fc["NetCashFlow"] = (
+        fc["GrossRevenue"] - fc["GPT"] - fc["OPT"] - fc["SevTax"] - fc["AdValTax"]
+    )
+
+    if not apply_nri_before_tax:
+        money_cols = [
+            "OilRevenue",
+            "GasRevenue",
+            "NGLRevenue",
+            "GrossRevenue",
+            "OilGPT",
+            "GasGPT",
+            "NGLGPT",
+            "GPT",
+            "OilOPT",
+            "GasOPT",
+            "NGLOPT",
+            "OPT",
+            "OilSev",
+            "GasSev",
+            "NGLSev",
+            "SevTax",
+            "AdValTax",
+            "NetCashFlow",
+        ]
+        fc[money_cols] = fc[money_cols].mul(fc["OwnerInterest"], axis=0)
+
+    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d")
+    export_columns = [
+        "API_UWI",
+        "PRODUCINGMONTH",
+        "LIQUIDSPROD_BBL",
+        "GASPROD_MCF",
+        "OilFcst_BBL",
+        "GasFcst_MCF",
+        "OilVolWI",
+        "GasVolWI",
+        "OwnerInterest",
+        "OIL",
+        "GAS",
+        "RealOil",
+        "RealGas",
+        "RealNGL",
+        "OilRevenue",
+        "GasRevenue",
+        "NGLRevenue",
+        "GrossRevenue",
+        "GPT",
+        "OPT",
+        "SevTax",
+        "AdValTax",
+        "NetCashFlow",
+    ]
+    for col in export_columns:
+        if col not in fc.columns:
+            fc[col] = 0
+    output = fc[export_columns].fillna(0)
+    csv_data = output.to_csv(index=False)
+    response = HttpResponse(csv_data, content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="well_{api}_dca_export.csv"'
+    return response
+
+
+def _default_price_deck_name(price_df: pd.DataFrame) -> str:
+    if price_df.empty:
+        return "HIST"
+    options = sorted(
+        name
+        for name in price_df["PRICE_DECK_NAME"].unique()
+        if str(name).upper() != "HIST"
+    )
+    for opt in options:
+        if str(opt).lower().replace("_", "").replace("-", "") == "livestrip":
+            return opt
+    return options[0] if options else "HIST"
+
+
+def _calculate_decline_rates(
+    qi,
+    qf,
+    decline_type,
+    b_factor=None,
+    initial_decline=None,
+    terminal_decline=None,
+    max_months=600,
+):
+    rates = []
+    current_rate = float(qi or 0)
+    if decline_type == "EXP":
+        monthly_decline = 1 - np.exp(-(float(initial_decline or 0) / 12))
+        while current_rate > qf and len(rates) < max_months:
+            rates.append(current_rate)
+            current_rate *= 1 - monthly_decline
+    else:
+        t = 0
+        monthly_terminal = 1 - np.exp(-(float(terminal_decline or 0) / 12))
+        b = float(b_factor or 0.75)
+        while current_rate > qf and len(rates) < max_months:
+            current_decline = (float(initial_decline or 0)) / (
+                1 + b * (float(initial_decline or 0)) * t / 12
+            )
+            if current_decline <= float(terminal_decline or 0):
+                while current_rate > qf and len(rates) < max_months:
+                    rates.append(current_rate)
+                    current_rate *= 1 - monthly_terminal
+                break
+            rates.append(current_rate)
+            current_rate = float(qi or 0) / np.power(
+                1 + b * (float(initial_decline or 0)) * (t + 1) / 12, 1 / b
+            )
+            t += 1
+    return np.array(rates)
+
+
+def _calc_decline_forecast(prd: pd.DataFrame, params: dict) -> pd.DataFrame:
+    max_months = 600
+    prd = prd.copy()
+    prd["PRODUCINGMONTH"] = pd.to_datetime(prd["PRODUCINGMONTH"], errors="coerce")
+    prd = prd.dropna(subset=["PRODUCINGMONTH"])
+
+    oil_fcst_start = pd.to_datetime(params.get("FCST_START_OIL"), errors="coerce")
+    gas_fcst_start = pd.to_datetime(params.get("FCST_START_GAS"), errors="coerce")
+
+    oil_fcst_start = oil_fcst_start.replace(day=1) if pd.notna(oil_fcst_start) else None
+    gas_fcst_start = gas_fcst_start.replace(day=1) if pd.notna(gas_fcst_start) else None
+
+    earliest_fcst_start = (
+        min(d for d in [oil_fcst_start, gas_fcst_start] if d is not None)
+        if any([oil_fcst_start, gas_fcst_start])
+        else None
+    )
+
+    if earliest_fcst_start is None:
+        well_fcst = prd[["PRODUCINGMONTH"]].drop_duplicates().copy()
+        well_fcst["GasFcst_MCF"] = 0
+        well_fcst["OilFcst_BBL"] = 0
+    else:
+        dates = pd.date_range(start=earliest_fcst_start, periods=max_months, freq="MS")
+        well_fcst = pd.DataFrame({"PRODUCINGMONTH": dates})
+
+        if gas_fcst_start is not None:
+            gas_qi = float(params.get("GAS_CALC_QI") or 0)
+            gas_qf = float(params.get("GAS_Q_MIN") or 0)
+            gas_decline_type = params.get("GAS_DECLINE_TYPE") or "EXP"
+            gas_decline = float(params.get("GAS_EMPIRICAL_DI") or 0)
+            gas_b = float(params.get("GAS_CALC_B_FACTOR") or 0.75)
+            gas_terminal = float(params.get("GAS_D_MIN") or 0)
+            gas_rates = _calculate_decline_rates(
+                gas_qi,
+                gas_qf,
+                gas_decline_type,
+                gas_b,
+                gas_decline,
+                gas_terminal,
+                max_months=max_months,
+            )
+            gas_offset = max(0, (gas_fcst_start - earliest_fcst_start).days // 30)
+            data_length = min(len(gas_rates), len(well_fcst) - gas_offset)
+            well_fcst["GasFcst_MCF"] = np.nan
+            well_fcst.loc[
+                gas_offset : gas_offset + data_length - 1, "GasFcst_MCF"
+            ] = gas_rates[:data_length]
+        else:
+            well_fcst["GasFcst_MCF"] = 0
+
+        if oil_fcst_start is not None:
+            oil_qi = float(params.get("OIL_CALC_QI") or 0)
+            oil_qf = float(params.get("OIL_Q_MIN") or 0)
+            oil_decline_type = params.get("OIL_DECLINE_TYPE") or "EXP"
+            oil_decline = float(params.get("OIL_EMPIRICAL_DI") or 0)
+            oil_b = float(params.get("OIL_CALC_B_FACTOR") or 0.75)
+            oil_terminal = float(params.get("OIL_D_MIN") or 0)
+            oil_rates = _calculate_decline_rates(
+                oil_qi,
+                oil_qf,
+                oil_decline_type,
+                oil_b,
+                oil_decline,
+                oil_terminal,
+                max_months=max_months,
+            )
+            oil_offset = max(0, (oil_fcst_start - earliest_fcst_start).days // 30)
+            data_length = min(len(oil_rates), len(well_fcst) - oil_offset)
+            well_fcst["OilFcst_BBL"] = np.nan
+            well_fcst.loc[
+                oil_offset : oil_offset + data_length - 1, "OilFcst_BBL"
+            ] = oil_rates[:data_length]
+        else:
+            well_fcst["OilFcst_BBL"] = 0
+
+    final_df = pd.merge(prd, well_fcst, on="PRODUCINGMONTH", how="outer")
+    final_df = final_df[final_df["PRODUCINGMONTH"] <= "2050-12-31"].sort_values(
+        "PRODUCINGMONTH"
+    )
+
+    gas_years = params.get("GAS_FCST_YRS")
+    if gas_years and pd.notna(gas_years):
+        gas_cutoff_date = final_df["PRODUCINGMONTH"].min() + pd.DateOffset(
+            years=int(gas_years)
+        )
+        final_df.loc[final_df["PRODUCINGMONTH"] > gas_cutoff_date, "GasFcst_MCF"] = None
+
+    if "API_UWI" in final_df.columns:
+        if final_df["API_UWI"].notna().any():
+            final_df["API_UWI"] = final_df["API_UWI"].fillna(
+                final_df["API_UWI"].dropna().unique()[0]
+            )
+    return final_df
 
 
 def fetch_price_decks():

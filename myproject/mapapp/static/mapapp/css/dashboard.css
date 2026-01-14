@@ -2276,6 +2276,21 @@ input#year[type="range"] {
       margin-top: 1rem;
       display: flex;
       justify-content: flex-end;
+      gap: 0.6rem;
+    }
+
+    .well-editor-download {
+      background: transparent;
+      color: #f8fafc;
+      border: 1px solid rgba(248, 250, 252, 0.6);
+      padding: 0.55rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .well-editor-download:hover {
+      background: rgba(248, 250, 252, 0.12);
     }
 
     @media (max-width: 900px) {

@@ -20,6 +20,7 @@ urlpatterns = [
     path('bulk-production/', views.bulk_well_production, name='bulk_well_production'),
     path('well-dca-inputs/', views.well_dca_inputs, name='well_dca_inputs'),
     path('well-dca-inputs/save/', views.save_well_dca_inputs, name='save_well_dca_inputs'),
+    path('well-dca-inputs/export/', views.export_well_dca_inputs, name='export_well_dca_inputs'),
     path('price-decks/', views.price_decks, name='price_decks'),
     path('econ-data/', views.economics_data, name='economics_data'),
     path('feedback/', views.user_feedback_entries, name='user_feedback_entries'),

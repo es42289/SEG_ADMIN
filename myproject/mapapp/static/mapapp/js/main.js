@@ -1791,6 +1791,7 @@ window.syncRoyaltyPanelHeight = () => {
       title: document.getElementById('wellEditorTitle'),
       chart: document.getElementById('wellEditorChart'),
       status: document.getElementById('wellEditorStatus'),
+      download: document.getElementById('wellEditorDownload'),
       save: document.getElementById('wellEditorSave'),
       grossOil: document.getElementById('wellEditorGrossOilEur'),
       grossGas: document.getElementById('wellEditorGrossGasEur'),
@@ -2363,6 +2364,50 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const downloadWellEditorCsv = async () => {
+      if (!WELL_EDITOR_STATE.api) return;
+      if (WELL_EDITOR_ELEMENTS.download) {
+        WELL_EDITOR_ELEMENTS.download.disabled = true;
+      }
+      try {
+        setWellEditorStatus('Preparing CSV export...');
+        const params = collectParamsFromFields();
+        const deckSelect = document.getElementById('priceDeckSelect');
+        const payload = {
+          api: WELL_EDITOR_STATE.api,
+          params,
+          deck: deckSelect?.value || null,
+        };
+        const response = await fetch('/well-dca-inputs/export/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body?.detail || 'Unable to export CSV.');
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const safeApi = WELL_EDITOR_STATE.api.replace(/[^a-z0-9_-]/gi, '_');
+        link.href = url;
+        link.download = `well_${safeApi}_dca_export.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        setWellEditorStatus('CSV export ready.');
+      } catch (error) {
+        console.error('Failed to export CSV', error);
+        setWellEditorStatus(error.message || 'CSV export failed.', true);
+      } finally {
+        if (WELL_EDITOR_ELEMENTS.download) {
+          WELL_EDITOR_ELEMENTS.download.disabled = false;
+        }
+      }
+    };
+
     WELL_EDITOR_FIELDS.forEach((field) => {
       field.addEventListener('input', () => {
         if (field.dataset.field === 'FCST_START_OIL' || field.dataset.field === 'FCST_START_GAS') {
@@ -2412,6 +2457,10 @@ window.syncRoyaltyPanelHeight = () => {
 
     if (WELL_EDITOR_ELEMENTS.save) {
       WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
+    }
+
+    if (WELL_EDITOR_ELEMENTS.download) {
+      WELL_EDITOR_ELEMENTS.download.addEventListener('click', downloadWellEditorCsv);
     }
 
     document.addEventListener('keydown', (event) => {
