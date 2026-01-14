@@ -2442,6 +2442,9 @@ window.syncRoyaltyPanelHeight = () => {
       WELL_EDITOR_ELEMENTS.modal.classList.add('is-open');
       WELL_EDITOR_ELEMENTS.modal.setAttribute('aria-hidden', 'false');
       updateBodyScroll();
+      if (window.Plotly && WELL_EDITOR_ELEMENTS.chart) {
+        window.Plotly.Plots.resize(WELL_EDITOR_ELEMENTS.chart);
+      }
     };
 
     const hideWellEditor = () => {
@@ -2727,6 +2730,9 @@ window.syncRoyaltyPanelHeight = () => {
     attachFastEditPad(FAST_EDIT_ELEMENTS.rightPad, false);
 
     window.addEventListener('resize', () => {
+      if (WELL_EDITOR_ELEMENTS.modal?.classList.contains('is-open') && window.Plotly && WELL_EDITOR_ELEMENTS.chart) {
+        window.Plotly.Plots.resize(WELL_EDITOR_ELEMENTS.chart);
+      }
       if (isFastEditOpen() && window.Plotly && FAST_EDIT_ELEMENTS.chart) {
         window.Plotly.Plots.resize(FAST_EDIT_ELEMENTS.chart);
       }
