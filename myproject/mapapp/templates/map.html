@@ -609,9 +609,38 @@
           </div>
 
           <div class="well-editor-actions">
+            <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
             <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="wellFastEditModal" class="fast-edit-modal" aria-hidden="true">
+    <div class="fast-edit-modal__overlay" data-fast-edit-close></div>
+    <div class="fast-edit-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="fastEditTitle">
+      <header class="fast-edit-modal__header">
+        <div>
+          <p class="fast-edit-modal__eyebrow">Well Forecast Fast Edit</p>
+          <h2 id="fastEditTitle" class="fast-edit-modal__title">FAST EDIT</h2>
+        </div>
+        <div class="fast-edit-modal__controls">
+          <span id="fastEditModeLabel" class="fast-edit-mode-label">Editing: Gas</span>
+          <button type="button" id="fastEditModeToggle" class="fast-edit-toggle">Switch to Oil</button>
+          <button type="button" class="fast-edit-modal__close" data-fast-edit-close aria-label="Close fast edit view">
+            ×
+          </button>
+        </div>
+      </header>
+      <div class="fast-edit-modal__content">
+        <div class="fast-edit-modal__chart">
+          <div id="wellFastEditChart"></div>
+          <div id="fastEditPadLeft" class="fast-edit-pad fast-edit-pad--left" aria-hidden="true"></div>
+          <div id="fastEditPadRight" class="fast-edit-pad fast-edit-pad--right" aria-hidden="true"></div>
+          <div class="fast-edit-pad__label fast-edit-pad__label--left">↕ qᵢ · ↔ start date</div>
+          <div class="fast-edit-pad__label fast-edit-pad__label--right">↕ Dᵢ · ↔ b</div>
         </div>
       </div>
     </div>
