@@ -1854,6 +1854,13 @@ window.syncRoyaltyPanelHeight = () => {
       return date.toISOString().slice(0, 10);
     };
 
+    const formatShortDate = (date) => {
+      if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '--';
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const year = String(date.getUTCFullYear()).slice(-2);
+      return `${month}/${year}`;
+    };
+
     const getWellIndexByApi = (api) => {
       if (!userWellData || !Array.isArray(userWellData.api_uwi)) return -1;
       return userWellData.api_uwi.findIndex((value) => value === api);
@@ -2262,10 +2269,23 @@ window.syncRoyaltyPanelHeight = () => {
     const renderFastEditChart = (data, metrics) => {
       if (!FAST_EDIT_ELEMENTS.chart || !window.Plotly) return;
       const { traces, yRange } = getWellEditorPlotData(data);
+      const fields = getFastEditFields();
+      const startValue = getFieldValue(fields.start);
+      const startDate = sliderValueToDate(startValue);
+      const startLabel = formatShortDate(startDate);
+      const qiValue = formatNumber(getFieldValue(fields.qi), 0);
+      const diValue = formatNumber(getFieldValue(fields.di), 3);
+      const bValue = formatNumber(getFieldValue(fields.b), 2);
       const kpiText = [
         `EUR OIL: ${formatNumber(metrics?.grossOil, 0)}`,
         `EUR GAS: ${formatNumber(metrics?.grossGas, 0)}`,
         `EST NRI: ${formatCurrency(metrics?.estimatedValue)}`,
+      ].join('<br>');
+      const inputText = [
+        `Start: ${startLabel}`,
+        `qᵢ: ${qiValue}`,
+        `Dᵢ: ${diValue}`,
+        `b: ${bValue}`,
       ].join('<br>');
 
       const layout = {
@@ -2294,6 +2314,19 @@ window.syncRoyaltyPanelHeight = () => {
             align: 'right',
             bgcolor: 'rgba(15, 23, 42, 0.85)',
             bordercolor: '#38bdf8',
+            borderwidth: 1,
+            font: { color: '#f8fafc', size: 12 },
+          },
+          {
+            xref: 'paper',
+            yref: 'paper',
+            x: 0.98,
+            y: 0.68,
+            text: inputText,
+            showarrow: false,
+            align: 'right',
+            bgcolor: 'rgba(15, 23, 42, 0.85)',
+            bordercolor: '#94a3b8',
             borderwidth: 1,
             font: { color: '#f8fafc', size: 12 },
           },
