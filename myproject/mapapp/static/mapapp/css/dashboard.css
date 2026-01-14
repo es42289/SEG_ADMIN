@@ -2105,6 +2105,15 @@ input#year[type="range"] {
       margin-bottom: 0.75rem;
     }
 
+    .well-editor-modal__header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: flex-end;
+      margin-right: 2.8rem;
+    }
+
     .well-editor-modal__eyebrow {
       margin: 0 0 0.2rem;
       font-size: 0.85rem;
