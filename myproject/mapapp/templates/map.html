@@ -479,6 +479,9 @@
           <p class="well-editor-modal__eyebrow">Well Forecast Editor</p>
           <h2 id="wellEditorTitle" class="well-editor-modal__title">Well Inputs</h2>
         </div>
+        <div class="well-editor-modal__header-actions">
+          <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
+        </div>
       </header>
 
       <div class="well-editor-layout">
@@ -611,6 +614,61 @@
           <div class="well-editor-actions">
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
             <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="fastEditModal" class="fast-edit-modal" aria-hidden="true">
+    <div class="fast-edit-modal__overlay" data-fast-edit-close></div>
+    <div class="fast-edit-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="fastEditTitle">
+      <button type="button" class="fast-edit-modal__close" data-fast-edit-close aria-label="Close fast edit">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <header class="fast-edit-modal__header">
+        <div>
+          <p class="fast-edit-modal__eyebrow">Fast Edit</p>
+          <h2 id="fastEditTitle" class="fast-edit-modal__title">Production History &amp; Forecast</h2>
+        </div>
+        <button type="button" id="fastEditModeToggle" class="fast-edit-modal__mode-toggle">Editing: Gas</button>
+      </header>
+
+      <div class="fast-edit-modal__content">
+        <div class="fast-edit-modal__chart-card">
+          <div class="fast-edit-modal__chart">
+            <div id="fastEditChart"></div>
+            <div class="fast-edit-modal__kpis">
+              <div class="fast-edit-modal__kpi">
+                <span class="fast-edit-modal__kpi-label">EUR OIL</span>
+                <span id="fastEditEurOil" class="fast-edit-modal__kpi-value">--</span>
+              </div>
+              <div class="fast-edit-modal__kpi">
+                <span class="fast-edit-modal__kpi-label">EUR GAS</span>
+                <span id="fastEditEurGas" class="fast-edit-modal__kpi-value">--</span>
+              </div>
+              <div class="fast-edit-modal__kpi">
+                <span class="fast-edit-modal__kpi-label">Est. NRI</span>
+                <span id="fastEditNriValue" class="fast-edit-modal__kpi-value">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="fast-edit-modal__joysticks">
+          <div class="fast-edit-joystick">
+            <div class="fast-edit-joystick__label">Start + qi</div>
+            <div id="fastEditStartPad" class="fast-edit-joystick__pad">
+              <div id="fastEditStartThumb" class="fast-edit-joystick__thumb"></div>
+            </div>
+            <div class="fast-edit-joystick__hint">&larr;/&rarr; start date &nbsp; • &nbsp; &uarr;/&darr; qi</div>
+          </div>
+          <div class="fast-edit-joystick">
+            <div class="fast-edit-joystick__label">Decline + b-factor</div>
+            <div id="fastEditDeclinePad" class="fast-edit-joystick__pad">
+              <div id="fastEditDeclineThumb" class="fast-edit-joystick__thumb"></div>
+            </div>
+            <div class="fast-edit-joystick__hint">&larr;/&rarr; b-factor &nbsp; • &nbsp; &uarr;/&darr; Di</div>
           </div>
         </div>
       </div>
