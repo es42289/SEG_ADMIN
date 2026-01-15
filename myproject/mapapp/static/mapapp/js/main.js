@@ -2342,22 +2342,25 @@ window.syncRoyaltyPanelHeight = () => {
     const updateWellEditorMetrics = (combined) => {
       const grossOil = combined.reduce((sum, row) => sum + (row.oil || 0) + (row.oilFc || 0), 0);
       const grossGas = combined.reduce((sum, row) => sum + (row.gas || 0) + (row.gasFc || 0), 0);
+      const remainingOil = combined.reduce((sum, row) => sum + (row.oilFc || 0), 0);
+      const remainingGas = combined.reduce((sum, row) => sum + (row.gasFc || 0), 0);
       const netOil = grossOil * WELL_EDITOR_STATE.ownerInterest;
       const netGas = grossGas * WELL_EDITOR_STATE.ownerInterest;
+      const remainingNet = (remainingOil + remainingGas) * WELL_EDITOR_STATE.ownerInterest;
 
       if (WELL_EDITOR_ELEMENTS.grossOil) WELL_EDITOR_ELEMENTS.grossOil.textContent = formatNumber(grossOil, 0);
       if (WELL_EDITOR_ELEMENTS.grossGas) WELL_EDITOR_ELEMENTS.grossGas.textContent = formatNumber(grossGas, 0);
       if (WELL_EDITOR_ELEMENTS.netOil) WELL_EDITOR_ELEMENTS.netOil.textContent = formatNumber(netOil, 0);
       if (WELL_EDITOR_ELEMENTS.netGas) WELL_EDITOR_ELEMENTS.netGas.textContent = formatNumber(netGas, 0);
 
-      const updatedNet = netOil + netGas;
+      const updatedNet = remainingNet;
       const baseNet = WELL_EDITOR_STATE.baseNetEur || updatedNet || 1;
       const baseValue = Number.isFinite(WELL_EDITOR_STATE.baseNriValue)
         ? WELL_EDITOR_STATE.baseNriValue
         : 0;
       const estimatedValue = baseNet > 0 ? baseValue * (updatedNet / baseNet) : baseValue;
       if (WELL_EDITOR_ELEMENTS.nriValue) WELL_EDITOR_ELEMENTS.nriValue.textContent = formatCurrency(estimatedValue);
-      return { grossOil, grossGas, netOil, netGas, estimatedValue };
+      return { grossOil, grossGas, netOil, netGas, remainingNet, estimatedValue };
     };
 
     const collectParamsFromFields = () => ({
@@ -2649,7 +2652,7 @@ window.syncRoyaltyPanelHeight = () => {
         const pvValue = await fetchWellPvValue(WELL_EDITOR_STATE.api);
         if (Number.isFinite(pvValue)) {
           WELL_EDITOR_STATE.baseNriValue = pvValue;
-          WELL_EDITOR_STATE.baseNetEur = metrics.netOil + metrics.netGas;
+          WELL_EDITOR_STATE.baseNetEur = metrics.remainingNet;
           updateWellEditorMetrics(combined);
           window.latestPerWellPvMap = window.latestPerWellPvMap || {};
           const apiKey = WELL_EDITOR_STATE.api;
@@ -2859,7 +2862,7 @@ window.syncRoyaltyPanelHeight = () => {
         renderWellEditorChart(combined);
         const metrics = updateWellEditorMetrics(combined);
         WELL_EDITOR_STATE.baseMetrics = metrics;
-        WELL_EDITOR_STATE.baseNetEur = metrics.netOil + metrics.netGas;
+        WELL_EDITOR_STATE.baseNetEur = metrics.remainingNet;
         const pvValue = await fetchWellPvValue(api);
         if (Number.isFinite(pvValue)) {
           WELL_EDITOR_STATE.baseNriValue = pvValue;
