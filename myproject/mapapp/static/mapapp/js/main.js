@@ -1819,6 +1819,7 @@ window.syncRoyaltyPanelHeight = () => {
       chart: document.getElementById('wellFastEditChart'),
       modeLabel: document.getElementById('fastEditModeLabel'),
       modeToggle: document.getElementById('fastEditModeToggle'),
+      resetButton: document.getElementById('fastEditReset'),
       declineLabel: document.getElementById('fastEditDeclineLabel'),
       declineToggle: document.getElementById('fastEditDeclineToggle'),
       leftPad: document.getElementById('fastEditPadLeft'),
@@ -2676,6 +2677,31 @@ window.syncRoyaltyPanelHeight = () => {
       updateBodyScroll();
     };
 
+    const resetFastEditParameters = async () => {
+      if (!WELL_EDITOR_STATE.api) return;
+      const currentMode = FAST_EDIT_STATE.mode;
+      try {
+        setWellEditorStatus('Resetting parameters...');
+        const data = await loadWellEditorData(WELL_EDITOR_STATE.api);
+        WELL_EDITOR_STATE.production = data.production || WELL_EDITOR_STATE.production;
+        WELL_EDITOR_STATE.params = data.params || {};
+        const { combined, lastProdDate, firstProdDate } = calcDeclineForecast(
+          WELL_EDITOR_STATE.production,
+          data.params || {}
+        );
+        WELL_EDITOR_STATE.lastProdDate = lastProdDate;
+        applyWellEditorParams(data.params || {}, lastProdDate, firstProdDate);
+        renderWellEditorChart(combined);
+        updateWellEditorMetrics(combined);
+        setFastEditMode(currentMode);
+        updateFastEditView();
+        setWellEditorStatus('Parameters reset.');
+      } catch (error) {
+        console.error('Failed to reset fast edit parameters', error);
+        setWellEditorStatus(error.message || 'Failed to reset parameters.', true);
+      }
+    };
+
     const applyFastEditMovement = (dx, dy, isLeftPad) => {
       const fields = getFastEditFields();
       if (isLeftPad) {
@@ -2910,6 +2936,12 @@ window.syncRoyaltyPanelHeight = () => {
     if (FAST_EDIT_ELEMENTS.modeToggle) {
       FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
         setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.resetButton) {
+      FAST_EDIT_ELEMENTS.resetButton.addEventListener('click', () => {
+        resetFastEditParameters();
       });
     }
 

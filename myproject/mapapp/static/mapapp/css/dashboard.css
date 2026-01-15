@@ -2508,6 +2508,20 @@ input#year[type="range"] {
       padding: 0.45rem 1rem;
     }
 
+    .fast-edit-reset {
+      background: rgba(248, 250, 252, 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      border-radius: 999px;
+      color: #f8fafc;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0.45rem 1rem;
+    }
+
+    .fast-edit-reset:hover {
+      background: rgba(248, 250, 252, 0.2);
+    }
+
     .fast-edit-modal__close {
       align-items: center;
       background: rgba(248, 250, 252, 0.1);
