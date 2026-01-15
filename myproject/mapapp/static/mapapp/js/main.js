@@ -1793,11 +1793,30 @@ window.syncRoyaltyPanelHeight = () => {
       status: document.getElementById('wellEditorStatus'),
       download: document.getElementById('wellEditorDownload'),
       save: document.getElementById('wellEditorSave'),
+      fastEdit: document.getElementById('wellEditorFastEdit'),
       grossOil: document.getElementById('wellEditorGrossOilEur'),
       grossGas: document.getElementById('wellEditorGrossGasEur'),
       netOil: document.getElementById('wellEditorNetOilEur'),
       netGas: document.getElementById('wellEditorNetGasEur'),
+      nriPercent: document.getElementById('wellEditorNriPercent'),
       nriValue: document.getElementById('wellEditorNriValue'),
+    };
+
+    const FAST_EDIT_STATE = {
+      mode: 'gas',
+      leftPointer: null,
+      rightPointer: null,
+      lastLeft: null,
+      lastRight: null,
+    };
+
+    const FAST_EDIT_ELEMENTS = {
+      modal: document.getElementById('wellFastEditModal'),
+      chart: document.getElementById('wellFastEditChart'),
+      modeLabel: document.getElementById('fastEditModeLabel'),
+      modeToggle: document.getElementById('fastEditModeToggle'),
+      leftPad: document.getElementById('fastEditPadLeft'),
+      rightPad: document.getElementById('fastEditPadRight'),
     };
 
     const WELL_EDITOR_FIELDS = Array.from(document.querySelectorAll('[data-field]'));
@@ -1833,6 +1852,13 @@ window.syncRoyaltyPanelHeight = () => {
     const formatDateLabel = (date) => {
       if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '--';
       return date.toISOString().slice(0, 10);
+    };
+
+    const formatShortDate = (date) => {
+      if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '--';
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const year = String(date.getUTCFullYear()).slice(-2);
+      return `${month}/${year}`;
     };
 
     const getWellIndexByApi = (api) => {
@@ -1908,6 +1934,45 @@ window.syncRoyaltyPanelHeight = () => {
       if (Number.isFinite(numericValue) && min !== undefined && max !== undefined) {
         field.value = clampValue(numericValue, Number(min), Number(max));
       }
+    };
+
+    const adjustRangeFieldBy = (fieldName, delta) => {
+      const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
+      if (!field || field.type !== 'range') return;
+      const step = Number(field.step) || 1;
+      const min = Number(field.min);
+      const max = Number(field.max);
+      const hasMin = Number.isFinite(min);
+      const hasMax = Number.isFinite(max);
+      const current = Number(field.value) || 0;
+      let next = current + delta;
+      if (hasMin && hasMax) {
+        next = clampValue(next, min, max);
+      } else if (hasMin) {
+        next = Math.max(next, min);
+      } else if (hasMax) {
+        next = Math.min(next, max);
+      }
+      if (Number.isFinite(step) && step > 0) {
+        const base = hasMin ? min : 0;
+        next = Math.round((next - base) / step) * step + base;
+        if (hasMin && hasMax) {
+          next = clampValue(next, min, max);
+        }
+      }
+      field.value = next;
+      updateFieldLabel(fieldName);
+    };
+
+    const getRangeDelta = (fieldName, delta, divisor = 180) => {
+      const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
+      if (!field || field.type !== 'range') return 0;
+      const min = Number(field.min);
+      const max = Number(field.max);
+      const step = Number(field.step) || 1;
+      const range = Number.isFinite(max) && Number.isFinite(min) ? max - min : step * divisor;
+      const scaled = (delta * range) / divisor;
+      return Math.round(scaled / step) * step;
     };
 
     const getProductionSeriesAfterStart = (rows, startDate, type) => {
@@ -2122,8 +2187,7 @@ window.syncRoyaltyPanelHeight = () => {
       return { combined, lastProdDate, firstProdDate };
     };
 
-    const renderWellEditorChart = (data) => {
-      if (!WELL_EDITOR_ELEMENTS.chart || !window.Plotly) return;
+    const getWellEditorPlotData = (data) => {
       const x = data.map((row) => row.key);
       const oil = data.map((row) => (row.oil > 0 ? row.oil : null));
       const gas = data.map((row) => (row.gas > 0 ? row.gas : null));
@@ -2175,6 +2239,13 @@ window.syncRoyaltyPanelHeight = () => {
         },
       ];
 
+      return { traces, yRange };
+    };
+
+    const renderWellEditorChart = (data) => {
+      if (!WELL_EDITOR_ELEMENTS.chart || !window.Plotly) return;
+      const { traces, yRange } = getWellEditorPlotData(data);
+
       const layout = {
         height: WELL_EDITOR_ELEMENTS.chart.clientHeight || 360,
         margin: { l: 50, r: 30, t: 10, b: 60 },
@@ -2195,6 +2266,76 @@ window.syncRoyaltyPanelHeight = () => {
       Plotly.react(WELL_EDITOR_ELEMENTS.chart, traces, layout, { ...BASE_PLOT_CONFIG });
     };
 
+    const renderFastEditChart = (data, metrics) => {
+      if (!FAST_EDIT_ELEMENTS.chart || !window.Plotly) return;
+      const { traces, yRange } = getWellEditorPlotData(data);
+      const fields = getFastEditFields();
+      const startValue = getFieldValue(fields.start);
+      const startDate = sliderValueToDate(startValue);
+      const startLabel = formatShortDate(startDate);
+      const qiValue = formatNumber(getFieldValue(fields.qi), 0);
+      const diValue = formatNumber(getFieldValue(fields.di), 3);
+      const bValue = formatNumber(getFieldValue(fields.b), 2);
+      const kpiText = [
+        `EUR OIL: ${formatNumber(metrics?.grossOil, 0)}`,
+        `EUR GAS: ${formatNumber(metrics?.grossGas, 0)}`,
+        `EST NRI: ${formatCurrency(metrics?.estimatedValue)}`,
+      ].join('<br>');
+      const inputText = [
+        `Start: ${startLabel}`,
+        `qᵢ: ${qiValue}`,
+        `Dᵢ: ${diValue}`,
+        `b: ${bValue}`,
+      ].join('<br>');
+
+      const layout = {
+        height: FAST_EDIT_ELEMENTS.chart.clientHeight || window.innerHeight,
+        margin: { l: 50, r: 40, t: 30, b: 60 },
+        showlegend: true,
+        legend: { orientation: 'h', y: -0.2 },
+        xaxis: { title: 'Production Month', tickangle: -45 },
+        yaxis: {
+          title: 'MCF or BBL per Month',
+          type: 'log',
+          range: yRange,
+          gridcolor: '#1f293a1f',
+        },
+        paper_bgcolor: '#0b1424',
+        plot_bgcolor: '#0b1424',
+        font: { color: '#f8fafc' },
+        annotations: [
+          {
+            xref: 'paper',
+            yref: 'paper',
+            x: 0.98,
+            y: 0.98,
+            text: kpiText,
+            showarrow: false,
+            align: 'right',
+            bgcolor: 'rgba(15, 23, 42, 0.85)',
+            bordercolor: '#38bdf8',
+            borderwidth: 1,
+            font: { color: '#f8fafc', size: 12 },
+          },
+          {
+            xref: 'paper',
+            yref: 'paper',
+            x: 0.98,
+            y: 0.68,
+            text: inputText,
+            showarrow: false,
+            align: 'right',
+            bgcolor: 'rgba(15, 23, 42, 0.85)',
+            bordercolor: '#94a3b8',
+            borderwidth: 1,
+            font: { color: '#f8fafc', size: 12 },
+          },
+        ],
+      };
+
+      Plotly.react(FAST_EDIT_ELEMENTS.chart, traces, layout, { ...BASE_PLOT_CONFIG });
+    };
+
     const updateWellEditorMetrics = (combined) => {
       const grossOil = combined.reduce((sum, row) => sum + (row.oil || 0) + (row.oilFc || 0), 0);
       const grossGas = combined.reduce((sum, row) => sum + (row.gas || 0) + (row.gasFc || 0), 0);
@@ -2213,7 +2354,7 @@ window.syncRoyaltyPanelHeight = () => {
         : 0;
       const estimatedValue = baseNet > 0 ? baseValue * (updatedNet / baseNet) : baseValue;
       if (WELL_EDITOR_ELEMENTS.nriValue) WELL_EDITOR_ELEMENTS.nriValue.textContent = formatCurrency(estimatedValue);
-      return { grossOil, grossGas, netOil, netGas };
+      return { grossOil, grossGas, netOil, netGas, estimatedValue };
     };
 
     const collectParamsFromFields = () => ({
@@ -2240,6 +2381,7 @@ window.syncRoyaltyPanelHeight = () => {
       renderWellEditorChart(combined);
       const metrics = updateWellEditorMetrics(combined);
       WELL_EDITOR_STATE.baseMetrics = WELL_EDITOR_STATE.baseMetrics || metrics;
+      return { combined, metrics };
     };
 
     const setWellEditorStatus = (message, isError = false) => {
@@ -2322,18 +2464,153 @@ window.syncRoyaltyPanelHeight = () => {
       updateAllFieldLabels();
     };
 
+    const isFastEditOpen = () => FAST_EDIT_ELEMENTS.modal?.classList.contains('is-open');
+
+    const updateBodyScroll = () => {
+      const shouldLock = WELL_EDITOR_ELEMENTS.modal?.classList.contains('is-open') || isFastEditOpen();
+      document.body.style.overflow = shouldLock ? 'hidden' : '';
+    };
+
     const showWellEditor = () => {
       if (!WELL_EDITOR_ELEMENTS.modal) return;
       WELL_EDITOR_ELEMENTS.modal.classList.add('is-open');
       WELL_EDITOR_ELEMENTS.modal.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
+      updateBodyScroll();
+      if (window.Plotly && WELL_EDITOR_ELEMENTS.chart) {
+        window.Plotly.Plots.resize(WELL_EDITOR_ELEMENTS.chart);
+      }
     };
 
     const hideWellEditor = () => {
       if (!WELL_EDITOR_ELEMENTS.modal) return;
       WELL_EDITOR_ELEMENTS.modal.classList.remove('is-open');
       WELL_EDITOR_ELEMENTS.modal.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
+      if (isFastEditOpen()) {
+        hideFastEdit();
+      }
+      updateBodyScroll();
+    };
+
+    const setFastEditMode = (mode) => {
+      FAST_EDIT_STATE.mode = mode === 'oil' ? 'oil' : 'gas';
+      if (FAST_EDIT_ELEMENTS.modeLabel) {
+        FAST_EDIT_ELEMENTS.modeLabel.textContent = `Editing: ${FAST_EDIT_STATE.mode === 'gas' ? 'Gas' : 'Oil'}`;
+      }
+      if (FAST_EDIT_ELEMENTS.modeToggle) {
+        FAST_EDIT_ELEMENTS.modeToggle.textContent = FAST_EDIT_STATE.mode === 'gas' ? 'Switch to Oil' : 'Switch to Gas';
+      }
+    };
+
+    const getFastEditFields = () => {
+      if (FAST_EDIT_STATE.mode === 'oil') {
+        return {
+          qi: 'OIL_CALC_QI',
+          di: 'OIL_EMPIRICAL_DI',
+          b: 'OIL_CALC_B_FACTOR',
+          start: 'FCST_START_OIL',
+        };
+      }
+      return {
+        qi: 'GAS_CALC_QI',
+        di: 'GAS_EMPIRICAL_DI',
+        b: 'GAS_CALC_B_FACTOR',
+        start: 'FCST_START_GAS',
+      };
+    };
+
+    const updateFastEditView = () => {
+      const { combined, metrics } = updateWellEditorForecast();
+      renderFastEditChart(combined, metrics);
+    };
+
+    const showFastEdit = () => {
+      if (!FAST_EDIT_ELEMENTS.modal) return;
+      setFastEditMode('gas');
+      FAST_EDIT_STATE.lastLeft = null;
+      FAST_EDIT_STATE.lastRight = null;
+      FAST_EDIT_ELEMENTS.modal.classList.add('is-open');
+      FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'false');
+      updateFastEditView();
+      updateBodyScroll();
+      if (window.Plotly && FAST_EDIT_ELEMENTS.chart) {
+        window.Plotly.Plots.resize(FAST_EDIT_ELEMENTS.chart);
+      }
+    };
+
+    const hideFastEdit = () => {
+      if (!FAST_EDIT_ELEMENTS.modal) return;
+      FAST_EDIT_ELEMENTS.modal.classList.remove('is-open');
+      FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'true');
+      updateBodyScroll();
+    };
+
+    const applyFastEditMovement = (dx, dy, isLeftPad) => {
+      const fields = getFastEditFields();
+      if (isLeftPad) {
+        let dateDelta = getRangeDelta(fields.start, dx, 120);
+        if (dateDelta === 0 && dx !== 0) {
+          dateDelta = Math.sign(dx);
+        }
+        adjustRangeFieldBy(fields.start, dateDelta);
+        const qiDelta = getRangeDelta(fields.qi, -dy);
+        if (qiDelta !== 0) {
+          adjustRangeFieldBy(fields.qi, qiDelta);
+        }
+      } else {
+        const bDelta = getRangeDelta(fields.b, dx);
+        if (bDelta !== 0) {
+          adjustRangeFieldBy(fields.b, bDelta);
+        }
+        const diDelta = getRangeDelta(fields.di, -dy);
+        if (diDelta !== 0) {
+          adjustRangeFieldBy(fields.di, diDelta);
+        }
+      }
+      updateFastEditView();
+    };
+
+    const attachFastEditPad = (pad, isLeftPad) => {
+      if (!pad) return;
+      pad.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        pad.setPointerCapture(event.pointerId);
+        if (isLeftPad) {
+          FAST_EDIT_STATE.leftPointer = event.pointerId;
+          FAST_EDIT_STATE.lastLeft = { x: event.clientX, y: event.clientY };
+        } else {
+          FAST_EDIT_STATE.rightPointer = event.pointerId;
+          FAST_EDIT_STATE.lastRight = { x: event.clientX, y: event.clientY };
+        }
+      });
+
+      pad.addEventListener('pointermove', (event) => {
+        const activePointer = isLeftPad ? FAST_EDIT_STATE.leftPointer : FAST_EDIT_STATE.rightPointer;
+        const lastPoint = isLeftPad ? FAST_EDIT_STATE.lastLeft : FAST_EDIT_STATE.lastRight;
+        if (activePointer !== event.pointerId || !lastPoint) return;
+        const dx = event.clientX - lastPoint.x;
+        const dy = event.clientY - lastPoint.y;
+        if (isLeftPad) {
+          FAST_EDIT_STATE.lastLeft = { x: event.clientX, y: event.clientY };
+        } else {
+          FAST_EDIT_STATE.lastRight = { x: event.clientX, y: event.clientY };
+        }
+        applyFastEditMovement(dx, dy, isLeftPad);
+      });
+
+      const clearPointer = (event) => {
+        if (isLeftPad && FAST_EDIT_STATE.leftPointer === event.pointerId) {
+          FAST_EDIT_STATE.leftPointer = null;
+          FAST_EDIT_STATE.lastLeft = null;
+        }
+        if (!isLeftPad && FAST_EDIT_STATE.rightPointer === event.pointerId) {
+          FAST_EDIT_STATE.rightPointer = null;
+          FAST_EDIT_STATE.lastRight = null;
+        }
+      };
+
+      pad.addEventListener('pointerup', clearPointer);
+      pad.addEventListener('pointercancel', clearPointer);
+      pad.addEventListener('lostpointercapture', clearPointer);
     };
 
     const saveWellEditorParams = async () => {
@@ -2455,6 +2732,14 @@ window.syncRoyaltyPanelHeight = () => {
       })
     );
 
+    const fastEditOverlays = FAST_EDIT_ELEMENTS.modal?.querySelectorAll('[data-fast-edit-close]') || [];
+    fastEditOverlays.forEach((el) =>
+      el.addEventListener('click', (event) => {
+        event.preventDefault();
+        hideFastEdit();
+      })
+    );
+
     if (WELL_EDITOR_ELEMENTS.save) {
       WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
     }
@@ -2463,7 +2748,36 @@ window.syncRoyaltyPanelHeight = () => {
       WELL_EDITOR_ELEMENTS.download.addEventListener('click', downloadWellEditorCsv);
     }
 
+    if (WELL_EDITOR_ELEMENTS.fastEdit) {
+      WELL_EDITOR_ELEMENTS.fastEdit.addEventListener('click', () => {
+        if (!WELL_EDITOR_STATE.api) return;
+        showFastEdit();
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.modeToggle) {
+      FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
+        setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
+      });
+    }
+
+    attachFastEditPad(FAST_EDIT_ELEMENTS.leftPad, true);
+    attachFastEditPad(FAST_EDIT_ELEMENTS.rightPad, false);
+
+    window.addEventListener('resize', () => {
+      if (WELL_EDITOR_ELEMENTS.modal?.classList.contains('is-open') && window.Plotly && WELL_EDITOR_ELEMENTS.chart) {
+        window.Plotly.Plots.resize(WELL_EDITOR_ELEMENTS.chart);
+      }
+      if (isFastEditOpen() && window.Plotly && FAST_EDIT_ELEMENTS.chart) {
+        window.Plotly.Plots.resize(FAST_EDIT_ELEMENTS.chart);
+      }
+    });
+
     document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && isFastEditOpen()) {
+        hideFastEdit();
+        return;
+      }
       if (event.key === 'Escape' && WELL_EDITOR_ELEMENTS.modal?.classList.contains('is-open')) {
         hideWellEditor();
       }
@@ -2478,6 +2792,10 @@ window.syncRoyaltyPanelHeight = () => {
         WELL_EDITOR_STATE.api = api;
         WELL_EDITOR_STATE.ownerInterest = meta.ownerInterest;
         WELL_EDITOR_STATE.baseNriValue = meta.pv17;
+        if (WELL_EDITOR_ELEMENTS.nriPercent) {
+          const percent = Number.isFinite(meta.ownerInterest) ? meta.ownerInterest * 100 : 0;
+          WELL_EDITOR_ELEMENTS.nriPercent.textContent = percent.toFixed(2);
+        }
         if (WELL_EDITOR_ELEMENTS.title) {
           const baseName = meta.name || api;
           WELL_EDITOR_ELEMENTS.title.textContent = `${baseName} (${api})`;

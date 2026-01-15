@@ -2105,6 +2105,15 @@ input#year[type="range"] {
       margin-bottom: 0.75rem;
     }
 
+    .well-editor-modal__header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: flex-end;
+      margin-right: 2.8rem;
+    }
+
     .well-editor-modal__eyebrow {
       margin: 0 0 0.2rem;
       font-size: 0.85rem;
@@ -2133,6 +2142,7 @@ input#year[type="range"] {
     .well-editor-modal__chart {
       background: #ffffff;
       border-radius: 12px;
+      overflow: hidden;
       padding: 0.5rem;
       margin-bottom: 0.75rem;
     }
@@ -2140,6 +2150,12 @@ input#year[type="range"] {
     #wellEditorChart {
       width: 100%;
       height: 380px;
+    }
+
+    #wellEditorChart .plot-container,
+    #wellEditorChart .svg-container {
+      width: 100% !important;
+      height: 100% !important;
     }
 
     .well-editor-layout {
@@ -2222,6 +2238,13 @@ input#year[type="range"] {
       color: #f8fafc;
     }
 
+    .well-editor-metric__percent {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: rgba(248, 250, 252, 0.75);
+      margin-left: 0.35rem;
+    }
+
     .well-editor-status {
       margin-bottom: 0.75rem;
       font-size: 0.9rem;
@@ -2251,6 +2274,13 @@ input#year[type="range"] {
       margin-bottom: 0.6rem;
     }
 
+    .well-editor-field__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+
     .well-editor-field label {
       font-size: 0.85rem;
       color: #e2e8f0;
@@ -2270,6 +2300,7 @@ input#year[type="range"] {
       font-size: 0.85rem;
       font-weight: 600;
       color: #f8fafc;
+      white-space: nowrap;
     }
 
     .well-editor-actions {
@@ -2326,6 +2357,187 @@ input#year[type="range"] {
     .well-editor-save:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    .well-editor-fast-edit {
+      background: #0ea5e9;
+      border: none;
+      border-radius: 999px;
+      color: #0f172a;
+      cursor: pointer;
+      font-weight: 700;
+      padding: 0.6rem 1.4rem;
+      text-transform: uppercase;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .well-editor-fast-edit:hover {
+      box-shadow: 0 12px 24px rgba(14, 165, 233, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .fast-edit-modal {
+      inset: 0;
+      display: none;
+      position: fixed;
+      z-index: 4000;
+    }
+
+    .fast-edit-modal.is-open {
+      display: flex;
+    }
+
+    .fast-edit-modal__overlay {
+      background: rgba(2, 6, 23, 0.7);
+      inset: 0;
+      position: absolute;
+    }
+
+    .fast-edit-modal__dialog {
+      background: #0b1424;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      margin: auto;
+      position: relative;
+      width: 100vw;
+    }
+
+    .fast-edit-modal__header {
+      align-items: center;
+      backdrop-filter: blur(8px);
+      background: rgba(15, 23, 42, 0.92);
+      display: flex;
+      gap: 1rem;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      z-index: 2;
+    }
+
+    .fast-edit-modal__eyebrow {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      margin: 0;
+      text-transform: uppercase;
+    }
+
+    .fast-edit-modal__title {
+      font-size: 1.5rem;
+      margin: 0.2rem 0 0;
+    }
+
+    .fast-edit-modal__controls {
+      align-items: center;
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .fast-edit-mode-label {
+      background: rgba(14, 165, 233, 0.15);
+      border: 1px solid rgba(14, 165, 233, 0.4);
+      border-radius: 999px;
+      color: #e0f2fe;
+      font-size: 0.85rem;
+      padding: 0.35rem 0.75rem;
+    }
+
+    .fast-edit-toggle {
+      background: #f8fafc;
+      border: none;
+      border-radius: 999px;
+      color: #0f172a;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0.45rem 1rem;
+    }
+
+    .fast-edit-modal__close {
+      align-items: center;
+      background: rgba(248, 250, 252, 0.1);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 999px;
+      color: #f8fafc;
+      cursor: pointer;
+      display: inline-flex;
+      font-size: 1.4rem;
+      height: 2.4rem;
+      justify-content: center;
+      line-height: 1;
+      width: 2.4rem;
+    }
+
+    .fast-edit-modal__content {
+      flex: 1;
+      position: relative;
+    }
+
+    .fast-edit-modal__chart {
+      inset: 0;
+      position: absolute;
+    }
+
+    #wellFastEditChart {
+      height: 100%;
+      width: 100%;
+    }
+
+    .fast-edit-pad {
+      background: rgba(14, 165, 233, 0.12);
+      border: 2px solid rgba(14, 165, 233, 0.4);
+      border-radius: 50%;
+      bottom: 2vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      height: min(22vw, 160px);
+      max-height: 160px;
+      max-width: 160px;
+      position: absolute;
+      touch-action: none;
+      width: min(22vw, 160px);
+      z-index: 2;
+    }
+
+    .fast-edit-pad--left {
+      left: 2vw;
+    }
+
+    .fast-edit-pad--right {
+      right: 2vw;
+    }
+
+    .fast-edit-pad__label {
+      color: #e2e8f0;
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.2;
+      margin: 0;
+      pointer-events: none;
+      text-shadow: 0 2px 8px rgba(15, 23, 42, 0.7);
+    }
+
+    @media (max-width: 900px) {
+      .fast-edit-pad__label {
+        font-size: 0.9rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .fast-edit-pad__label {
+        font-size: 0.8rem;
+      }
+    }
+
+
+    @media (max-width: 900px) and (orientation: portrait) {
+      .fast-edit-modal__dialog {
+        height: 100vw;
+        transform: rotate(90deg);
+        transform-origin: center;
+        width: 100vh;
+      }
     }
 
     .mobile-experience-disclaimer {
