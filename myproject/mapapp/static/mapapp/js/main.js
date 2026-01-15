@@ -2644,6 +2644,20 @@ window.syncRoyaltyPanelHeight = () => {
         if (!response.ok) {
           throw new Error(body?.detail || 'Save failed.');
         }
+        const { combined, metrics } = updateWellEditorForecast();
+        const pvValue = await fetchWellPvValue(WELL_EDITOR_STATE.api);
+        if (Number.isFinite(pvValue)) {
+          WELL_EDITOR_STATE.baseNriValue = pvValue;
+          WELL_EDITOR_STATE.baseNetEur = metrics.netOil + metrics.netGas;
+          updateWellEditorMetrics(combined);
+          window.latestPerWellPvMap = window.latestPerWellPvMap || {};
+          const apiKey = WELL_EDITOR_STATE.api;
+          const apiNoDash = apiKey.replace(/-/g, '');
+          const existing = window.latestPerWellPvMap[apiKey] || window.latestPerWellPvMap[apiNoDash] || {};
+          window.latestPerWellPvMap[apiKey] = { ...existing, pv17: pvValue };
+          window.latestPerWellPvMap[apiNoDash] = { ...existing, pv17: pvValue };
+          applyPerWellPvMap(window.latestPerWellPvMap);
+        }
         setWellEditorStatus('Parameters saved successfully.');
       } catch (error) {
         console.error('Failed to save well parameters', error);
