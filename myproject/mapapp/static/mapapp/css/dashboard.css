@@ -2025,6 +2025,16 @@ input#year[type="range"] {
       cursor: pointer;
     }
 
+    #userWellsTable .dca-approved-cell {
+      text-align: center;
+    }
+
+    #userWellsTable .dca-approved-cell input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
     #userWellsTable .well-edit-cell {
       text-align: center;
     }
@@ -2341,10 +2351,6 @@ input#year[type="range"] {
 
     .dca-approved-cell {
       white-space: nowrap;
-    }
-
-    .dca-approved-cell input {
-      accent-color: #38bdf8;
     }
 
     .well-editor-download {
