@@ -2274,6 +2274,13 @@ input#year[type="range"] {
       margin-bottom: 0.6rem;
     }
 
+    .well-editor-field__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+
     .well-editor-field label {
       font-size: 0.85rem;
       color: #e2e8f0;
@@ -2293,6 +2300,7 @@ input#year[type="range"] {
       font-size: 0.85rem;
       font-weight: 600;
       color: #f8fafc;
+      white-space: nowrap;
     }
 
     .well-editor-actions {
