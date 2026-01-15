@@ -1815,6 +1815,8 @@ window.syncRoyaltyPanelHeight = () => {
       chart: document.getElementById('wellFastEditChart'),
       modeLabel: document.getElementById('fastEditModeLabel'),
       modeToggle: document.getElementById('fastEditModeToggle'),
+      declineLabel: document.getElementById('fastEditDeclineLabel'),
+      declineToggle: document.getElementById('fastEditDeclineToggle'),
       leftPad: document.getElementById('fastEditPadLeft'),
       rightPad: document.getElementById('fastEditPadRight'),
     };
@@ -2499,6 +2501,18 @@ window.syncRoyaltyPanelHeight = () => {
       if (FAST_EDIT_ELEMENTS.modeToggle) {
         FAST_EDIT_ELEMENTS.modeToggle.textContent = FAST_EDIT_STATE.mode === 'gas' ? 'Switch to Oil' : 'Switch to Gas';
       }
+      syncFastEditDeclineToggle();
+    };
+
+    const getFastEditDeclineField = () =>
+      FAST_EDIT_STATE.mode === 'oil' ? 'OIL_DECLINE_TYPE' : 'GAS_DECLINE_TYPE';
+
+    const syncFastEditDeclineToggle = () => {
+      if (!FAST_EDIT_ELEMENTS.declineToggle || !FAST_EDIT_ELEMENTS.declineLabel) return;
+      const declineValue = getFieldValue(getFastEditDeclineField()) || 'EXP';
+      const isHyperbolic = declineValue === 'HYP';
+      FAST_EDIT_ELEMENTS.declineToggle.checked = isHyperbolic;
+      FAST_EDIT_ELEMENTS.declineLabel.textContent = `Decline: ${isHyperbolic ? 'Hyperbolic' : 'Exponential'}`;
     };
 
     const getFastEditFields = () => {
@@ -2700,9 +2714,15 @@ window.syncRoyaltyPanelHeight = () => {
         }
         if (field.dataset.field === 'OIL_DECLINE_TYPE') {
           updateDeclineRanges('OIL');
+          if (isFastEditOpen()) {
+            syncFastEditDeclineToggle();
+          }
         }
         if (field.dataset.field === 'GAS_DECLINE_TYPE') {
           updateDeclineRanges('GAS');
+          if (isFastEditOpen()) {
+            syncFastEditDeclineToggle();
+          }
         }
         updateWellEditorForecast();
       });
@@ -2758,6 +2778,17 @@ window.syncRoyaltyPanelHeight = () => {
     if (FAST_EDIT_ELEMENTS.modeToggle) {
       FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
         setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.declineToggle) {
+      FAST_EDIT_ELEMENTS.declineToggle.addEventListener('change', () => {
+        const declineField = getFastEditDeclineField();
+        const nextValue = FAST_EDIT_ELEMENTS.declineToggle.checked ? 'HYP' : 'EXP';
+        setFieldValue(declineField, nextValue);
+        updateDeclineRanges(FAST_EDIT_STATE.mode === 'oil' ? 'OIL' : 'GAS');
+        updateFastEditView();
+        syncFastEditDeclineToggle();
       });
     }
 

@@ -660,6 +660,19 @@
         <div class="fast-edit-modal__controls">
           <span id="fastEditModeLabel" class="fast-edit-mode-label">Editing: Gas</span>
           <button type="button" id="fastEditModeToggle" class="fast-edit-toggle">Switch to Oil</button>
+          <div class="fast-edit-decline-toggle">
+            <span id="fastEditDeclineLabel" class="fast-edit-decline-label">Decline: Exponential</span>
+            <label class="fast-edit-switch">
+              <input
+                type="checkbox"
+                id="fastEditDeclineToggle"
+                class="fast-edit-switch__input"
+                role="switch"
+                aria-label="Toggle decline type between exponential and hyperbolic"
+              >
+              <span class="fast-edit-switch__slider" aria-hidden="true"></span>
+            </label>
+          </div>
           <button type="button" class="fast-edit-modal__close" data-fast-edit-close aria-label="Close fast edit view">
             ×
           </button>

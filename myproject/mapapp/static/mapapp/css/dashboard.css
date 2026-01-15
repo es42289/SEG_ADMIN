@@ -2433,6 +2433,62 @@ input#year[type="range"] {
       gap: 0.75rem;
     }
 
+    .fast-edit-decline-toggle {
+      align-items: center;
+      display: inline-flex;
+      gap: 0.5rem;
+    }
+
+    .fast-edit-decline-label {
+      color: #e2e8f0;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .fast-edit-switch {
+      display: inline-flex;
+      position: relative;
+    }
+
+    .fast-edit-switch__input {
+      height: 0;
+      opacity: 0;
+      position: absolute;
+      width: 0;
+    }
+
+    .fast-edit-switch__slider {
+      background: rgba(148, 163, 184, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      border-radius: 999px;
+      cursor: pointer;
+      height: 1.4rem;
+      position: relative;
+      transition: background 0.2s ease, border-color 0.2s ease;
+      width: 2.6rem;
+    }
+
+    .fast-edit-switch__slider::after {
+      background: #f8fafc;
+      border-radius: 999px;
+      content: '';
+      height: 1.1rem;
+      left: 0.15rem;
+      position: absolute;
+      top: 0.1rem;
+      transition: transform 0.2s ease;
+      width: 1.1rem;
+    }
+
+    .fast-edit-switch__input:checked + .fast-edit-switch__slider {
+      background: rgba(56, 189, 248, 0.6);
+      border-color: rgba(56, 189, 248, 0.9);
+    }
+
+    .fast-edit-switch__input:checked + .fast-edit-switch__slider::after {
+      transform: translateX(1.2rem);
+    }
+
     .fast-edit-mode-label {
       background: rgba(14, 165, 233, 0.15);
       border: 1px solid rgba(14, 165, 233, 0.4);
