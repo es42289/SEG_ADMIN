@@ -2343,14 +2343,7 @@ input#year[type="range"] {
       white-space: nowrap;
     }
 
-    .dca-approved-label {
-      align-items: center;
-      display: inline-flex;
-      font-size: 0.85rem;
-      gap: 0.4rem;
-    }
-
-    .dca-approved-label input {
+    .dca-approved-cell input {
       accent-color: #38bdf8;
     }
 

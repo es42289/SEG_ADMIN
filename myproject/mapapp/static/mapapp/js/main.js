@@ -1652,17 +1652,11 @@ window.syncRoyaltyPanelHeight = () => {
 
         const approvedCell = document.createElement('td');
         approvedCell.classList.add('dca-approved-cell');
-        const approvedLabel = document.createElement('label');
-        approvedLabel.classList.add('dca-approved-label');
         const approvedInput = document.createElement('input');
         approvedInput.type = 'checkbox';
         approvedInput.disabled = true;
         approvedInput.checked = !!(data.dca_approved && data.dca_approved[i]);
-        const approvedText = document.createElement('span');
-        approvedText.textContent = 'DCA Approved';
-        approvedLabel.appendChild(approvedInput);
-        approvedLabel.appendChild(approvedText);
-        approvedCell.appendChild(approvedLabel);
+        approvedCell.appendChild(approvedInput);
         row.appendChild(approvedCell);
 
         const selectionCell = document.createElement('td');
