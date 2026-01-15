@@ -793,12 +793,37 @@ def user_wells_data(request):
             "net_gas_eur": [], "net_ngl_eur": [], "remaining_net_oil": [],
             "remaining_net_gas": [],
             "pv17": [],
+            "dca_approved": [],
             "lat_bh": [], "lon_bh": [],
             "last_producing": [], "owner_interest": [], "owner_name": []
         })
     
     # Get user's wells with rich data
     rows = _snowflake_user_wells(owner_name)
+    approved_map = {}
+    apis = [r["api_uwi"] for r in rows if r.get("api_uwi")]
+    if apis:
+        conn = get_snowflake_connection()
+        cur = conn.cursor(DictCursor)
+        try:
+            placeholders = ",".join(["%s"] * len(apis))
+            cur.execute(
+                f"""
+                SELECT API_UWI
+                FROM WELLS.MINERALS.ECON_INPUT_1PASS
+                WHERE API_UWI IN ({placeholders})
+                  AND APPROVED = 'Y'
+                """,
+                apis,
+            )
+            approved_rows = cur.fetchall() or []
+            approved_map = {row.get("API_UWI"): True for row in approved_rows}
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass
+            conn.close()
     return JsonResponse({
         "lat": [r["lat"] for r in rows],
         "lon": [r["lon"] for r in rows],
@@ -820,6 +845,7 @@ def user_wells_data(request):
         "remaining_net_oil": [r["remaining_net_oil"] for r in rows],
         "remaining_net_gas": [r["remaining_net_gas"] for r in rows],
         "pv17": [r["pv17"] for r in rows],
+        "dca_approved": [bool(approved_map.get(r["api_uwi"])) for r in rows],
         "lat_bh": [r["lat_bh"] for r in rows],
         "lon_bh": [r["lon_bh"] for r in rows],
         "last_producing": [r["last_producing"] for r in rows],
@@ -1196,6 +1222,7 @@ def well_dca_inputs(request):
     if not api:
         return JsonResponse({"detail": "API is required."}, status=400)
 
+    approved_only = (request.GET.get("approved") or "").lower() == "true"
     conn = get_snowflake_connection()
     cur = conn.cursor(DictCursor)
     try:
@@ -1219,22 +1246,44 @@ def well_dca_inputs(request):
             for row in prod_rows
         ]
 
+        params = {}
+        approved_missing = False
         cur.execute(
             """
             SELECT *
             FROM WELLS.MINERALS.ECON_INPUT_1PASS
             WHERE API_UWI = %s
+              AND APPROVED = 'Y'
             ORDER BY LAST_EDIT_DATE DESC
             LIMIT 1
             """,
             (api,),
         )
         params = cur.fetchone() or {}
+        if not params:
+            if approved_only:
+                approved_missing = True
+            cur.execute(
+                """
+                SELECT *
+                FROM WELLS.MINERALS.ECON_INPUT_1PASS
+                WHERE API_UWI = %s
+                ORDER BY LAST_EDIT_DATE DESC
+                LIMIT 1
+                """,
+                (api,),
+            )
+            params = cur.fetchone() or {}
         params_out = {
             key: _format_timestamp_for_json(value) if isinstance(value, datetime) else value
             for key, value in params.items()
         }
-        return JsonResponse({"api": api, "production": production, "params": params_out})
+        return JsonResponse({
+            "api": api,
+            "production": production,
+            "params": params_out,
+            "approved_missing": approved_missing,
+        })
     finally:
         try:
             cur.close()
@@ -1276,13 +1325,25 @@ def save_well_dca_inputs(request):
         "FCST_START_GAS",
         "GAS_FCST_YRS",
         "ECON_SCENARIO",
+        "APPROVED",
     ]
 
     values = {col: params.get(col) for col in columns}
+    approved_value = values.get("APPROVED")
+    if approved_value != "Y":
+        values["APPROVED"] = None
 
     conn = get_snowflake_connection()
     cur = conn.cursor()
     try:
+        if values.get("APPROVED") == "Y":
+            cur.execute(
+                """
+                UPDATE WELLS.MINERALS.ECON_INPUT_1PASS
+                SET APPROVED = NULL
+                WHERE APPROVED = 'Y'
+                """
+            )
         insert_cols = ", ".join(["API_UWI"] + columns + ["LAST_EDIT_DATE"])
         insert_placeholders = ", ".join(["%s"] * (len(columns) + 1))
         insert_sql = f"""

@@ -1608,7 +1608,7 @@ window.syncRoyaltyPanelHeight = () => {
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 17;
+        cell.colSpan = 18;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -1649,6 +1649,21 @@ window.syncRoyaltyPanelHeight = () => {
         editButton.disabled = !apiValue;
         editCell.appendChild(editButton);
         row.appendChild(editCell);
+
+        const approvedCell = document.createElement('td');
+        approvedCell.classList.add('dca-approved-cell');
+        const approvedLabel = document.createElement('label');
+        approvedLabel.classList.add('dca-approved-label');
+        const approvedInput = document.createElement('input');
+        approvedInput.type = 'checkbox';
+        approvedInput.disabled = true;
+        approvedInput.checked = !!(data.dca_approved && data.dca_approved[i]);
+        const approvedText = document.createElement('span');
+        approvedText.textContent = 'DCA Approved';
+        approvedLabel.appendChild(approvedInput);
+        approvedLabel.appendChild(approvedText);
+        approvedCell.appendChild(approvedLabel);
+        row.appendChild(approvedCell);
 
         const selectionCell = document.createElement('td');
         selectionCell.classList.add('well-select-cell');
@@ -1797,6 +1812,8 @@ window.syncRoyaltyPanelHeight = () => {
       status: document.getElementById('wellEditorStatus'),
       download: document.getElementById('wellEditorDownload'),
       save: document.getElementById('wellEditorSave'),
+      approved: document.getElementById('wellEditorApproved'),
+      loadApproved: document.getElementById('wellEditorLoadApproved'),
       fastEdit: document.getElementById('wellEditorFastEdit'),
       grossOil: document.getElementById('wellEditorGrossOilEur'),
       grossGas: document.getElementById('wellEditorGrossGasEur'),
@@ -1868,6 +1885,8 @@ window.syncRoyaltyPanelHeight = () => {
       return `${month}/${year}`;
     };
 
+    const isAdminUser = () => WELL_EDITOR_ELEMENTS.modal?.dataset?.isAdmin === 'true';
+
     const getWellIndexByApi = (api) => {
       if (!userWellData || !Array.isArray(userWellData.api_uwi)) return -1;
       return userWellData.api_uwi.findIndex((value) => value === api);
@@ -1892,6 +1911,9 @@ window.syncRoyaltyPanelHeight = () => {
       if (field.type === 'range') {
         return Number(field.value);
       }
+      if (field.type === 'checkbox') {
+        return field.checked ? 'Y' : null;
+      }
       return field.value;
     };
 
@@ -1900,10 +1922,14 @@ window.syncRoyaltyPanelHeight = () => {
       if (!field) return;
       if (field.type === 'range') {
         field.value = Number.isFinite(Number(value)) ? Number(value) : field.min || 0;
+      } else if (field.type === 'checkbox') {
+        field.checked = value === 'Y' || value === true;
       } else {
         field.value = value ?? '';
       }
-      updateFieldLabel(fieldName);
+      if (field.type !== 'checkbox') {
+        updateFieldLabel(fieldName);
+      }
     };
 
     const updateFieldLabel = (fieldName) => {
@@ -2385,6 +2411,7 @@ window.syncRoyaltyPanelHeight = () => {
       GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
       FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
       GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
+      APPROVED: getFieldValue('APPROVED'),
     });
 
     const updateWellEditorForecast = () => {
@@ -2512,8 +2539,19 @@ window.syncRoyaltyPanelHeight = () => {
       WELL_EDITOR_ELEMENTS.status.style.color = isError ? '#fca5a5' : '#f8fafc';
     };
 
-    const loadWellEditorData = async (api) => {
-      const response = await fetch(`/well-dca-inputs/?api=${encodeURIComponent(api)}`);
+    const showTemporaryStatus = (message) => {
+      setWellEditorStatus(message);
+      setTimeout(() => {
+        setWellEditorStatus('');
+      }, 2400);
+    };
+
+    const loadWellEditorData = async (api, options = {}) => {
+      const params = new URLSearchParams({ api });
+      if (options.approvedOnly) {
+        params.set('approved', 'true');
+      }
+      const response = await fetch(`/well-dca-inputs/?${params.toString()}`);
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || 'Unable to load well inputs.');
@@ -2576,6 +2614,7 @@ window.syncRoyaltyPanelHeight = () => {
       setFieldValue('GAS_D_MIN', params.GAS_D_MIN ?? 0);
       setFieldValue('GAS_DECLINE_TYPE', params.GAS_DECLINE_TYPE || 'EXP');
       setFieldValue('GAS_FCST_YRS', params.GAS_FCST_YRS ?? 0);
+      setFieldValue('APPROVED', params.APPROVED || null);
 
       initializeFixedRanges();
       updateDeclineRanges('OIL');
@@ -2780,6 +2819,9 @@ window.syncRoyaltyPanelHeight = () => {
       try {
         setWellEditorStatus('Saving parameters...');
         const params = collectParamsFromFields();
+        if (!isAdminUser()) {
+          params.APPROVED = null;
+        }
         const response = await fetch('/well-dca-inputs/save/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2811,6 +2853,35 @@ window.syncRoyaltyPanelHeight = () => {
         if (WELL_EDITOR_ELEMENTS.save) {
           WELL_EDITOR_ELEMENTS.save.disabled = false;
         }
+      }
+    };
+
+    const loadApprovedDca = async () => {
+      if (!WELL_EDITOR_STATE.api) return;
+      const currentMode = FAST_EDIT_STATE.mode;
+      try {
+        setWellEditorStatus('Loading approved DCA...');
+        const data = await loadWellEditorData(WELL_EDITOR_STATE.api, { approvedOnly: true });
+        WELL_EDITOR_STATE.production = data.production || WELL_EDITOR_STATE.production;
+        WELL_EDITOR_STATE.params = data.params || {};
+        const { combined, lastProdDate, firstProdDate } = calcDeclineForecast(
+          WELL_EDITOR_STATE.production,
+          data.params || {}
+        );
+        WELL_EDITOR_STATE.lastProdDate = lastProdDate;
+        applyWellEditorParams(data.params || {}, lastProdDate, firstProdDate);
+        renderWellEditorChart(combined);
+        updateWellEditorMetrics(combined);
+        setFastEditMode(currentMode);
+        updateFastEditView();
+        if (data.approved_missing) {
+          showTemporaryStatus('No approved DCA exists for this well.');
+        } else {
+          setWellEditorStatus('Approved DCA loaded.');
+        }
+      } catch (error) {
+        console.error('Failed to load approved DCA', error);
+        setWellEditorStatus(error.message || 'Failed to load approved DCA.', true);
       }
     };
 
@@ -2860,6 +2931,9 @@ window.syncRoyaltyPanelHeight = () => {
 
     WELL_EDITOR_FIELDS.forEach((field) => {
       field.addEventListener('input', () => {
+        if (field.dataset.field === 'APPROVED') {
+          return;
+        }
         if (field.dataset.field === 'FCST_START_OIL' || field.dataset.field === 'FCST_START_GAS') {
           updateFieldLabel(field.dataset.field);
           const startDate = sliderValueToDate(field.value);
@@ -2919,9 +2993,15 @@ window.syncRoyaltyPanelHeight = () => {
       })
     );
 
-    if (WELL_EDITOR_ELEMENTS.save) {
-      WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
-    }
+      if (WELL_EDITOR_ELEMENTS.save) {
+        WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
+      }
+
+      if (WELL_EDITOR_ELEMENTS.loadApproved) {
+        WELL_EDITOR_ELEMENTS.loadApproved.addEventListener('click', () => {
+          loadApprovedDca();
+        });
+      }
 
     if (WELL_EDITOR_ELEMENTS.download) {
       WELL_EDITOR_ELEMENTS.download.addEventListener('click', downloadWellEditorCsv);
@@ -2995,6 +3075,9 @@ window.syncRoyaltyPanelHeight = () => {
         if (WELL_EDITOR_ELEMENTS.title) {
           const baseName = meta.name || api;
           WELL_EDITOR_ELEMENTS.title.textContent = `${baseName} (${api})`;
+        }
+        if (WELL_EDITOR_ELEMENTS.approved) {
+          WELL_EDITOR_ELEMENTS.approved.disabled = !isAdminUser();
         }
 
         const data = await loadWellEditorData(api);

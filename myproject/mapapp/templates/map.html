@@ -445,6 +445,7 @@
     <thead>
       <tr>
         <th style="width:48px;">Edit</th>
+        <th style="width:150px;">DCA Approved</th>
         <th style="width:48px;">Select</th>
         <th>Well API</th>
         <th>NRI</th>
@@ -468,7 +469,7 @@
   </div>
   </section>
 
-  <div id="wellEditorModal" class="well-editor-modal" aria-hidden="true">
+  <div id="wellEditorModal" class="well-editor-modal" aria-hidden="true" data-is-admin="{{ admin_context.is_admin|yesno:'true,false' }}">
     <div class="well-editor-modal__overlay" data-well-editor-close></div>
     <div class="well-editor-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wellEditorTitle">
       <button type="button" class="well-editor-modal__close" data-well-editor-close aria-label="Close well editor dialog">
@@ -642,6 +643,11 @@
           </div>
 
           <div class="well-editor-actions">
+            <label class="well-editor-approval">
+              <input id="wellEditorApproved" type="checkbox" data-field="APPROVED">
+              <span>DCA Approved</span>
+            </label>
+            <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Load Approved DCA</button>
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
           </div>
         </div>
