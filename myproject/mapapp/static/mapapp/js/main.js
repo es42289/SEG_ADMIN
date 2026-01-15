@@ -2265,6 +2265,7 @@ window.syncRoyaltyPanelHeight = () => {
           range: yRange,
           gridcolor: '#1f293a1f',
         },
+        uirevision: 'well-editor-zoom',
         paper_bgcolor: '#ffffff',
         plot_bgcolor: '#ffffff',
         font: { color: '#1f293a' },
