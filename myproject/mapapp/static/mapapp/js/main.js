@@ -2302,6 +2302,7 @@ window.syncRoyaltyPanelHeight = () => {
           range: yRange,
           gridcolor: '#1f293a1f',
         },
+        uirevision: 'fast-edit-zoom',
         paper_bgcolor: '#0b1424',
         plot_bgcolor: '#0b1424',
         font: { color: '#f8fafc' },
