@@ -1786,6 +1786,10 @@ window.syncRoyaltyPanelHeight = () => {
       chartReady: false,
     };
 
+    let pvEstimateTimer = null;
+    let pvEstimateAbort = null;
+    let pvEstimateRequestId = 0;
+
     const WELL_EDITOR_ELEMENTS = {
       modal: document.getElementById('wellEditorModal'),
       title: document.getElementById('wellEditorTitle'),
@@ -2387,7 +2391,117 @@ window.syncRoyaltyPanelHeight = () => {
       renderWellEditorChart(combined);
       const metrics = updateWellEditorMetrics(combined);
       WELL_EDITOR_STATE.baseMetrics = WELL_EDITOR_STATE.baseMetrics || metrics;
+      schedulePvEstimateUpdate(params, combined, metrics);
       return { combined, metrics };
+    };
+
+    const parseCsvRow = (row) => {
+      const parts = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+          if (inQuotes && row[i + 1] === '"') {
+            current += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+        if (char === ',' && !inQuotes) {
+          parts.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current);
+      return parts;
+    };
+
+    const computePv17FromCsv = (csvText) => {
+      if (!csvText) return null;
+      const lines = csvText.trim().split(/\r?\n/);
+      if (lines.length < 2) return null;
+      const headers = parseCsvRow(lines[0]).map((h) => h.trim());
+      const getIdx = (name) => headers.indexOf(name);
+      const idxDate = getIdx('PRODUCINGMONTH');
+      const idxNet = getIdx('NetCashFlow');
+      const idxOilHist = getIdx('LIQUIDSPROD_BBL');
+      const idxGasHist = getIdx('GASPROD_MCF');
+      if (idxDate < 0 || idxNet < 0) return null;
+
+      const now = new Date();
+      const pvStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+      const pvEnd = new Date(Date.UTC(pvStart.getUTCFullYear() + 15, pvStart.getUTCMonth(), 1));
+      const pvStartKey = pvStart.getUTCFullYear() * 12 + pvStart.getUTCMonth();
+
+      let pv17 = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const row = parseCsvRow(lines[i]);
+        const dateValue = row[idxDate];
+        if (!dateValue) continue;
+        const date = new Date(dateValue);
+        if (Number.isNaN(date.getTime())) continue;
+        const oilHist = idxOilHist >= 0 ? Number(row[idxOilHist]) || 0 : 0;
+        const gasHist = idxGasHist >= 0 ? Number(row[idxGasHist]) || 0 : 0;
+        const hasHist = oilHist !== 0 || gasHist !== 0;
+        if (hasHist) continue;
+        if (date < pvStart || date >= pvEnd) continue;
+        const monthsFromStart = date.getUTCFullYear() * 12 + date.getUTCMonth() - pvStartKey;
+        const netCashFlow = Number(row[idxNet]) || 0;
+        const discounted = netCashFlow / (1 + 0.17) ** (monthsFromStart / 12);
+        pv17 += discounted;
+      }
+      return pv17;
+    };
+
+    const updatePvEstimateFromServer = async (params, combined, metrics, requestId) => {
+      if (!WELL_EDITOR_STATE.api) return;
+      if (pvEstimateAbort) {
+        pvEstimateAbort.abort();
+      }
+      pvEstimateAbort = new AbortController();
+      const deckSelect = document.getElementById('priceDeckSelect');
+      const payload = {
+        api: WELL_EDITOR_STATE.api,
+        params,
+        deck: deckSelect?.value || null,
+      };
+      try {
+        const response = await fetch('/well-dca-inputs/export/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: pvEstimateAbort.signal,
+        });
+        if (!response.ok) return;
+        const csvText = await response.text();
+        if (requestId !== pvEstimateRequestId) return;
+        const pv17 = computePv17FromCsv(csvText);
+        if (!Number.isFinite(pv17)) return;
+        WELL_EDITOR_STATE.baseNriValue = pv17;
+        WELL_EDITOR_STATE.baseNetEur = metrics.remainingNet;
+        updateWellEditorMetrics(combined);
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        console.error('Failed to refresh PV estimate', error);
+      }
+    };
+
+    const schedulePvEstimateUpdate = (params, combined, metrics) => {
+      if (!WELL_EDITOR_STATE.api) return;
+      const isOpen = WELL_EDITOR_ELEMENTS.modal?.classList.contains('is-open') || isFastEditOpen();
+      if (!isOpen) return;
+      if (pvEstimateTimer) {
+        clearTimeout(pvEstimateTimer);
+      }
+      const requestId = ++pvEstimateRequestId;
+      pvEstimateTimer = setTimeout(() => {
+        updatePvEstimateFromServer(params, combined, metrics, requestId);
+      }, 600);
     };
 
     const setWellEditorStatus = (message, isError = false) => {
