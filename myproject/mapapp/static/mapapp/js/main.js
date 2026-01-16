@@ -2974,6 +2974,9 @@ window.syncRoyaltyPanelHeight = () => {
         if (field.dataset.field === 'APPROVED') {
           return;
         }
+        if (WELL_EDITOR_ELEMENTS.approved && WELL_EDITOR_ELEMENTS.approved.checked) {
+          WELL_EDITOR_ELEMENTS.approved.checked = false;
+        }
         if (field.dataset.field === 'FCST_START_OIL' || field.dataset.field === 'FCST_START_GAS') {
           updateFieldLabel(field.dataset.field);
           const startDate = sliderValueToDate(field.value);
