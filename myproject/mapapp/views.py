@@ -1363,8 +1363,10 @@ def save_well_dca_inputs(request):
                 """
                 UPDATE WELLS.MINERALS.ECON_INPUT_1PASS
                 SET APPROVED = NULL
-                WHERE APPROVED = 'Y'
-                """
+                WHERE API_UWI = %s
+                  AND APPROVED = 'Y'
+                """,
+                (api,),
             )
         insert_cols = ", ".join(["API_UWI"] + columns + ["LAST_EDIT_DATE"])
         insert_placeholders = ", ".join(["%s"] * (len(columns) + 1))
