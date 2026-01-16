@@ -530,6 +530,23 @@
           <div class="well-editor-form">
             <div class="well-editor-form__section" data-well-editor-section="oil">
               <h3 class="well-editor-form__title">Oil Forecast Inputs</h3>
+              <div class="well-editor-field well-editor-field--inline">
+                <label class="well-editor-field__label">Oil Decline Type</label>
+                <div class="well-editor-decline-toggle">
+                  <span id="wellEditorOilDeclineLabel" class="well-editor-decline-label">Exponential</span>
+                  <label class="well-editor-switch">
+                    <input
+                      id="wellOilDeclineType"
+                      type="checkbox"
+                      class="well-editor-switch__input"
+                      data-field="OIL_DECLINE_TYPE"
+                      role="switch"
+                      aria-label="Toggle oil decline type between exponential and hyperbolic"
+                    >
+                    <span class="well-editor-switch__slider" aria-hidden="true"></span>
+                  </label>
+                </div>
+              </div>
               <div class="well-editor-field">
                 <div class="well-editor-field__header">
                   <label for="wellOilQi">Oil qi (BBL)</label>
@@ -566,13 +583,6 @@
                 <input id="wellOilDmin" type="range" min="0" max="0.5" step="0.005" data-field="OIL_D_MIN">
               </div>
               <div class="well-editor-field">
-                <label for="wellOilDeclineType">Oil Decline Type</label>
-                <select id="wellOilDeclineType" data-field="OIL_DECLINE_TYPE">
-                  <option value="EXP">Exponential</option>
-                  <option value="HYP">Hyperbolic</option>
-                </select>
-              </div>
-              <div class="well-editor-field">
                 <div class="well-editor-field__header">
                   <label for="wellOilStart">Oil Forecast Start</label>
                   <span class="well-editor-field__value" data-field-value="FCST_START_OIL">--</span>
@@ -583,6 +593,23 @@
 
             <div class="well-editor-form__section" data-well-editor-section="gas" hidden>
               <h3 class="well-editor-form__title">Gas Forecast Inputs</h3>
+              <div class="well-editor-field well-editor-field--inline">
+                <label class="well-editor-field__label">Gas Decline Type</label>
+                <div class="well-editor-decline-toggle">
+                  <span id="wellEditorGasDeclineLabel" class="well-editor-decline-label">Exponential</span>
+                  <label class="well-editor-switch">
+                    <input
+                      id="wellGasDeclineType"
+                      type="checkbox"
+                      class="well-editor-switch__input"
+                      data-field="GAS_DECLINE_TYPE"
+                      role="switch"
+                      aria-label="Toggle gas decline type between exponential and hyperbolic"
+                    >
+                    <span class="well-editor-switch__slider" aria-hidden="true"></span>
+                  </label>
+                </div>
+              </div>
               <div class="well-editor-field">
                 <div class="well-editor-field__header">
                   <label for="wellGasQi">Gas qi (MCF)</label>
@@ -617,13 +644,6 @@
                   <span class="well-editor-field__value" data-field-value="GAS_D_MIN">--</span>
                 </div>
                 <input id="wellGasDmin" type="range" min="0" max="0.5" step="0.005" data-field="GAS_D_MIN">
-              </div>
-              <div class="well-editor-field">
-                <label for="wellGasDeclineType">Gas Decline Type</label>
-                <select id="wellGasDeclineType" data-field="GAS_DECLINE_TYPE">
-                  <option value="EXP">Exponential</option>
-                  <option value="HYP">Hyperbolic</option>
-                </select>
               </div>
               <div class="well-editor-field">
                 <div class="well-editor-field__header">

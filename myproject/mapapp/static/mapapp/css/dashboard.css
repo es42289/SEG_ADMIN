@@ -2314,6 +2314,73 @@ input#year[type="range"] {
       white-space: nowrap;
     }
 
+    .well-editor-field--inline {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .well-editor-field__label {
+      color: #f8fafc;
+      font-weight: 600;
+    }
+
+    .well-editor-decline-toggle {
+      align-items: center;
+      display: inline-flex;
+      gap: 0.6rem;
+    }
+
+    .well-editor-decline-label {
+      color: #e2e8f0;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .well-editor-switch {
+      display: inline-flex;
+      position: relative;
+    }
+
+    .well-editor-switch__input {
+      height: 0;
+      opacity: 0;
+      position: absolute;
+      width: 0;
+    }
+
+    .well-editor-switch__slider {
+      background: rgba(148, 163, 184, 0.4);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      border-radius: 999px;
+      cursor: pointer;
+      height: 1.4rem;
+      position: relative;
+      transition: background 0.2s ease, border-color 0.2s ease;
+      width: 2.6rem;
+    }
+
+    .well-editor-switch__slider::after {
+      background: #f8fafc;
+      border-radius: 999px;
+      content: '';
+      height: 1.1rem;
+      left: 0.15rem;
+      position: absolute;
+      top: 0.1rem;
+      transition: transform 0.2s ease;
+      width: 1.1rem;
+    }
+
+    .well-editor-switch__input:checked + .well-editor-switch__slider {
+      background: rgba(56, 189, 248, 0.6);
+      border-color: rgba(56, 189, 248, 0.9);
+    }
+
+    .well-editor-switch__input:checked + .well-editor-switch__slider::after {
+      transform: translateX(1.2rem);
+    }
+
     .well-editor-actions {
       margin-top: 1rem;
       display: flex;

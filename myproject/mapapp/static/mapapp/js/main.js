@@ -1809,6 +1809,8 @@ window.syncRoyaltyPanelHeight = () => {
       approved: document.getElementById('wellEditorApproved'),
       loadApproved: document.getElementById('wellEditorLoadApproved'),
       fastEdit: document.getElementById('wellEditorFastEdit'),
+      oilDeclineLabel: document.getElementById('wellEditorOilDeclineLabel'),
+      gasDeclineLabel: document.getElementById('wellEditorGasDeclineLabel'),
       grossOil: document.getElementById('wellEditorGrossOilEur'),
       grossGas: document.getElementById('wellEditorGrossGasEur'),
       netOil: document.getElementById('wellEditorNetOilEur'),
@@ -1906,6 +1908,9 @@ window.syncRoyaltyPanelHeight = () => {
         return Number(field.value);
       }
       if (field.type === 'checkbox') {
+        if (fieldName === 'OIL_DECLINE_TYPE' || fieldName === 'GAS_DECLINE_TYPE') {
+          return field.checked ? 'HYP' : 'EXP';
+        }
         return field.checked ? 'Y' : null;
       }
       return field.value;
@@ -1917,12 +1922,27 @@ window.syncRoyaltyPanelHeight = () => {
       if (field.type === 'range') {
         field.value = Number.isFinite(Number(value)) ? Number(value) : field.min || 0;
       } else if (field.type === 'checkbox') {
-        field.checked = value === 'Y' || value === true;
+        if (fieldName === 'OIL_DECLINE_TYPE' || fieldName === 'GAS_DECLINE_TYPE') {
+          field.checked = value === 'HYP';
+        } else {
+          field.checked = value === 'Y' || value === true;
+        }
       } else {
         field.value = value ?? '';
       }
       if (field.type !== 'checkbox') {
         updateFieldLabel(fieldName);
+      }
+    };
+
+    const syncWellEditorDeclineLabels = () => {
+      if (WELL_EDITOR_ELEMENTS.oilDeclineLabel) {
+        const oilType = getFieldValue('OIL_DECLINE_TYPE') || 'EXP';
+        WELL_EDITOR_ELEMENTS.oilDeclineLabel.textContent = oilType === 'HYP' ? 'Hyperbolic' : 'Exponential';
+      }
+      if (WELL_EDITOR_ELEMENTS.gasDeclineLabel) {
+        const gasType = getFieldValue('GAS_DECLINE_TYPE') || 'EXP';
+        WELL_EDITOR_ELEMENTS.gasDeclineLabel.textContent = gasType === 'HYP' ? 'Hyperbolic' : 'Exponential';
       }
     };
 
@@ -2617,6 +2637,7 @@ window.syncRoyaltyPanelHeight = () => {
       updateQiRange('gas', sliderValueToDate(getFieldValue('FCST_START_GAS')));
 
       updateAllFieldLabels();
+      syncWellEditorDeclineLabels();
     };
 
     const isFastEditOpen = () => FAST_EDIT_ELEMENTS.modal?.classList.contains('is-open');
@@ -2941,12 +2962,14 @@ window.syncRoyaltyPanelHeight = () => {
         }
         if (field.dataset.field === 'OIL_DECLINE_TYPE') {
           updateDeclineRanges('OIL');
+          syncWellEditorDeclineLabels();
           if (isFastEditOpen()) {
             syncFastEditDeclineToggle();
           }
         }
         if (field.dataset.field === 'GAS_DECLINE_TYPE') {
           updateDeclineRanges('GAS');
+          syncWellEditorDeclineLabels();
           if (isFastEditOpen()) {
             syncFastEditDeclineToggle();
           }
