@@ -2454,6 +2454,11 @@ input#year[type="range"] {
     @media (max-width: 900px) {
       .well-editor-layout {
         flex-direction: column;
+        align-items: stretch;
+      }
+
+      .well-editor-left {
+        width: 100%;
       }
 
       .well-editor-right {
