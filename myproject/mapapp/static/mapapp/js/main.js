@@ -1820,6 +1820,7 @@ window.syncRoyaltyPanelHeight = () => {
       chartReady: false,
     };
 
+    let wellEditorNeedsRefresh = false;
     let pvEstimateTimer = null;
     let pvEstimateAbort = null;
     let pvEstimateRequestId = 0;
@@ -2690,6 +2691,12 @@ window.syncRoyaltyPanelHeight = () => {
         hideFastEdit();
       }
       updateBodyScroll();
+      if (wellEditorNeedsRefresh) {
+        wellEditorNeedsRefresh = false;
+        if (typeof window.reloadEconomicsWithSelection === 'function') {
+          window.reloadEconomicsWithSelection();
+        }
+      }
     };
 
     const setFastEditMode = (mode) => {
@@ -2885,6 +2892,7 @@ window.syncRoyaltyPanelHeight = () => {
           window.latestPerWellPvMap[apiNoDash] = { ...existing, pv17: pvValue };
           applyPerWellPvMap(window.latestPerWellPvMap);
         }
+        wellEditorNeedsRefresh = true;
         setWellEditorStatus('Parameters saved successfully.');
       } catch (error) {
         console.error('Failed to save well parameters', error);
