@@ -2136,6 +2136,22 @@ input#year[type="range"] {
       font-size: 1.6rem;
     }
 
+    .well-editor-well-select {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      border-radius: 10px;
+      color: #f8fafc;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-top: 0.25rem;
+      min-width: 260px;
+      padding: 0.4rem 0.75rem;
+    }
+
+    .well-editor-well-select option {
+      color: #0f172a;
+    }
+
     .well-editor-modal__meta {
       text-align: right;
     }

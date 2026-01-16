@@ -995,6 +995,7 @@ window.syncRoyaltyPanelHeight = () => {
           if (userWellData) {
             computeProductionStats(userWellData, window.productionByApi);
             renderUserWellsTable(userWellData);
+            buildWellEditorSelect();
           }
           console.log('bulk-production (user only, ONCE):', {
             apis_sent: apis.length,
@@ -1478,6 +1479,7 @@ window.syncRoyaltyPanelHeight = () => {
         updateWellSummaryStats(data);
 
         renderUserWellsTable(data);
+        buildWellEditorSelect();
         renderUserWellsMap(data);
         return data;
         
@@ -1772,6 +1774,29 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
+    const buildWellEditorSelect = () => {
+      if (!WELL_EDITOR_ELEMENTS.wellSelect) return;
+      if (!userWellData || !Array.isArray(userWellData.api_uwi)) return;
+      const select = WELL_EDITOR_ELEMENTS.wellSelect;
+      select.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a well...';
+      select.appendChild(placeholder);
+      userWellData.api_uwi.forEach((api, idx) => {
+        if (!api) return;
+        const name = userWellData.name?.[idx] || api;
+        const approved = userWellData.dca_approved?.[idx];
+        const option = document.createElement('option');
+        option.value = api;
+        option.textContent = `${approved ? '✓ ' : ''}${name} (${api})`;
+        select.appendChild(option);
+      });
+      if (WELL_EDITOR_STATE.api) {
+        select.value = WELL_EDITOR_STATE.api;
+      }
+    };
+
     window.updateWellPvValues = function updateWellPvValues(pvMap) {
       if (!pvMap || typeof pvMap !== 'object') return;
       window.latestPerWellPvMap = pvMap;
@@ -1801,7 +1826,7 @@ window.syncRoyaltyPanelHeight = () => {
 
     const WELL_EDITOR_ELEMENTS = {
       modal: document.getElementById('wellEditorModal'),
-      title: document.getElementById('wellEditorTitle'),
+      wellSelect: document.getElementById('wellEditorWellSelect'),
       chart: document.getElementById('wellEditorChart'),
       status: document.getElementById('wellEditorStatus'),
       download: document.getElementById('wellEditorDownload'),
@@ -3010,15 +3035,25 @@ window.syncRoyaltyPanelHeight = () => {
       })
     );
 
-      if (WELL_EDITOR_ELEMENTS.save) {
-        WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
-      }
+    if (WELL_EDITOR_ELEMENTS.save) {
+      WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
+    }
 
-      if (WELL_EDITOR_ELEMENTS.loadApproved) {
-        WELL_EDITOR_ELEMENTS.loadApproved.addEventListener('click', () => {
-          loadApprovedDca();
-        });
-      }
+    if (WELL_EDITOR_ELEMENTS.loadApproved) {
+      WELL_EDITOR_ELEMENTS.loadApproved.addEventListener('click', () => {
+        loadApprovedDca();
+      });
+    }
+
+    if (WELL_EDITOR_ELEMENTS.wellSelect) {
+      WELL_EDITOR_ELEMENTS.wellSelect.addEventListener('change', (event) => {
+        const nextApi = event.target.value;
+        if (!nextApi || nextApi === WELL_EDITOR_STATE.api) {
+          return;
+        }
+        window.openWellEditor(nextApi);
+      });
+    }
 
     if (WELL_EDITOR_ELEMENTS.download) {
       WELL_EDITOR_ELEMENTS.download.addEventListener('click', downloadWellEditorCsv);
@@ -3089,9 +3124,9 @@ window.syncRoyaltyPanelHeight = () => {
           const percent = Number.isFinite(meta.ownerInterest) ? meta.ownerInterest * 100 : 0;
           WELL_EDITOR_ELEMENTS.nriPercent.textContent = percent.toFixed(2);
         }
-        if (WELL_EDITOR_ELEMENTS.title) {
-          const baseName = meta.name || api;
-          WELL_EDITOR_ELEMENTS.title.textContent = `${baseName} (${api})`;
+        if (WELL_EDITOR_ELEMENTS.wellSelect) {
+          buildWellEditorSelect();
+          WELL_EDITOR_ELEMENTS.wellSelect.value = api;
         }
         if (WELL_EDITOR_ELEMENTS.approved) {
           WELL_EDITOR_ELEMENTS.approved.disabled = !isAdminUser();
