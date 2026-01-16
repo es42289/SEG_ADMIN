@@ -1,7 +1,9 @@
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from functools import lru_cache
+from threading import Lock
 
 import numpy as np
 import pandas as pd
@@ -540,7 +542,12 @@ def _profile_row_to_dict(row, email):
     profile["email"] = row.get("EMAIL") or email or ""
     return profile
 
-def _snowflake_points():
+_MAP_DATA_CACHE_TTL_SECONDS = 300
+_map_data_cache = {"payload": None, "timestamp": 0.0}
+_map_data_lock = Lock()
+
+
+def _fetch_map_payload():
     conn = get_snowflake_connection()
 
     # Rest of your function stays the same...
@@ -564,7 +571,16 @@ def _snowflake_points():
         )
         rows = cur.fetchall()
 
-        out = []
+        payload = {
+            "lat": [],
+            "lon": [],
+            "text": [],
+            "year": [],
+            "api_uwi": [],
+            "lat_bh": [],
+            "lon_bh": [],
+            "last_producing": [],
+        }
         for lat, lon, lat_bh, lon_bh, cdate, cyear, api_uwi, last_prod in rows:
             label = f"Completion: {cdate}" if cdate is not None else "Well"
             if cyear is not None:
@@ -577,23 +593,38 @@ def _snowflake_points():
             else:
                 year_val = None
 
-            out.append({
-                "lat": float(lat),
-                "lon": float(lon),
-                "lat_bh": float(lat_bh) if lat_bh else None,
-                "lon_bh": float(lon_bh) if lon_bh else None,
-                "label": label,
-                "year": year_val,
-                "api_uwi": api_uwi,
-                "last_producing": last_prod
-            })
-        return out
+            payload["lat"].append(float(lat))
+            payload["lon"].append(float(lon))
+            payload["text"].append(label)
+            payload["year"].append(year_val)
+            payload["api_uwi"].append(api_uwi)
+            payload["lat_bh"].append(float(lat_bh) if lat_bh else None)
+            payload["lon_bh"].append(float(lon_bh) if lon_bh else None)
+            payload["last_producing"].append(last_prod)
+        return payload
     finally:
         try:
             cur.close()
         except Exception:
             pass
         conn.close()
+
+
+def _get_cached_map_payload():
+    now = time.monotonic()
+    cached_payload = _map_data_cache["payload"]
+    if cached_payload and (now - _map_data_cache["timestamp"] < _MAP_DATA_CACHE_TTL_SECONDS):
+        return cached_payload
+
+    with _map_data_lock:
+        cached_payload = _map_data_cache["payload"]
+        if cached_payload and (now - _map_data_cache["timestamp"] < _MAP_DATA_CACHE_TTL_SECONDS):
+            return cached_payload
+
+        payload = _fetch_map_payload()
+        _map_data_cache["payload"] = payload
+        _map_data_cache["timestamp"] = time.monotonic()
+        return payload
 
 def map_page(request):
     """Renders the HTML page with Plotly map + slider."""
@@ -621,17 +652,8 @@ def map_data(request):
         return redirect('/login/')
     
     # Your existing map_data code here...
-    rows = _snowflake_points()
-    return JsonResponse({
-        "lat": [r["lat"] for r in rows],
-        "lon": [r["lon"] for r in rows],
-        "text": [r["label"] for r in rows],
-        "year": [r["year"] for r in rows],
-        "api_uwi": [r["api_uwi"] for r in rows],
-        "lat_bh": [r["lat_bh"] for r in rows],
-        "lon_bh": [r["lon_bh"] for r in rows],
-        "last_producing": [r["last_producing"] for r in rows],
-    })
+    payload = _get_cached_map_payload()
+    return JsonResponse(payload)
 
 def get_user_owner_name(user_email):
     """Query Snowflake to get the owner name for a user's email"""
