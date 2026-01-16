@@ -2033,6 +2033,7 @@ input#year[type="range"] {
       width: 16px;
       height: 16px;
       cursor: pointer;
+      accent-color: #22c55e;
     }
 
     #userWellsTable .well-edit-cell {
