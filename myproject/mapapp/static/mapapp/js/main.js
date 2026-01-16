@@ -995,6 +995,7 @@ window.syncRoyaltyPanelHeight = () => {
           if (userWellData) {
             computeProductionStats(userWellData, window.productionByApi);
             renderUserWellsTable(userWellData);
+            buildWellEditorSelect();
           }
           console.log('bulk-production (user only, ONCE):', {
             apis_sent: apis.length,
@@ -1478,6 +1479,7 @@ window.syncRoyaltyPanelHeight = () => {
         updateWellSummaryStats(data);
 
         renderUserWellsTable(data);
+        buildWellEditorSelect();
         renderUserWellsMap(data);
         return data;
         
@@ -1608,7 +1610,7 @@ window.syncRoyaltyPanelHeight = () => {
       if (!data || !data.api_uwi || data.api_uwi.length === 0) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 17;
+        cell.colSpan = 18;
         cell.textContent = 'No wells found';
         row.appendChild(cell);
         tbody.appendChild(row);
@@ -1649,6 +1651,15 @@ window.syncRoyaltyPanelHeight = () => {
         editButton.disabled = !apiValue;
         editCell.appendChild(editButton);
         row.appendChild(editCell);
+
+        const approvedCell = document.createElement('td');
+        approvedCell.classList.add('dca-approved-cell');
+        const approvedInput = document.createElement('input');
+        approvedInput.type = 'checkbox';
+        approvedInput.disabled = true;
+        approvedInput.checked = !!(data.dca_approved && data.dca_approved[i]);
+        approvedCell.appendChild(approvedInput);
+        row.appendChild(approvedCell);
 
         const selectionCell = document.createElement('td');
         selectionCell.classList.add('well-select-cell');
@@ -1763,6 +1774,29 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
+    const buildWellEditorSelect = () => {
+      if (!WELL_EDITOR_ELEMENTS.wellSelect) return;
+      if (!userWellData || !Array.isArray(userWellData.api_uwi)) return;
+      const select = WELL_EDITOR_ELEMENTS.wellSelect;
+      select.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a well...';
+      select.appendChild(placeholder);
+      userWellData.api_uwi.forEach((api, idx) => {
+        if (!api) return;
+        const name = userWellData.name?.[idx] || api;
+        const approved = userWellData.dca_approved?.[idx];
+        const option = document.createElement('option');
+        option.value = api;
+        option.textContent = `${approved ? '✓ ' : ''}${name} (${api})`;
+        select.appendChild(option);
+      });
+      if (WELL_EDITOR_STATE.api) {
+        select.value = WELL_EDITOR_STATE.api;
+      }
+    };
+
     window.updateWellPvValues = function updateWellPvValues(pvMap) {
       if (!pvMap || typeof pvMap !== 'object') return;
       window.latestPerWellPvMap = pvMap;
@@ -1786,14 +1820,22 @@ window.syncRoyaltyPanelHeight = () => {
       chartReady: false,
     };
 
+    let pvEstimateTimer = null;
+    let pvEstimateAbort = null;
+    let pvEstimateRequestId = 0;
+
     const WELL_EDITOR_ELEMENTS = {
       modal: document.getElementById('wellEditorModal'),
-      title: document.getElementById('wellEditorTitle'),
+      wellSelect: document.getElementById('wellEditorWellSelect'),
       chart: document.getElementById('wellEditorChart'),
       status: document.getElementById('wellEditorStatus'),
       download: document.getElementById('wellEditorDownload'),
       save: document.getElementById('wellEditorSave'),
+      approved: document.getElementById('wellEditorApproved'),
+      loadApproved: document.getElementById('wellEditorLoadApproved'),
       fastEdit: document.getElementById('wellEditorFastEdit'),
+      oilDeclineLabel: document.getElementById('wellEditorOilDeclineLabel'),
+      gasDeclineLabel: document.getElementById('wellEditorGasDeclineLabel'),
       grossOil: document.getElementById('wellEditorGrossOilEur'),
       grossGas: document.getElementById('wellEditorGrossGasEur'),
       netOil: document.getElementById('wellEditorNetOilEur'),
@@ -1815,6 +1857,9 @@ window.syncRoyaltyPanelHeight = () => {
       chart: document.getElementById('wellFastEditChart'),
       modeLabel: document.getElementById('fastEditModeLabel'),
       modeToggle: document.getElementById('fastEditModeToggle'),
+      resetButton: document.getElementById('fastEditReset'),
+      declineLabel: document.getElementById('fastEditDeclineLabel'),
+      declineToggle: document.getElementById('fastEditDeclineToggle'),
       leftPad: document.getElementById('fastEditPadLeft'),
       rightPad: document.getElementById('fastEditPadRight'),
     };
@@ -1861,6 +1906,8 @@ window.syncRoyaltyPanelHeight = () => {
       return `${month}/${year}`;
     };
 
+    const isAdminUser = () => WELL_EDITOR_ELEMENTS.modal?.dataset?.isAdmin === 'true';
+
     const getWellIndexByApi = (api) => {
       if (!userWellData || !Array.isArray(userWellData.api_uwi)) return -1;
       return userWellData.api_uwi.findIndex((value) => value === api);
@@ -1885,6 +1932,12 @@ window.syncRoyaltyPanelHeight = () => {
       if (field.type === 'range') {
         return Number(field.value);
       }
+      if (field.type === 'checkbox') {
+        if (fieldName === 'OIL_DECLINE_TYPE' || fieldName === 'GAS_DECLINE_TYPE') {
+          return field.checked ? 'HYP' : 'EXP';
+        }
+        return field.checked ? 'Y' : null;
+      }
       return field.value;
     };
 
@@ -1893,10 +1946,29 @@ window.syncRoyaltyPanelHeight = () => {
       if (!field) return;
       if (field.type === 'range') {
         field.value = Number.isFinite(Number(value)) ? Number(value) : field.min || 0;
+      } else if (field.type === 'checkbox') {
+        if (fieldName === 'OIL_DECLINE_TYPE' || fieldName === 'GAS_DECLINE_TYPE') {
+          field.checked = value === 'HYP';
+        } else {
+          field.checked = value === 'Y' || value === true;
+        }
       } else {
         field.value = value ?? '';
       }
-      updateFieldLabel(fieldName);
+      if (field.type !== 'checkbox') {
+        updateFieldLabel(fieldName);
+      }
+    };
+
+    const syncWellEditorDeclineLabels = () => {
+      if (WELL_EDITOR_ELEMENTS.oilDeclineLabel) {
+        const oilType = getFieldValue('OIL_DECLINE_TYPE') || 'EXP';
+        WELL_EDITOR_ELEMENTS.oilDeclineLabel.textContent = oilType === 'HYP' ? 'Hyperbolic' : 'Exponential';
+      }
+      if (WELL_EDITOR_ELEMENTS.gasDeclineLabel) {
+        const gasType = getFieldValue('GAS_DECLINE_TYPE') || 'EXP';
+        WELL_EDITOR_ELEMENTS.gasDeclineLabel.textContent = gasType === 'HYP' ? 'Hyperbolic' : 'Exponential';
+      }
     };
 
     const updateFieldLabel = (fieldName) => {
@@ -2258,6 +2330,7 @@ window.syncRoyaltyPanelHeight = () => {
           range: yRange,
           gridcolor: '#1f293a1f',
         },
+        uirevision: 'well-editor-zoom',
         paper_bgcolor: '#ffffff',
         plot_bgcolor: '#ffffff',
         font: { color: '#1f293a' },
@@ -2300,6 +2373,7 @@ window.syncRoyaltyPanelHeight = () => {
           range: yRange,
           gridcolor: '#1f293a1f',
         },
+        uirevision: 'fast-edit-zoom',
         paper_bgcolor: '#0b1424',
         plot_bgcolor: '#0b1424',
         font: { color: '#f8fafc' },
@@ -2339,22 +2413,25 @@ window.syncRoyaltyPanelHeight = () => {
     const updateWellEditorMetrics = (combined) => {
       const grossOil = combined.reduce((sum, row) => sum + (row.oil || 0) + (row.oilFc || 0), 0);
       const grossGas = combined.reduce((sum, row) => sum + (row.gas || 0) + (row.gasFc || 0), 0);
+      const remainingOil = combined.reduce((sum, row) => sum + (row.oilFc || 0), 0);
+      const remainingGas = combined.reduce((sum, row) => sum + (row.gasFc || 0), 0);
       const netOil = grossOil * WELL_EDITOR_STATE.ownerInterest;
       const netGas = grossGas * WELL_EDITOR_STATE.ownerInterest;
+      const remainingNet = (remainingOil + remainingGas) * WELL_EDITOR_STATE.ownerInterest;
 
       if (WELL_EDITOR_ELEMENTS.grossOil) WELL_EDITOR_ELEMENTS.grossOil.textContent = formatNumber(grossOil, 0);
       if (WELL_EDITOR_ELEMENTS.grossGas) WELL_EDITOR_ELEMENTS.grossGas.textContent = formatNumber(grossGas, 0);
       if (WELL_EDITOR_ELEMENTS.netOil) WELL_EDITOR_ELEMENTS.netOil.textContent = formatNumber(netOil, 0);
       if (WELL_EDITOR_ELEMENTS.netGas) WELL_EDITOR_ELEMENTS.netGas.textContent = formatNumber(netGas, 0);
 
-      const updatedNet = netOil + netGas;
+      const updatedNet = remainingNet;
       const baseNet = WELL_EDITOR_STATE.baseNetEur || updatedNet || 1;
       const baseValue = Number.isFinite(WELL_EDITOR_STATE.baseNriValue)
         ? WELL_EDITOR_STATE.baseNriValue
         : 0;
       const estimatedValue = baseNet > 0 ? baseValue * (updatedNet / baseNet) : baseValue;
       if (WELL_EDITOR_ELEMENTS.nriValue) WELL_EDITOR_ELEMENTS.nriValue.textContent = formatCurrency(estimatedValue);
-      return { grossOil, grossGas, netOil, netGas, estimatedValue };
+      return { grossOil, grossGas, netOil, netGas, remainingNet, estimatedValue };
     };
 
     const collectParamsFromFields = () => ({
@@ -2373,6 +2450,7 @@ window.syncRoyaltyPanelHeight = () => {
       GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
       FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
       GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
+      APPROVED: getFieldValue('APPROVED'),
     });
 
     const updateWellEditorForecast = () => {
@@ -2381,7 +2459,117 @@ window.syncRoyaltyPanelHeight = () => {
       renderWellEditorChart(combined);
       const metrics = updateWellEditorMetrics(combined);
       WELL_EDITOR_STATE.baseMetrics = WELL_EDITOR_STATE.baseMetrics || metrics;
+      schedulePvEstimateUpdate(params, combined, metrics);
       return { combined, metrics };
+    };
+
+    const parseCsvRow = (row) => {
+      const parts = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+          if (inQuotes && row[i + 1] === '"') {
+            current += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+        if (char === ',' && !inQuotes) {
+          parts.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current);
+      return parts;
+    };
+
+    const computePv17FromCsv = (csvText) => {
+      if (!csvText) return null;
+      const lines = csvText.trim().split(/\r?\n/);
+      if (lines.length < 2) return null;
+      const headers = parseCsvRow(lines[0]).map((h) => h.trim());
+      const getIdx = (name) => headers.indexOf(name);
+      const idxDate = getIdx('PRODUCINGMONTH');
+      const idxNet = getIdx('NetCashFlow');
+      const idxOilHist = getIdx('LIQUIDSPROD_BBL');
+      const idxGasHist = getIdx('GASPROD_MCF');
+      if (idxDate < 0 || idxNet < 0) return null;
+
+      const now = new Date();
+      const pvStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+      const pvEnd = new Date(Date.UTC(pvStart.getUTCFullYear() + 15, pvStart.getUTCMonth(), 1));
+      const pvStartKey = pvStart.getUTCFullYear() * 12 + pvStart.getUTCMonth();
+
+      let pv17 = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const row = parseCsvRow(lines[i]);
+        const dateValue = row[idxDate];
+        if (!dateValue) continue;
+        const date = new Date(dateValue);
+        if (Number.isNaN(date.getTime())) continue;
+        const oilHist = idxOilHist >= 0 ? Number(row[idxOilHist]) || 0 : 0;
+        const gasHist = idxGasHist >= 0 ? Number(row[idxGasHist]) || 0 : 0;
+        const hasHist = oilHist !== 0 || gasHist !== 0;
+        if (hasHist) continue;
+        if (date < pvStart || date >= pvEnd) continue;
+        const monthsFromStart = date.getUTCFullYear() * 12 + date.getUTCMonth() - pvStartKey;
+        const netCashFlow = Number(row[idxNet]) || 0;
+        const discounted = netCashFlow / (1 + 0.17) ** (monthsFromStart / 12);
+        pv17 += discounted;
+      }
+      return pv17;
+    };
+
+    const updatePvEstimateFromServer = async (params, combined, metrics, requestId) => {
+      if (!WELL_EDITOR_STATE.api) return;
+      if (pvEstimateAbort) {
+        pvEstimateAbort.abort();
+      }
+      pvEstimateAbort = new AbortController();
+      const deckSelect = document.getElementById('priceDeckSelect');
+      const payload = {
+        api: WELL_EDITOR_STATE.api,
+        params,
+        deck: deckSelect?.value || null,
+      };
+      try {
+        const response = await fetch('/well-dca-inputs/export/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: pvEstimateAbort.signal,
+        });
+        if (!response.ok) return;
+        const csvText = await response.text();
+        if (requestId !== pvEstimateRequestId) return;
+        const pv17 = computePv17FromCsv(csvText);
+        if (!Number.isFinite(pv17)) return;
+        WELL_EDITOR_STATE.baseNriValue = pv17;
+        WELL_EDITOR_STATE.baseNetEur = metrics.remainingNet;
+        updateWellEditorMetrics(combined);
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        console.error('Failed to refresh PV estimate', error);
+      }
+    };
+
+    const schedulePvEstimateUpdate = (params, combined, metrics) => {
+      if (!WELL_EDITOR_STATE.api) return;
+      const isOpen = WELL_EDITOR_ELEMENTS.modal?.classList.contains('is-open') || isFastEditOpen();
+      if (!isOpen) return;
+      if (pvEstimateTimer) {
+        clearTimeout(pvEstimateTimer);
+      }
+      const requestId = ++pvEstimateRequestId;
+      pvEstimateTimer = setTimeout(() => {
+        updatePvEstimateFromServer(params, combined, metrics, requestId);
+      }, 600);
     };
 
     const setWellEditorStatus = (message, isError = false) => {
@@ -2390,8 +2578,19 @@ window.syncRoyaltyPanelHeight = () => {
       WELL_EDITOR_ELEMENTS.status.style.color = isError ? '#fca5a5' : '#f8fafc';
     };
 
-    const loadWellEditorData = async (api) => {
-      const response = await fetch(`/well-dca-inputs/?api=${encodeURIComponent(api)}`);
+    const showTemporaryStatus = (message) => {
+      setWellEditorStatus(message);
+      setTimeout(() => {
+        setWellEditorStatus('');
+      }, 2400);
+    };
+
+    const loadWellEditorData = async (api, options = {}) => {
+      const params = new URLSearchParams({ api });
+      if (options.approvedOnly) {
+        params.set('approved', 'true');
+      }
+      const response = await fetch(`/well-dca-inputs/?${params.toString()}`);
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || 'Unable to load well inputs.');
@@ -2454,6 +2653,7 @@ window.syncRoyaltyPanelHeight = () => {
       setFieldValue('GAS_D_MIN', params.GAS_D_MIN ?? 0);
       setFieldValue('GAS_DECLINE_TYPE', params.GAS_DECLINE_TYPE || 'EXP');
       setFieldValue('GAS_FCST_YRS', params.GAS_FCST_YRS ?? 0);
+      setFieldValue('APPROVED', params.APPROVED || null);
 
       initializeFixedRanges();
       updateDeclineRanges('OIL');
@@ -2462,6 +2662,7 @@ window.syncRoyaltyPanelHeight = () => {
       updateQiRange('gas', sliderValueToDate(getFieldValue('FCST_START_GAS')));
 
       updateAllFieldLabels();
+      syncWellEditorDeclineLabels();
     };
 
     const isFastEditOpen = () => FAST_EDIT_ELEMENTS.modal?.classList.contains('is-open');
@@ -2499,6 +2700,18 @@ window.syncRoyaltyPanelHeight = () => {
       if (FAST_EDIT_ELEMENTS.modeToggle) {
         FAST_EDIT_ELEMENTS.modeToggle.textContent = FAST_EDIT_STATE.mode === 'gas' ? 'Switch to Oil' : 'Switch to Gas';
       }
+      syncFastEditDeclineToggle();
+    };
+
+    const getFastEditDeclineField = () =>
+      FAST_EDIT_STATE.mode === 'oil' ? 'OIL_DECLINE_TYPE' : 'GAS_DECLINE_TYPE';
+
+    const syncFastEditDeclineToggle = () => {
+      if (!FAST_EDIT_ELEMENTS.declineToggle || !FAST_EDIT_ELEMENTS.declineLabel) return;
+      const declineValue = getFieldValue(getFastEditDeclineField()) || 'EXP';
+      const isHyperbolic = declineValue === 'HYP';
+      FAST_EDIT_ELEMENTS.declineToggle.checked = isHyperbolic;
+      FAST_EDIT_ELEMENTS.declineLabel.textContent = `Decline: ${isHyperbolic ? 'Hyperbolic' : 'Exponential'}`;
     };
 
     const getFastEditFields = () => {
@@ -2542,6 +2755,31 @@ window.syncRoyaltyPanelHeight = () => {
       FAST_EDIT_ELEMENTS.modal.classList.remove('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'true');
       updateBodyScroll();
+    };
+
+    const resetFastEditParameters = async () => {
+      if (!WELL_EDITOR_STATE.api) return;
+      const currentMode = FAST_EDIT_STATE.mode;
+      try {
+        setWellEditorStatus('Resetting parameters...');
+        const data = await loadWellEditorData(WELL_EDITOR_STATE.api);
+        WELL_EDITOR_STATE.production = data.production || WELL_EDITOR_STATE.production;
+        WELL_EDITOR_STATE.params = data.params || {};
+        const { combined, lastProdDate, firstProdDate } = calcDeclineForecast(
+          WELL_EDITOR_STATE.production,
+          data.params || {}
+        );
+        WELL_EDITOR_STATE.lastProdDate = lastProdDate;
+        applyWellEditorParams(data.params || {}, lastProdDate, firstProdDate);
+        renderWellEditorChart(combined);
+        updateWellEditorMetrics(combined);
+        setFastEditMode(currentMode);
+        updateFastEditView();
+        setWellEditorStatus('Parameters reset.');
+      } catch (error) {
+        console.error('Failed to reset fast edit parameters', error);
+        setWellEditorStatus(error.message || 'Failed to reset parameters.', true);
+      }
     };
 
     const applyFastEditMovement = (dx, dy, isLeftPad) => {
@@ -2621,6 +2859,9 @@ window.syncRoyaltyPanelHeight = () => {
       try {
         setWellEditorStatus('Saving parameters...');
         const params = collectParamsFromFields();
+        if (!isAdminUser()) {
+          params.APPROVED = null;
+        }
         const response = await fetch('/well-dca-inputs/save/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2630,6 +2871,20 @@ window.syncRoyaltyPanelHeight = () => {
         if (!response.ok) {
           throw new Error(body?.detail || 'Save failed.');
         }
+        const { combined, metrics } = updateWellEditorForecast();
+        const pvValue = await fetchWellPvValue(WELL_EDITOR_STATE.api);
+        if (Number.isFinite(pvValue)) {
+          WELL_EDITOR_STATE.baseNriValue = pvValue;
+          WELL_EDITOR_STATE.baseNetEur = metrics.remainingNet;
+          updateWellEditorMetrics(combined);
+          window.latestPerWellPvMap = window.latestPerWellPvMap || {};
+          const apiKey = WELL_EDITOR_STATE.api;
+          const apiNoDash = apiKey.replace(/-/g, '');
+          const existing = window.latestPerWellPvMap[apiKey] || window.latestPerWellPvMap[apiNoDash] || {};
+          window.latestPerWellPvMap[apiKey] = { ...existing, pv17: pvValue };
+          window.latestPerWellPvMap[apiNoDash] = { ...existing, pv17: pvValue };
+          applyPerWellPvMap(window.latestPerWellPvMap);
+        }
         setWellEditorStatus('Parameters saved successfully.');
       } catch (error) {
         console.error('Failed to save well parameters', error);
@@ -2638,6 +2893,35 @@ window.syncRoyaltyPanelHeight = () => {
         if (WELL_EDITOR_ELEMENTS.save) {
           WELL_EDITOR_ELEMENTS.save.disabled = false;
         }
+      }
+    };
+
+    const loadApprovedDca = async () => {
+      if (!WELL_EDITOR_STATE.api) return;
+      const currentMode = FAST_EDIT_STATE.mode;
+      try {
+        setWellEditorStatus('Loading approved DCA...');
+        const data = await loadWellEditorData(WELL_EDITOR_STATE.api, { approvedOnly: true });
+        WELL_EDITOR_STATE.production = data.production || WELL_EDITOR_STATE.production;
+        WELL_EDITOR_STATE.params = data.params || {};
+        const { combined, lastProdDate, firstProdDate } = calcDeclineForecast(
+          WELL_EDITOR_STATE.production,
+          data.params || {}
+        );
+        WELL_EDITOR_STATE.lastProdDate = lastProdDate;
+        applyWellEditorParams(data.params || {}, lastProdDate, firstProdDate);
+        renderWellEditorChart(combined);
+        updateWellEditorMetrics(combined);
+        setFastEditMode(currentMode);
+        updateFastEditView();
+        if (data.approved_missing) {
+          showTemporaryStatus('No approved DCA exists for this well.');
+        } else {
+          setWellEditorStatus('Approved DCA loaded.');
+        }
+      } catch (error) {
+        console.error('Failed to load approved DCA', error);
+        setWellEditorStatus(error.message || 'Failed to load approved DCA.', true);
       }
     };
 
@@ -2687,6 +2971,12 @@ window.syncRoyaltyPanelHeight = () => {
 
     WELL_EDITOR_FIELDS.forEach((field) => {
       field.addEventListener('input', () => {
+        if (field.dataset.field === 'APPROVED') {
+          return;
+        }
+        if (WELL_EDITOR_ELEMENTS.approved && WELL_EDITOR_ELEMENTS.approved.checked) {
+          WELL_EDITOR_ELEMENTS.approved.checked = false;
+        }
         if (field.dataset.field === 'FCST_START_OIL' || field.dataset.field === 'FCST_START_GAS') {
           updateFieldLabel(field.dataset.field);
           const startDate = sliderValueToDate(field.value);
@@ -2700,9 +2990,17 @@ window.syncRoyaltyPanelHeight = () => {
         }
         if (field.dataset.field === 'OIL_DECLINE_TYPE') {
           updateDeclineRanges('OIL');
+          syncWellEditorDeclineLabels();
+          if (isFastEditOpen()) {
+            syncFastEditDeclineToggle();
+          }
         }
         if (field.dataset.field === 'GAS_DECLINE_TYPE') {
           updateDeclineRanges('GAS');
+          syncWellEditorDeclineLabels();
+          if (isFastEditOpen()) {
+            syncFastEditDeclineToggle();
+          }
         }
         updateWellEditorForecast();
       });
@@ -2744,6 +3042,22 @@ window.syncRoyaltyPanelHeight = () => {
       WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
     }
 
+    if (WELL_EDITOR_ELEMENTS.loadApproved) {
+      WELL_EDITOR_ELEMENTS.loadApproved.addEventListener('click', () => {
+        loadApprovedDca();
+      });
+    }
+
+    if (WELL_EDITOR_ELEMENTS.wellSelect) {
+      WELL_EDITOR_ELEMENTS.wellSelect.addEventListener('change', (event) => {
+        const nextApi = event.target.value;
+        if (!nextApi || nextApi === WELL_EDITOR_STATE.api) {
+          return;
+        }
+        window.openWellEditor(nextApi);
+      });
+    }
+
     if (WELL_EDITOR_ELEMENTS.download) {
       WELL_EDITOR_ELEMENTS.download.addEventListener('click', downloadWellEditorCsv);
     }
@@ -2758,6 +3072,23 @@ window.syncRoyaltyPanelHeight = () => {
     if (FAST_EDIT_ELEMENTS.modeToggle) {
       FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
         setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.resetButton) {
+      FAST_EDIT_ELEMENTS.resetButton.addEventListener('click', () => {
+        resetFastEditParameters();
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.declineToggle) {
+      FAST_EDIT_ELEMENTS.declineToggle.addEventListener('change', () => {
+        const declineField = getFastEditDeclineField();
+        const nextValue = FAST_EDIT_ELEMENTS.declineToggle.checked ? 'HYP' : 'EXP';
+        setFieldValue(declineField, nextValue);
+        updateDeclineRanges(FAST_EDIT_STATE.mode === 'oil' ? 'OIL' : 'GAS');
+        updateFastEditView();
+        syncFastEditDeclineToggle();
       });
     }
 
@@ -2796,9 +3127,12 @@ window.syncRoyaltyPanelHeight = () => {
           const percent = Number.isFinite(meta.ownerInterest) ? meta.ownerInterest * 100 : 0;
           WELL_EDITOR_ELEMENTS.nriPercent.textContent = percent.toFixed(2);
         }
-        if (WELL_EDITOR_ELEMENTS.title) {
-          const baseName = meta.name || api;
-          WELL_EDITOR_ELEMENTS.title.textContent = `${baseName} (${api})`;
+        if (WELL_EDITOR_ELEMENTS.wellSelect) {
+          buildWellEditorSelect();
+          WELL_EDITOR_ELEMENTS.wellSelect.value = api;
+        }
+        if (WELL_EDITOR_ELEMENTS.approved) {
+          WELL_EDITOR_ELEMENTS.approved.disabled = !isAdminUser();
         }
 
         const data = await loadWellEditorData(api);
@@ -2813,7 +3147,7 @@ window.syncRoyaltyPanelHeight = () => {
         renderWellEditorChart(combined);
         const metrics = updateWellEditorMetrics(combined);
         WELL_EDITOR_STATE.baseMetrics = metrics;
-        WELL_EDITOR_STATE.baseNetEur = metrics.netOil + metrics.netGas;
+        WELL_EDITOR_STATE.baseNetEur = metrics.remainingNet;
         const pvValue = await fetchWellPvValue(api);
         if (Number.isFinite(pvValue)) {
           WELL_EDITOR_STATE.baseNriValue = pvValue;

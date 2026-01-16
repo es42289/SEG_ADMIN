@@ -445,6 +445,7 @@
     <thead>
       <tr>
         <th style="width:48px;">Edit</th>
+        <th style="width:120px;">Approved</th>
         <th style="width:48px;">Select</th>
         <th>Well API</th>
         <th>NRI</th>
@@ -468,16 +469,19 @@
   </div>
   </section>
 
-  <div id="wellEditorModal" class="well-editor-modal" aria-hidden="true">
+  <div id="wellEditorModal" class="well-editor-modal" aria-hidden="true" data-is-admin="{{ admin_context.is_admin|yesno:'true,false' }}">
     <div class="well-editor-modal__overlay" data-well-editor-close></div>
-    <div class="well-editor-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wellEditorTitle">
+    <div class="well-editor-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wellEditorWellSelect">
       <button type="button" class="well-editor-modal__close" data-well-editor-close aria-label="Close well editor dialog">
         <span aria-hidden="true">&times;</span>
       </button>
       <header class="well-editor-modal__header">
         <div>
           <p class="well-editor-modal__eyebrow">Well Forecast Editor</p>
-          <h2 id="wellEditorTitle" class="well-editor-modal__title">Well Inputs</h2>
+          <label class="sr-only" for="wellEditorWellSelect">Select well</label>
+          <select id="wellEditorWellSelect" class="well-editor-well-select" aria-label="Select well">
+            <option value="">Select a well...</option>
+          </select>
         </div>
         <div class="well-editor-modal__header-actions">
           <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
@@ -529,6 +533,23 @@
           <div class="well-editor-form">
             <div class="well-editor-form__section" data-well-editor-section="oil">
               <h3 class="well-editor-form__title">Oil Forecast Inputs</h3>
+              <div class="well-editor-field well-editor-field--inline">
+                <label class="well-editor-field__label">Oil Decline Type</label>
+                <div class="well-editor-decline-toggle">
+                  <span id="wellEditorOilDeclineLabel" class="well-editor-decline-label">Exponential</span>
+                  <label class="well-editor-switch">
+                    <input
+                      id="wellOilDeclineType"
+                      type="checkbox"
+                      class="well-editor-switch__input"
+                      data-field="OIL_DECLINE_TYPE"
+                      role="switch"
+                      aria-label="Toggle oil decline type between exponential and hyperbolic"
+                    >
+                    <span class="well-editor-switch__slider" aria-hidden="true"></span>
+                  </label>
+                </div>
+              </div>
               <div class="well-editor-field">
                 <div class="well-editor-field__header">
                   <label for="wellOilQi">Oil qi (BBL)</label>
@@ -565,13 +586,6 @@
                 <input id="wellOilDmin" type="range" min="0" max="0.5" step="0.005" data-field="OIL_D_MIN">
               </div>
               <div class="well-editor-field">
-                <label for="wellOilDeclineType">Oil Decline Type</label>
-                <select id="wellOilDeclineType" data-field="OIL_DECLINE_TYPE">
-                  <option value="EXP">Exponential</option>
-                  <option value="HYP">Hyperbolic</option>
-                </select>
-              </div>
-              <div class="well-editor-field">
                 <div class="well-editor-field__header">
                   <label for="wellOilStart">Oil Forecast Start</label>
                   <span class="well-editor-field__value" data-field-value="FCST_START_OIL">--</span>
@@ -582,6 +596,23 @@
 
             <div class="well-editor-form__section" data-well-editor-section="gas" hidden>
               <h3 class="well-editor-form__title">Gas Forecast Inputs</h3>
+              <div class="well-editor-field well-editor-field--inline">
+                <label class="well-editor-field__label">Gas Decline Type</label>
+                <div class="well-editor-decline-toggle">
+                  <span id="wellEditorGasDeclineLabel" class="well-editor-decline-label">Exponential</span>
+                  <label class="well-editor-switch">
+                    <input
+                      id="wellGasDeclineType"
+                      type="checkbox"
+                      class="well-editor-switch__input"
+                      data-field="GAS_DECLINE_TYPE"
+                      role="switch"
+                      aria-label="Toggle gas decline type between exponential and hyperbolic"
+                    >
+                    <span class="well-editor-switch__slider" aria-hidden="true"></span>
+                  </label>
+                </div>
+              </div>
               <div class="well-editor-field">
                 <div class="well-editor-field__header">
                   <label for="wellGasQi">Gas qi (MCF)</label>
@@ -618,13 +649,6 @@
                 <input id="wellGasDmin" type="range" min="0" max="0.5" step="0.005" data-field="GAS_D_MIN">
               </div>
               <div class="well-editor-field">
-                <label for="wellGasDeclineType">Gas Decline Type</label>
-                <select id="wellGasDeclineType" data-field="GAS_DECLINE_TYPE">
-                  <option value="EXP">Exponential</option>
-                  <option value="HYP">Hyperbolic</option>
-                </select>
-              </div>
-              <div class="well-editor-field">
                 <div class="well-editor-field__header">
                   <label for="wellGasStart">Gas Forecast Start</label>
                   <span class="well-editor-field__value" data-field-value="FCST_START_GAS">--</span>
@@ -642,6 +666,11 @@
           </div>
 
           <div class="well-editor-actions">
+            <label class="well-editor-approval">
+              <input id="wellEditorApproved" type="checkbox" data-field="APPROVED">
+              <span>Approve Forecast</span>
+            </label>
+            <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Load Approved DCA</button>
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
           </div>
         </div>
@@ -660,6 +689,20 @@
         <div class="fast-edit-modal__controls">
           <span id="fastEditModeLabel" class="fast-edit-mode-label">Editing: Gas</span>
           <button type="button" id="fastEditModeToggle" class="fast-edit-toggle">Switch to Oil</button>
+          <button type="button" id="fastEditReset" class="fast-edit-reset">Reset Parameters</button>
+          <div class="fast-edit-decline-toggle">
+            <span id="fastEditDeclineLabel" class="fast-edit-decline-label">Decline: Exponential</span>
+            <label class="fast-edit-switch">
+              <input
+                type="checkbox"
+                id="fastEditDeclineToggle"
+                class="fast-edit-switch__input"
+                role="switch"
+                aria-label="Toggle decline type between exponential and hyperbolic"
+              >
+              <span class="fast-edit-switch__slider" aria-hidden="true"></span>
+            </label>
+          </div>
           <button type="button" class="fast-edit-modal__close" data-fast-edit-close aria-label="Close fast edit view">
             ×
           </button>
