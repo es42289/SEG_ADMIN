@@ -1,15 +1,15 @@
 {
-  "family": "seg-user-app",
+  "family": "seg-admin",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "256",
-  "memory": "512",
+  "cpu": "2048",
+  "memory": "4096",
   "executionRoleArn": "arn:aws:iam::983102014556:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::983102014556:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::983102014556:role/seg-user-appTaskRole",
   "containerDefinitions": [
     {
-      "name": "seg-user-app",
-      "image": "983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest",
+      "name": "seg-admin",
+      "image": "983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-admin:latest",
       "portMappings": [
         {
           "containerPort": 8000,
@@ -17,14 +17,14 @@
         }
       ],
       "essential": true,
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/seg-user-app",
-          "awslogs-region": "us-east-1",
-          "awslogs-stream-prefix": "ecs"
-        }
-      }
+      "environment": [
+        {"name": "AWS_DEFAULT_REGION", "value": "us-east-1"},
+        {"name": "SNOWFLAKE_ACCOUNT", "value": "cmznscb-mu47932"},
+        {"name": "SNOWFLAKE_DATABASE", "value": "WELLS"},
+        {"name": "SNOWFLAKE_SCHEMA", "value": "MINERALS"},
+        {"name": "SNOWFLAKE_USER", "value": "ELII"},
+        {"name": "SNOWFLAKE_WAREHOUSE", "value": "COMPUTE_WH"}
+      ]
     }
   ]
 }
