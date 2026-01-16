@@ -1867,7 +1867,6 @@ window.syncRoyaltyPanelHeight = () => {
     const FAST_EDIT_ELEMENTS = {
       modal: document.getElementById('wellFastEditModal'),
       chart: document.getElementById('wellFastEditChart'),
-      modeLabel: document.getElementById('fastEditModeLabel'),
       modeToggle: document.getElementById('fastEditModeToggle'),
       resetButton: document.getElementById('fastEditReset'),
       declineLabel: document.getElementById('fastEditDeclineLabel'),
@@ -2746,9 +2745,6 @@ window.syncRoyaltyPanelHeight = () => {
 
     const setFastEditMode = (mode) => {
       FAST_EDIT_STATE.mode = mode === 'oil' ? 'oil' : 'gas';
-      if (FAST_EDIT_ELEMENTS.modeLabel) {
-        FAST_EDIT_ELEMENTS.modeLabel.textContent = `Editing: ${FAST_EDIT_STATE.mode === 'gas' ? 'Gas' : 'Oil'}`;
-      }
       if (FAST_EDIT_ELEMENTS.modeToggle) {
         FAST_EDIT_ELEMENTS.modeToggle.textContent = FAST_EDIT_STATE.mode === 'gas' ? 'Switch to Oil' : 'Switch to Gas';
       }
@@ -3126,6 +3122,7 @@ window.syncRoyaltyPanelHeight = () => {
     if (FAST_EDIT_ELEMENTS.modeToggle) {
       FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
         setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
+        updateFastEditView();
       });
     }
 
