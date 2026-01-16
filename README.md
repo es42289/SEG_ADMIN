@@ -312,15 +312,20 @@ aws logs tail "/ecs/seg-user-app" --follow --region us-east-1 --profile myaws
 
 - Fast redeploy
 ```bash
-docker build --no-cache -t seg-user-app .
-docker tag seg-user-app:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
+docker build --no-cache -t seg-admin .
+docker tag seg-admin:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-admin:latest
 aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
-docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-user-app:latest
-aws ecs update-service --cluster seg-user-app-cluster --service seg-user-app-service --force-new-deployment --region us-east-1 --profile myaws
+docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-admin:latest
+aws ecs update-service --cluster seg-admin-cluster --service seg-admin-service --task-definition seg-admin --force-new-deployment --region us-east-1 --profile myaws
 ```
-
-Wait 1-2 minutes for the new task to start and become healthy.
-
+wait 1-2 minutes for ip
 ```bash
-aws ecs describe-tasks --cluster seg-user-app-cluster --tasks $(aws ecs list-tasks --cluster seg-user-app-cluster --service-name seg-user-app-service --region us-east-1 --profile myaws --query 'taskArns[0]' --output text) --region us-east-1 --profile myaws --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' --output text | %{aws ec2 describe-network-interfaces --network-interface-ids $_ --region us-east-1 --profile myaws --query 'NetworkInterfaces[0].Association.PublicIp' --output text}
+$taskArn = aws ecs list-tasks --cluster seg-admin-cluster --service-name seg-admin-service --region us-east-1 --profile myaws --query 'taskArns[0]' --output text
+$eniId = aws ecs describe-tasks --cluster seg-admin-cluster --tasks $taskArn --region us-east-1 --profile myaws --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value | [0]' --output text
+aws ec2 describe-network-interfaces --network-interface-ids $eniId --region us-east-1 --profile myaws --query 'NetworkInterfaces[0].Association.PublicIp' --output text
+```
+Check on deployment like this:
+```bash
+aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:us-east-1:983102014556:targetgroup/seg-admin-tg/645bd47d3b5605ec --region us-east-1 --profile myaws
+aws ecs describe-services --cluster seg-admin-cluster --services seg-admin-service --region us-east-1 --profile myaws --query 'services[0].{running:runningCount,desired:desiredCount,deployments:deployments[0].rolloutState}' --output json
 ```
