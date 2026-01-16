@@ -2260,12 +2260,19 @@ window.syncRoyaltyPanelHeight = () => {
       return { combined, lastProdDate, firstProdDate };
     };
 
-    const getWellEditorPlotData = (data) => {
-      const x = data.map((row) => row.key);
-      const oil = data.map((row) => (row.oil > 0 ? row.oil : null));
-      const gas = data.map((row) => (row.gas > 0 ? row.gas : null));
-      const oilFc = data.map((row) => (row.oilFc > 0 ? row.oilFc : null));
-      const gasFc = data.map((row) => (row.gasFc > 0 ? row.gasFc : null));
+    const getWellEditorPlotData = (data, options = {}) => {
+      const mode = options.mode || 'all';
+      const cutoffDate = options.cutoffDate || null;
+      const filteredData = cutoffDate
+        ? data.filter((row) => row.month && row.month <= cutoffDate)
+        : data;
+      const x = filteredData.map((row) => row.key);
+      const includeOil = mode !== 'gas';
+      const includeGas = mode !== 'oil';
+      const oil = includeOil ? filteredData.map((row) => (row.oil > 0 ? row.oil : null)) : [];
+      const gas = includeGas ? filteredData.map((row) => (row.gas > 0 ? row.gas : null)) : [];
+      const oilFc = includeOil ? filteredData.map((row) => (row.oilFc > 0 ? row.oilFc : null)) : [];
+      const gasFc = includeGas ? filteredData.map((row) => (row.gasFc > 0 ? row.gasFc : null)) : [];
 
       const vols = [...oil, ...gas, ...oilFc, ...gasFc].filter((v) => v && v > 0);
       const yMin = vols.length ? Math.max(1, Math.min(...vols)) : 1;
@@ -2275,42 +2282,49 @@ window.syncRoyaltyPanelHeight = () => {
         Math.log10(Math.max(yMax, yMin * 10)),
       ];
 
-      const traces = [
-        {
-          name: 'Oil History (BBL)',
-          x,
-          y: oil,
-          mode: 'lines+markers',
-          line: { color: WELL_EDITOR_COLORS.oil, width: 2 },
-          marker: { symbol: 'circle-open', size: 7, line: { color: WELL_EDITOR_COLORS.oil, width: 2 } },
-          hovertemplate: '%{x}<br>Oil: %{y:,.0f} BBL<extra></extra>',
-        },
-        {
-          name: 'Gas History (MCF)',
-          x,
-          y: gas,
-          mode: 'lines+markers',
-          line: { color: WELL_EDITOR_COLORS.gas, width: 2 },
-          marker: { symbol: 'circle-open', size: 7, line: { color: WELL_EDITOR_COLORS.gas, width: 2 } },
-          hovertemplate: '%{x}<br>Gas: %{y:,.0f} MCF<extra></extra>',
-        },
-        {
-          name: 'Oil Forecast (BBL)',
-          x,
-          y: oilFc,
-          mode: 'lines',
-          line: { color: WELL_EDITOR_COLORS.oil, width: 2, dash: 'dot' },
-          hovertemplate: '%{x}<br>Oil Fcst: %{y:,.0f} BBL<extra></extra>',
-        },
-        {
-          name: 'Gas Forecast (MCF)',
-          x,
-          y: gasFc,
-          mode: 'lines',
-          line: { color: WELL_EDITOR_COLORS.gas, width: 2, dash: 'dot' },
-          hovertemplate: '%{x}<br>Gas Fcst: %{y:,.0f} MCF<extra></extra>',
-        },
-      ];
+      const traces = [];
+      if (includeOil) {
+        traces.push(
+          {
+            name: 'Oil History (BBL)',
+            x,
+            y: oil,
+            mode: 'lines+markers',
+            line: { color: WELL_EDITOR_COLORS.oil, width: 2 },
+            marker: { symbol: 'circle-open', size: 7, line: { color: WELL_EDITOR_COLORS.oil, width: 2 } },
+            hovertemplate: '%{x}<br>Oil: %{y:,.0f} BBL<extra></extra>',
+          },
+          {
+            name: 'Oil Forecast (BBL)',
+            x,
+            y: oilFc,
+            mode: 'lines',
+            line: { color: WELL_EDITOR_COLORS.oil, width: 2, dash: 'dot' },
+            hovertemplate: '%{x}<br>Oil Fcst: %{y:,.0f} BBL<extra></extra>',
+          }
+        );
+      }
+      if (includeGas) {
+        traces.push(
+          {
+            name: 'Gas History (MCF)',
+            x,
+            y: gas,
+            mode: 'lines+markers',
+            line: { color: WELL_EDITOR_COLORS.gas, width: 2 },
+            marker: { symbol: 'circle-open', size: 7, line: { color: WELL_EDITOR_COLORS.gas, width: 2 } },
+            hovertemplate: '%{x}<br>Gas: %{y:,.0f} MCF<extra></extra>',
+          },
+          {
+            name: 'Gas Forecast (MCF)',
+            x,
+            y: gasFc,
+            mode: 'lines',
+            line: { color: WELL_EDITOR_COLORS.gas, width: 2, dash: 'dot' },
+            hovertemplate: '%{x}<br>Gas Fcst: %{y:,.0f} MCF<extra></extra>',
+          }
+        );
+      }
 
       return { traces, yRange };
     };
@@ -2342,7 +2356,12 @@ window.syncRoyaltyPanelHeight = () => {
 
     const renderFastEditChart = (data, metrics) => {
       if (!FAST_EDIT_ELEMENTS.chart || !window.Plotly) return;
-      const { traces, yRange } = getWellEditorPlotData(data);
+      const now = new Date();
+      const cutoff = new Date(Date.UTC(now.getUTCFullYear() + 10, now.getUTCMonth(), 1));
+      const { traces, yRange } = getWellEditorPlotData(data, {
+        mode: FAST_EDIT_STATE.mode,
+        cutoffDate: cutoff,
+      });
       const fields = getFastEditFields();
       const startValue = getFieldValue(fields.start);
       const startDate = sliderValueToDate(startValue);
@@ -2683,6 +2702,23 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const refreshWellEditorDependentData = async () => {
+      try {
+        userWellData = await fetchUserWells();
+      } catch (error) {
+        console.error('Failed to refresh user wells after save', error);
+      }
+      if (typeof window.reloadEconomicsWithSelection === 'function') {
+        window.reloadEconomicsWithSelection();
+      }
+      if (typeof window.reloadProductionChartWithSelection === 'function') {
+        window.reloadProductionChartWithSelection();
+      }
+      if (typeof window.reloadUserWellsMapWithSelection === 'function') {
+        window.reloadUserWellsMapWithSelection();
+      }
+    };
+
     const hideWellEditor = () => {
       if (!WELL_EDITOR_ELEMENTS.modal) return;
       WELL_EDITOR_ELEMENTS.modal.classList.remove('is-open');
@@ -2693,9 +2729,7 @@ window.syncRoyaltyPanelHeight = () => {
       updateBodyScroll();
       if (wellEditorNeedsRefresh) {
         wellEditorNeedsRefresh = false;
-        if (typeof window.reloadEconomicsWithSelection === 'function') {
-          window.reloadEconomicsWithSelection();
-        }
+        refreshWellEditorDependentData();
       }
     };
 
