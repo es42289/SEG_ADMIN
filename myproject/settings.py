@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -123,10 +123,10 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Auth0 Configuration
-AUTH0_DOMAIN = 'dev-qbev54elyui5jcxx.us.auth0.com'
-AUTH0_CLIENT_ID = 'kHiVaNotiG4dhVBueafMho0DaEFHOWjB'
-AUTH0_CLIENT_SECRET = 'npbudw7dVcqlg1TGmLhmj5sjkjTb9Wb6lWZfJdTnDfmlNC82fbSukSbfrgcSRMeT'
-AUTH0_CALLBACK_URL = 'http://localhost:8000/callback'
+AUTH0_DOMAIN = os.environ["AUTH0_DOMAIN"]
+AUTH0_CLIENT_ID = os.environ["AUTH0_CLIENT_ID"]
+AUTH0_CLIENT_SECRET = os.environ["AUTH0_CLIENT_SECRET"]
+AUTH0_CALLBACK_URL = os.environ["AUTH0_CALLBACK_URL"]
 
 # Session configuration
 SESSION_COOKIE_AGE = 60 * 60 * 24  # 1 day

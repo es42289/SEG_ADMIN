@@ -18,7 +18,7 @@ oauth.register(
 
 def login(request):
     return oauth.auth0.authorize_redirect(
-        request, request.build_absolute_uri(reverse('callback'))
+        request, settings.AUTH0_CALLBACK_URL
     )
 
 def callback(request):
