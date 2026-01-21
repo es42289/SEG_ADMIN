@@ -1192,7 +1192,8 @@ body {
   display: none;
 }
 
-#executiveDashButton {
+#executiveDashButton,
+#wellsetExplorerButton {
   background: #156082;
   color: #ffffff;
   border-color: #156082;
@@ -1202,12 +1203,15 @@ body {
   letter-spacing: 0.08em;
 }
 
-#executiveDashButton .login-action__label {
+#executiveDashButton .login-action__label,
+#wellsetExplorerButton .login-action__label {
   display: inline;
 }
 
 #executiveDashButton:hover,
-#executiveDashButton:focus {
+#executiveDashButton:focus,
+#wellsetExplorerButton:hover,
+#wellsetExplorerButton:focus {
   background: #0f4b64;
   border-color: #0f4b64;
   transform: translateY(-1px);
