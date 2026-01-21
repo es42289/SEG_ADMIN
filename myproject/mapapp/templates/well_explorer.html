@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Well Explorer{% endblock %}
+
+{% block head %}
+  <link rel="stylesheet" href="{% static 'mapapp/css/well_explorer.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="well-explorer">
+  <header class="well-explorer__header">
+    <div>
+      <p class="well-explorer__eyebrow">Admin Tools</p>
+      <h1 class="well-explorer__title">Well Explorer</h1>
+      <p class="well-explorer__subtitle">
+        Build custom well groupings using owner-backed Snowflake data. Filter below or click wells on the map to add them to your selection.
+      </p>
+    </div>
+    <div class="well-explorer__actions">
+      <button type="button" id="wellExplorerClear" class="well-explorer__button">Clear selection</button>
+    </div>
+  </header>
+
+  <section class="well-explorer__panel">
+    <div class="well-explorer__panel-header">
+      <h2>Filter wells with owners</h2>
+      <span id="wellExplorerStatus" class="well-explorer__status">Loading wells…</span>
+    </div>
+    <div class="well-explorer__filters">
+      <label class="well-explorer__field">
+        <span>ENV Operator</span>
+        <input id="filterEnvOperator" list="filterEnvOperatorList" placeholder="Search operator" autocomplete="off">
+        <datalist id="filterEnvOperatorList"></datalist>
+      </label>
+      <label class="well-explorer__field">
+        <span>Owner list</span>
+        <input id="filterOwnerList" list="filterOwnerListValues" placeholder="Search owner list" autocomplete="off">
+        <datalist id="filterOwnerListValues"></datalist>
+      </label>
+      <label class="well-explorer__field">
+        <span>API / UWI</span>
+        <input id="filterApi" list="filterApiList" placeholder="Search API/UWI" autocomplete="off">
+        <datalist id="filterApiList"></datalist>
+      </label>
+      <label class="well-explorer__field">
+        <span>Well status</span>
+        <input id="filterStatus" list="filterStatusList" placeholder="Search status" autocomplete="off">
+        <datalist id="filterStatusList"></datalist>
+      </label>
+      <label class="well-explorer__field">
+        <span>Well name</span>
+        <input id="filterWellName" list="filterWellNameList" placeholder="Search well name" autocomplete="off">
+        <datalist id="filterWellNameList"></datalist>
+      </label>
+      <label class="well-explorer__field">
+        <span>Trajectory</span>
+        <input id="filterTrajectory" list="filterTrajectoryList" placeholder="Search trajectory" autocomplete="off">
+        <datalist id="filterTrajectoryList"></datalist>
+      </label>
+      <label class="well-explorer__field">
+        <span>County</span>
+        <input id="filterCounty" list="filterCountyList" placeholder="Search county" autocomplete="off">
+        <datalist id="filterCountyList"></datalist>
+      </label>
+    </div>
+
+    <div class="well-explorer__csv">
+      <div>
+        <h3>Paste API/UWI list (CSV)</h3>
+        <p>
+          Enter a comma-separated or newline-separated list of API/UWI values. Spaces are ignored. Example:
+          <code>421234567800</code>, <code>42-123-45678-00</code>
+        </p>
+      </div>
+      <textarea id="wellExplorerApiCsv" rows="4" placeholder="API list (comma or newline separated)"></textarea>
+      <button type="button" id="wellExplorerApplyCsv" class="well-explorer__button well-explorer__button--secondary">Apply CSV list</button>
+    </div>
+  </section>
+
+  <section class="well-explorer__panel">
+    <div class="well-explorer__panel-header">
+      <h2>Owner wells map</h2>
+      <span id="wellExplorerCount" class="well-explorer__status">0 selected</span>
+    </div>
+    <div id="wellExplorerMap" class="well-explorer__map" aria-label="Map of wells with owners"></div>
+  </section>
+
+  <section class="well-explorer__panel">
+    <div class="well-explorer__panel-header">
+      <h2>Selected wells</h2>
+      <span class="well-explorer__status" id="wellExplorerSelectionCount">0 wells selected</span>
+    </div>
+    <div class="well-explorer__table-wrapper">
+      <table class="well-explorer__table">
+        <thead>
+          <tr>
+            <th>API / UWI</th>
+            <th>Well name</th>
+            <th>Operator</th>
+            <th>County</th>
+            <th>Status</th>
+            <th>Owners</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="wellExplorerSelectionBody">
+          <tr>
+            <td colspan="7" class="well-explorer__empty">No wells selected yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div id="wellEditorModal" class="well-editor-modal" aria-hidden="true" data-is-admin="{{ admin_context.is_admin|yesno:'true,false' }}">
+  <div class="well-editor-modal__overlay" data-well-editor-close></div>
+  <div class="well-editor-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wellEditorWellSelect">
+    <button type="button" class="well-editor-modal__close" data-well-editor-close aria-label="Close well editor dialog">
+      <span aria-hidden="true">&times;</span>
+    </button>
+    <header class="well-editor-modal__header">
+      <div>
+        <p class="well-editor-modal__eyebrow">Well Forecast Editor</p>
+        <select id="wellEditorWellSelect" class="well-editor-well-select" aria-label="Select well"></select>
+      </div>
+      <div class="well-editor-modal__header-actions">
+        <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
+        <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
+      </div>
+    </header>
+    <div class="well-editor-layout">
+      <div class="well-editor-left">
+        <div class="well-editor-modal__chart">
+          <div id="wellEditorChart"></div>
+        </div>
+        <div class="well-editor-metrics">
+          <div class="well-editor-metric">
+            <span class="well-editor-metric__label">Gross Oil EUR (BBL)</span>
+            <span id="wellEditorGrossOilEur" class="well-editor-metric__value">--</span>
+          </div>
+          <div class="well-editor-metric">
+            <span class="well-editor-metric__label">Gross Gas EUR (MCF)</span>
+            <span id="wellEditorGrossGasEur" class="well-editor-metric__value">--</span>
+          </div>
+          <div class="well-editor-metric">
+            <span class="well-editor-metric__label">Net Oil EUR (BBL)</span>
+            <span id="wellEditorNetOilEur" class="well-editor-metric__value">--</span>
+          </div>
+          <div class="well-editor-metric">
+            <span class="well-editor-metric__label">Net Gas EUR (MCF)</span>
+            <span id="wellEditorNetGasEur" class="well-editor-metric__value">--</span>
+          </div>
+          <div class="well-editor-metric well-editor-metric--wide">
+            <span class="well-editor-metric__label">Estimated NRI Value</span>
+            <span class="well-editor-metric__value">
+              <span id="wellEditorNriValue">--</span>
+              <span class="well-editor-metric__percent">(NRI: <span id="wellEditorNriPercent">--</span>%)</span>
+            </span>
+          </div>
+        </div>
+        <div id="wellEditorStatus" class="well-editor-status" role="status" aria-live="polite"></div>
+      </div>
+      <div class="well-editor-right">
+        <div class="well-editor-toggle">
+          <button type="button" class="well-editor-toggle__button is-active" data-well-editor-tab="oil">Oil Inputs</button>
+          <button type="button" class="well-editor-toggle__button" data-well-editor-tab="gas">Gas Inputs</button>
+        </div>
+        <div class="well-editor-form">
+          <div class="well-editor-form__section" data-well-editor-section="oil">
+            <h3 class="well-editor-form__title">Oil Forecast Inputs</h3>
+            <div class="well-editor-field well-editor-field--inline">
+              <label class="well-editor-field__label">Oil Decline Type</label>
+              <div class="well-editor-decline-toggle">
+                <span id="wellEditorOilDeclineLabel" class="well-editor-decline-label">Exponential</span>
+                <label class="well-editor-switch">
+                  <input
+                    type="checkbox"
+                    data-field="OIL_DECLINE_TYPE"
+                    class="well-editor-switch__input"
+                  />
+                  <span class="well-editor-switch__slider" aria-hidden="true"></span>
+                </label>
+              </div>
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Initial Oil Rate (BOPD)</span>
+                <span class="well-editor-field__value" data-field-value="OIL_CALC_QI">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="OIL_CALC_QI" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Minimum Oil Rate (BOPD)</span>
+                <span class="well-editor-field__value" data-field-value="OIL_Q_MIN">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="OIL_Q_MIN" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Oil Decline Rate (Di)</span>
+                <span class="well-editor-field__value" data-field-value="OIL_EMPIRICAL_DI">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.001" data-field="OIL_EMPIRICAL_DI" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Oil Hyperbolic b-factor</span>
+                <span class="well-editor-field__value" data-field-value="OIL_CALC_B_FACTOR">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.01" data-field="OIL_CALC_B_FACTOR" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Oil Terminal Decline (Dmin)</span>
+                <span class="well-editor-field__value" data-field-value="OIL_D_MIN">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.001" data-field="OIL_D_MIN" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Forecast Start Date</span>
+                <span class="well-editor-field__value" data-field-value="FCST_START_OIL">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="FCST_START_OIL" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Forecast Years</span>
+                <span class="well-editor-field__value" data-field-value="OIL_FCST_YRS">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="OIL_FCST_YRS" />
+            </div>
+          </div>
+          <div class="well-editor-form__section" data-well-editor-section="gas" hidden>
+            <h3 class="well-editor-form__title">Gas Forecast Inputs</h3>
+            <div class="well-editor-field well-editor-field--inline">
+              <label class="well-editor-field__label">Gas Decline Type</label>
+              <div class="well-editor-decline-toggle">
+                <span id="wellEditorGasDeclineLabel" class="well-editor-decline-label">Exponential</span>
+                <label class="well-editor-switch">
+                  <input
+                    type="checkbox"
+                    data-field="GAS_DECLINE_TYPE"
+                    class="well-editor-switch__input"
+                  />
+                  <span class="well-editor-switch__slider" aria-hidden="true"></span>
+                </label>
+              </div>
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Initial Gas Rate (MCFD)</span>
+                <span class="well-editor-field__value" data-field-value="GAS_CALC_QI">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="GAS_CALC_QI" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Minimum Gas Rate (MCFD)</span>
+                <span class="well-editor-field__value" data-field-value="GAS_Q_MIN">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="GAS_Q_MIN" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Gas Decline Rate (Di)</span>
+                <span class="well-editor-field__value" data-field-value="GAS_EMPIRICAL_DI">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.001" data-field="GAS_EMPIRICAL_DI" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Gas Hyperbolic b-factor</span>
+                <span class="well-editor-field__value" data-field-value="GAS_CALC_B_FACTOR">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.01" data-field="GAS_CALC_B_FACTOR" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Gas Terminal Decline (Dmin)</span>
+                <span class="well-editor-field__value" data-field-value="GAS_D_MIN">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="0.001" data-field="GAS_D_MIN" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Forecast Start Date</span>
+                <span class="well-editor-field__value" data-field-value="FCST_START_GAS">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="FCST_START_GAS" />
+            </div>
+            <div class="well-editor-field">
+              <div class="well-editor-field__header">
+                <span>Forecast Years</span>
+                <span class="well-editor-field__value" data-field-value="GAS_FCST_YRS">--</span>
+              </div>
+              <input type="range" min="0" max="1" step="1" data-field="GAS_FCST_YRS" />
+            </div>
+          </div>
+        </div>
+        <div class="well-editor-actions">
+          <label class="well-editor-approval">
+            <input type="checkbox" id="wellEditorApproved" />
+            <span>Approved DCA</span>
+          </label>
+          <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Load Approved DCA</button>
+          <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="wellFastEditModal" class="fast-edit-modal" aria-hidden="true">
+  <div class="fast-edit-modal__overlay" data-fast-edit-close></div>
+  <div class="fast-edit-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="fastEditTitle">
+    <button type="button" class="fast-edit-modal__close" data-fast-edit-close aria-label="Close fast edit dialog">
+      <span aria-hidden="true">&times;</span>
+    </button>
+    <header class="fast-edit-modal__header">
+      <div>
+        <p class="fast-edit-modal__eyebrow">Well Forecast Editor</p>
+        <h2 id="fastEditTitle" class="fast-edit-modal__title">Fast Edit</h2>
+      </div>
+      <div class="fast-edit-modal__actions">
+        <button type="button" id="fastEditReset" class="fast-edit-modal__button">Reset</button>
+        <button type="button" id="fastEditAutoFit" class="fast-edit-modal__button">Auto Fit</button>
+        <button type="button" class="fast-edit-modal__button" data-fast-edit-close>Done</button>
+      </div>
+    </header>
+    <div class="fast-edit-modal__toggle">
+      <span id="fastEditDeclineLabel" class="fast-edit-modal__decline-label">Exponential</span>
+      <label class="well-editor-switch">
+        <input type="checkbox" id="fastEditDeclineToggle" class="well-editor-switch__input" />
+        <span class="well-editor-switch__slider" aria-hidden="true"></span>
+      </label>
+      <button type="button" id="fastEditModeToggle" class="fast-edit-modal__button">Switch to Gas</button>
+    </div>
+    <div class="fast-edit-modal__body">
+      <div class="fast-edit-modal__chart">
+        <div id="wellFastEditChart"></div>
+      </div>
+      <div class="fast-edit-modal__pads">
+        <div class="fast-edit-modal__pad" id="fastEditPadLeft">
+          <span class="fast-edit-modal__pad-label">Left Pad</span>
+        </div>
+        <div class="fast-edit-modal__pad" id="fastEditPadRight">
+          <span class="fast-edit-modal__pad-label">Right Pad</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'mapapp/js/main.js' %}?v=2025-08-25a"></script>
+  <script src="{% static 'mapapp/js/well_explorer.js' %}"></script>
+{% endblock %}

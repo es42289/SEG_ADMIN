@@ -1,0 +1,203 @@
+.well-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 0 40px;
+}
+
+.well-explorer__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.well-explorer__eyebrow {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.well-explorer__title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.well-explorer__subtitle {
+  max-width: 720px;
+  color: #475569;
+  margin-top: 8px;
+}
+
+.well-explorer__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.well-explorer__button {
+  border-radius: 999px;
+  border: 1px solid #0f172a;
+  padding: 8px 18px;
+  font-weight: 600;
+  background: #0f172a;
+  color: #fff;
+  transition: all 0.2s ease;
+}
+
+.well-explorer__button:hover {
+  background: #1e293b;
+}
+
+.well-explorer__button--secondary {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.well-explorer__button--secondary:hover {
+  background: #f1f5f9;
+}
+
+.well-explorer__panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.well-explorer__panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.well-explorer__panel-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.well-explorer__status {
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.well-explorer__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.well-explorer__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.well-explorer__field input {
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  background: #f8fafc;
+}
+
+.well-explorer__csv {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.well-explorer__csv h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.well-explorer__csv p {
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.well-explorer__csv code {
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.well-explorer__csv textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  background: #f8fafc;
+  resize: vertical;
+}
+
+.well-explorer__map {
+  width: 100%;
+  height: 480px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #0f172a;
+}
+
+.well-explorer__table-wrapper {
+  overflow-x: auto;
+}
+
+.well-explorer__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.well-explorer__table th,
+.well-explorer__table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.well-explorer__table th {
+  color: #475569;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+
+.well-explorer__edit {
+  border-radius: 999px;
+  border: 1px solid #2563eb;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.well-explorer__empty {
+  text-align: center;
+  color: #94a3b8;
+  padding: 20px 0;
+}
+
+@media (max-width: 768px) {
+  .well-explorer__map {
+    height: 360px;
+  }
+}

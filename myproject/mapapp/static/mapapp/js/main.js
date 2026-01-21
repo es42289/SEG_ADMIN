@@ -838,6 +838,14 @@ window.syncRoyaltyPanelHeight = () => {
     let selectionInitialized = false;
     const WELL_SELECTION_TOGGLE_ID = 'wellSelectionToggle';
 
+    window.setUserWellData = function setUserWellData(data) {
+      userWellData = data;
+    };
+
+    window.getUserWellData = function getUserWellData() {
+      return userWellData;
+    };
+
     function pruneSelectedApis(validApis) {
       const validSet = new Set((validApis || []).filter(Boolean));
       for (const api of Array.from(selectedWellApis)) {
@@ -3955,14 +3963,16 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
-    // Event listener
-    yearInput.addEventListener('input', e => drawWithFilteredData(parseInt(e.target.value, 10)));
+    if (yearInput) {
+      // Event listener
+      yearInput.addEventListener('input', e => drawWithFilteredData(parseInt(e.target.value, 10)));
 
-    // Initialize with frontend filtering
-    drawWithFilteredData(parseInt(yearInput.value, 10));
-    
-    // Fire-and-forget: fetch production for user wells once
-    loadUserProductionOnce().then(updateLastProductionMetrics);
+      // Initialize with frontend filtering
+      drawWithFilteredData(parseInt(yearInput.value, 10));
+      
+      // Fire-and-forget: fetch production for user wells once
+      loadUserProductionOnce().then(updateLastProductionMetrics);
+    }
 
     const mapStyleToggleBtn = document.getElementById('mapStyleToggle');
     if (mapStyleToggleBtn) {

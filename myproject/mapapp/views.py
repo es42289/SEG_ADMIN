@@ -645,6 +645,35 @@ def map_page(request):
         },
     )
 
+def well_explorer_page(request):
+    if "user" not in request.session:
+        return redirect("/login/")
+
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return redirect("/map/")
+
+    return render(
+        request,
+        "well_explorer.html",
+        {
+            "admin_context": admin_context,
+            "current_path": request.get_full_path(),
+        },
+    )
+
+@require_http_methods(["GET"])
+def well_explorer_data(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return JsonResponse({"detail": "Admin access required."}, status=403)
+
+    payload = _get_cached_well_explorer_payload()
+    return JsonResponse(payload)
+
 def map_data(request):
     """Returns JSON for map points."""
     # Check if user is logged in
@@ -703,6 +732,88 @@ def get_all_wells_with_owners():
         except Exception:
             pass
         conn.close()
+
+
+_WELL_EXPLORER_CACHE_TTL_SECONDS = 300
+_well_explorer_cache = {"payload": None, "timestamp": 0.0}
+_well_explorer_lock = Lock()
+
+
+def _normalize_well_explorer_value(value):
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _unique_sorted(series):
+    values = {
+        normalized
+        for value in series
+        if (normalized := _normalize_well_explorer_value(value)) is not None
+    }
+    return sorted(values, key=str.casefold)
+
+
+def _build_well_explorer_payload():
+    df = get_all_wells_with_owners().copy()
+    if "OWNER_LIST" in df.columns:
+        df = df[df["OWNER_LIST"].fillna("").str.strip().ne("")]
+
+    filter_fields = {
+        "envoperator": "ENVOPERATOR",
+        "owner_list": "OWNER_LIST",
+        "api_uwi": "API_UWI",
+        "envwellstatus": "ENVWELLSTATUS",
+        "wellname": "WELLNAME",
+        "trajectory": "TRAJECTORY",
+        "county": "COUNTY",
+    }
+
+    filters = {
+        key: _unique_sorted(df[column])
+        for key, column in filter_fields.items()
+        if column in df.columns
+    }
+
+    wells = []
+    for _, row in df.iterrows():
+        lat = row.get("LATITUDE")
+        lon = row.get("LONGITUDE")
+        if pd.isna(lat) or pd.isna(lon):
+            continue
+        wells.append(
+            {
+                "api_uwi": _normalize_well_explorer_value(row.get("API_UWI")),
+                "wellname": _normalize_well_explorer_value(row.get("WELLNAME")),
+                "envoperator": _normalize_well_explorer_value(row.get("ENVOPERATOR")),
+                "owner_list": _normalize_well_explorer_value(row.get("OWNER_LIST")),
+                "envwellstatus": _normalize_well_explorer_value(row.get("ENVWELLSTATUS")),
+                "trajectory": _normalize_well_explorer_value(row.get("TRAJECTORY")),
+                "county": _normalize_well_explorer_value(row.get("COUNTY")),
+                "lat": float(lat),
+                "lon": float(lon),
+            }
+        )
+
+    return {"wells": wells, "filters": filters}
+
+
+def _get_cached_well_explorer_payload():
+    now = time.monotonic()
+    cached_payload = _well_explorer_cache["payload"]
+    if cached_payload and (now - _well_explorer_cache["timestamp"] < _WELL_EXPLORER_CACHE_TTL_SECONDS):
+        return cached_payload
+
+    with _well_explorer_lock:
+        cached_payload = _well_explorer_cache["payload"]
+        if cached_payload and (now - _well_explorer_cache["timestamp"] < _WELL_EXPLORER_CACHE_TTL_SECONDS):
+            return cached_payload
+
+        payload = _build_well_explorer_payload()
+        _well_explorer_cache["payload"] = payload
+        _well_explorer_cache["timestamp"] = time.monotonic()
+        return payload
 
 
 def _snowflake_user_wells(owner_name):
