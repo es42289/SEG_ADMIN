@@ -2786,3 +2786,206 @@ input#year[type="range"] {
         display: block;
       }
     }
+
+    .well-explorer {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .well-explorer-card {
+      background: #0f172a;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+      padding: 1.5rem;
+      color: #e2e8f0;
+    }
+
+    .well-explorer-card__header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .well-explorer-card__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .well-explorer-button {
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: #22c55e;
+      color: #0f172a;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .well-explorer-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3);
+    }
+
+    .well-explorer-button--ghost {
+      background: transparent;
+      color: #e2e8f0;
+      border-color: rgba(148, 163, 184, 0.4);
+      box-shadow: none;
+    }
+
+    .well-explorer-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (min-width: 1024px) {
+      .well-explorer-grid {
+        grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+      }
+    }
+
+    .well-explorer-panel {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .well-explorer-panel__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .well-explorer-panel__title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      margin: 0;
+    }
+
+    .well-explorer-panel__meta {
+      font-size: 0.95rem;
+      color: #cbd5f5;
+    }
+
+    .well-explorer-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .well-explorer-filter {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .well-explorer-filter__label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: rgba(226, 232, 240, 0.7);
+      font-weight: 600;
+    }
+
+    .well-explorer-input,
+    .well-explorer-textarea {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 10px;
+      color: #e2e8f0;
+      padding: 0.5rem 0.75rem;
+    }
+
+    .well-explorer-input:focus,
+    .well-explorer-textarea:focus {
+      outline: 2px solid rgba(34, 197, 94, 0.6);
+      border-color: transparent;
+    }
+
+    .well-explorer-textarea {
+      resize: vertical;
+    }
+
+    .well-explorer-help {
+      font-size: 0.85rem;
+      color: rgba(226, 232, 240, 0.7);
+      margin: 0.2rem 0 0.6rem;
+    }
+
+    .well-explorer-help__example {
+      display: inline-block;
+      margin: 0 0.2rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 6px;
+      background: rgba(148, 163, 184, 0.2);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    .well-explorer-map {
+      min-height: 420px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .well-explorer-table-wrap {
+      margin-top: 1.5rem;
+    }
+
+    .well-explorer-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .well-explorer-table th,
+    .well-explorer-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      vertical-align: top;
+    }
+
+    .well-explorer-table th {
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    .well-explorer-table__empty {
+      text-align: center;
+      color: rgba(226, 232, 240, 0.7);
+      padding: 1.5rem;
+    }
+
+    .well-explorer-edit-button {
+      background: transparent;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: #e2e8f0;
+      border-radius: 999px;
+      padding: 0.35rem 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .well-explorer-edit-button:hover {
+      border-color: rgba(34, 197, 94, 0.8);
+      color: #22c55e;
+    }
+
+    .login-action--active {
+      border: 1px solid rgba(34, 197, 94, 0.8);
+      color: #22c55e;
+    }

@@ -1831,6 +1831,21 @@ window.syncRoyaltyPanelHeight = () => {
       chartReady: false,
     };
 
+    window.setWellEditorData = function setWellEditorData(data) {
+      if (!data || !Array.isArray(data.api_uwi)) {
+        userWellData = { api_uwi: [], name: [], owner_interest: [], pv17: [], dca_approved: [] };
+      } else {
+        userWellData = data;
+      }
+      buildWellEditorSelect();
+      if (WELL_EDITOR_STATE.api && !userWellData.api_uwi.includes(WELL_EDITOR_STATE.api)) {
+        WELL_EDITOR_STATE.api = null;
+        if (WELL_EDITOR_ELEMENTS.wellSelect) {
+          WELL_EDITOR_ELEMENTS.wellSelect.value = '';
+        }
+      }
+    };
+
     let wellEditorNeedsRefresh = false;
     let pvEstimateTimer = null;
     let pvEstimateAbort = null;
@@ -3955,14 +3970,16 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
-    // Event listener
-    yearInput.addEventListener('input', e => drawWithFilteredData(parseInt(e.target.value, 10)));
+    if (yearInput) {
+      // Event listener
+      yearInput.addEventListener('input', e => drawWithFilteredData(parseInt(e.target.value, 10)));
 
-    // Initialize with frontend filtering
-    drawWithFilteredData(parseInt(yearInput.value, 10));
-    
-    // Fire-and-forget: fetch production for user wells once
-    loadUserProductionOnce().then(updateLastProductionMetrics);
+      // Initialize with frontend filtering
+      drawWithFilteredData(parseInt(yearInput.value, 10));
+
+      // Fire-and-forget: fetch production for user wells once
+      loadUserProductionOnce().then(updateLastProductionMetrics);
+    }
 
     const mapStyleToggleBtn = document.getElementById('mapStyleToggle');
     if (mapStyleToggleBtn) {
