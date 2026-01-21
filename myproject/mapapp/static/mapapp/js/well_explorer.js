@@ -58,7 +58,7 @@
       if (!well.api_uwi) return false;
 
       if (csvSet.size > 0) {
-        const normalized = normalizeApi(well.api_uwi);
+        const normalized = normalizeApi(well.api_uwi).slice(0, 10);
         if (!csvSet.has(normalized)) {
           return false;
         }
@@ -103,7 +103,7 @@
     if (!selected.length) {
       const row = document.createElement('tr');
       const cell = document.createElement('td');
-      cell.colSpan = 8;
+      cell.colSpan = 7;
       cell.className = 'well-explorer-table__empty';
       cell.textContent = 'No wells selected yet.';
       row.appendChild(cell);
@@ -120,7 +120,6 @@
         <td>${well.envoperator || '--'}</td>
         <td>${well.envwellstatus || '--'}</td>
         <td>${well.trajectory || '--'}</td>
-        <td>${well.owner_list || '--'}</td>
         <td>
           <button type="button" class="well-explorer-edit-button" data-api="${well.api_uwi || ''}">
             Edit
@@ -218,9 +217,9 @@
     ];
 
     const layout = {
-      paper_bgcolor: '#0f172a',
-      plot_bgcolor: '#0f172a',
-      font: { color: '#e2e8f0' },
+      paper_bgcolor: '#156082',
+      plot_bgcolor: '#156082',
+      font: { color: '#e8f5fb' },
       mapbox: {
         accesstoken: MAPBOX_TOKEN,
         style: MAPBOX_STYLE,
@@ -299,8 +298,8 @@
     const lines = text.split(/[\n,]+/);
     const normalized = lines
       .map((entry) => entry.trim())
-      .filter((entry) => entry && entry.toLowerCase() !== 'api_uwi')
-      .map((entry) => normalizeApi(entry))
+      .filter((entry) => entry && !['api_uwi', 'api10'].includes(entry.toLowerCase()))
+      .map((entry) => normalizeApi(entry).slice(0, 10))
       .filter(Boolean);
     return new Set(normalized);
   };
@@ -358,7 +357,7 @@
       if (tableBody) {
         tableBody.innerHTML = `
           <tr>
-            <td colspan="8" class="well-explorer-table__empty">Unable to load well explorer data.</td>
+            <td colspan="7" class="well-explorer-table__empty">Unable to load well explorer data.</td>
           </tr>
         `;
       }

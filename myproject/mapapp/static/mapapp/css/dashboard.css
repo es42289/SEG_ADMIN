@@ -2803,12 +2803,12 @@ input#year[type="range"] {
     }
 
     .well-explorer-card {
-      background: #0f172a;
-      border: 1px solid rgba(148, 163, 184, 0.3);
+      background: #156082;
+      border: 1px solid rgba(21, 96, 130, 0.8);
       border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+      box-shadow: 0 10px 24px rgba(8, 47, 73, 0.35);
       padding: 1.5rem;
-      color: #e2e8f0;
+      color: #e8f5fb;
     }
 
     .well-explorer-card__header {
@@ -2828,9 +2828,9 @@ input#year[type="range"] {
 
     .well-explorer-button {
       border-radius: 999px;
-      border: 1px solid transparent;
-      background: #22c55e;
-      color: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: rgba(8, 47, 73, 0.6);
+      color: #e8f5fb;
       font-weight: 600;
       padding: 0.55rem 1.25rem;
       transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -2838,13 +2838,13 @@ input#year[type="range"] {
 
     .well-explorer-button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 6px 12px rgba(34, 197, 94, 0.3);
+      box-shadow: 0 6px 12px rgba(8, 47, 73, 0.35);
     }
 
     .well-explorer-button--ghost {
       background: transparent;
-      color: #e2e8f0;
-      border-color: rgba(148, 163, 184, 0.4);
+      color: #e8f5fb;
+      border-color: rgba(255, 255, 255, 0.35);
       box-shadow: none;
     }
 
@@ -2861,8 +2861,8 @@ input#year[type="range"] {
     }
 
     .well-explorer-panel {
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(21, 96, 130, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 14px;
       padding: 1.25rem;
       display: flex;
@@ -2880,13 +2880,13 @@ input#year[type="range"] {
     .well-explorer-panel__title {
       font-size: 1.1rem;
       font-weight: 700;
-      color: #e2e8f0;
+      color: #e8f5fb;
       margin: 0;
     }
 
     .well-explorer-panel__meta {
       font-size: 0.95rem;
-      color: #cbd5f5;
+      color: rgba(232, 245, 251, 0.85);
     }
 
     .well-explorer-filters {
@@ -2905,22 +2905,22 @@ input#year[type="range"] {
       font-size: 0.85rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: rgba(226, 232, 240, 0.7);
+      color: rgba(232, 245, 251, 0.75);
       font-weight: 600;
     }
 
     .well-explorer-input,
     .well-explorer-textarea {
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(8, 47, 73, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 10px;
-      color: #e2e8f0;
+      color: #e8f5fb;
       padding: 0.5rem 0.75rem;
     }
 
     .well-explorer-input:focus,
     .well-explorer-textarea:focus {
-      outline: 2px solid rgba(34, 197, 94, 0.6);
+      outline: 2px solid rgba(255, 255, 255, 0.6);
       border-color: transparent;
     }
 
@@ -2930,7 +2930,7 @@ input#year[type="range"] {
 
     .well-explorer-help {
       font-size: 0.85rem;
-      color: rgba(226, 232, 240, 0.7);
+      color: rgba(232, 245, 251, 0.75);
       margin: 0.2rem 0 0.6rem;
     }
 
@@ -2939,7 +2939,7 @@ input#year[type="range"] {
       margin: 0 0.2rem;
       padding: 0.1rem 0.4rem;
       border-radius: 6px;
-      background: rgba(148, 163, 184, 0.2);
+      background: rgba(8, 47, 73, 0.6);
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     }
 
@@ -2947,7 +2947,7 @@ input#year[type="range"] {
       min-height: 420px;
       border-radius: 12px;
       overflow: hidden;
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .well-explorer-table-wrap {
@@ -2964,25 +2964,25 @@ input#year[type="range"] {
     .well-explorer-table td {
       padding: 0.75rem;
       text-align: left;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
       vertical-align: top;
     }
 
     .well-explorer-table th {
       font-weight: 700;
-      color: #e2e8f0;
+      color: #e8f5fb;
     }
 
     .well-explorer-table__empty {
       text-align: center;
-      color: rgba(226, 232, 240, 0.7);
+      color: rgba(232, 245, 251, 0.75);
       padding: 1.5rem;
     }
 
     .well-explorer-edit-button {
-      background: transparent;
-      border: 1px solid rgba(148, 163, 184, 0.4);
-      color: #e2e8f0;
+      background: rgba(8, 47, 73, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #e8f5fb;
       border-radius: 999px;
       padding: 0.35rem 0.85rem;
       font-weight: 600;
@@ -2990,8 +2990,20 @@ input#year[type="range"] {
     }
 
     .well-explorer-edit-button:hover {
-      border-color: rgba(34, 197, 94, 0.8);
-      color: #22c55e;
+      border-color: rgba(255, 255, 255, 0.9);
+      color: #ffffff;
+    }
+
+    .well-explorer-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .well-explorer-logo {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
     }
 
     .login-action--active {

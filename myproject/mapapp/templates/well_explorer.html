@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Well Explorer{% endblock %}
+{% block title %}Wellset Explorer{% endblock %}
 
 {% block content %}
 <div class="top-banner">
@@ -40,8 +40,8 @@
       <a href="/map/" class="login-action" title="Return to dashboard">
         <span class="login-action__label">Dashboard</span>
       </a>
-      <a href="/well-explorer/" class="login-action login-action--active" title="Well explorer">
-        <span class="login-action__label">Well Explorer</span>
+      <a href="/well-explorer/" class="login-action login-action--active" title="Wellset explorer">
+        <span class="login-action__label">Wellset Explorer</span>
       </a>
     </div>
   </div>
@@ -55,9 +55,9 @@
 <div class="page-content well-explorer">
   <section class="well-explorer-card">
     <header class="well-explorer-card__header">
-      <div>
-        <p class="section-eyebrow">Admin Tooling</p>
-        <h1 class="section-title">Well Explorer</h1>
+      <div class="well-explorer-title">
+        <img src="{% static 'mapapp/img/white_no_mane_logo.png' %}" alt="Stable Energy Group logo" class="well-explorer-logo">
+        <h1 class="section-title">Wellset Explorer</h1>
       </div>
       <div class="well-explorer-card__actions">
         <button type="button" class="well-explorer-button" id="applyWellExplorerFilters">Apply Filters</button>
@@ -71,14 +71,14 @@
         <h2 class="well-explorer-panel__title">Filter Wells</h2>
         <div class="well-explorer-filters" id="wellExplorerFilters"></div>
         <div class="well-explorer-csv">
-          <label class="well-explorer-panel__title" for="wellExplorerCsv">Paste API_UWI CSV</label>
+          <label class="well-explorer-panel__title" for="wellExplorerCsv">Paste API10 CSV</label>
           <p class="well-explorer-help">
-            Acceptable format: one API per line, or comma-separated. Example:
-            <span class="well-explorer-help__example">42461392960000</span> or
-            <span class="well-explorer-help__example">42-461-39296-0000</span>.
-            Headers are optional (e.g., <code>API_UWI</code>).
+            Acceptable format: one API10 per line, or comma-separated. Example:
+            <span class="well-explorer-help__example">4246139296</span> or
+            <span class="well-explorer-help__example">42-461-39296</span>.
+            Headers are optional (e.g., <code>API_UWI</code> or <code>API10</code>).
           </p>
-          <textarea id="wellExplorerCsv" class="well-explorer-textarea" rows="5" placeholder="API_UWI&#10;42-461-39296-0000&#10;42461392960000"></textarea>
+          <textarea id="wellExplorerCsv" class="well-explorer-textarea" rows="5" placeholder="API10&#10;42-461-39296&#10;4246139296"></textarea>
           <button type="button" class="well-explorer-button well-explorer-button--ghost" id="applyWellExplorerCsv">Apply API List</button>
         </div>
       </div>
@@ -106,13 +106,12 @@
             <th>Operator</th>
             <th>Status</th>
             <th>Trajectory</th>
-            <th>Owner List</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="wellExplorerTableBody">
           <tr>
-            <td colspan="8" class="well-explorer-table__empty">No wells selected yet.</td>
+            <td colspan="7" class="well-explorer-table__empty">No wells selected yet.</td>
           </tr>
         </tbody>
       </table>
@@ -356,5 +355,5 @@
 
 {% block scripts %}
   <script src="{% static 'mapapp/js/main.js' %}?v=2025-08-25b"></script>
-  <script src="{% static 'mapapp/js/well_explorer.js' %}?v=2025-08-25b"></script>
+  <script src="{% static 'mapapp/js/well_explorer.js' %}?v=2025-08-25c"></script>
 {% endblock %}
