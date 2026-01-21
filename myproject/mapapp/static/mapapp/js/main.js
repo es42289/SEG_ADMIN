@@ -1862,6 +1862,8 @@ window.syncRoyaltyPanelHeight = () => {
       rightPointer: null,
       lastLeft: null,
       lastRight: null,
+      autoFitSelecting: false,
+      plotEventsAttached: false,
     };
 
     const FAST_EDIT_ELEMENTS = {
@@ -1869,6 +1871,8 @@ window.syncRoyaltyPanelHeight = () => {
       chart: document.getElementById('wellFastEditChart'),
       modeToggle: document.getElementById('fastEditModeToggle'),
       resetButton: document.getElementById('fastEditReset'),
+      autoFitButton: document.getElementById('fastEditAutoFit'),
+      autoFitStatus: document.getElementById('fastEditAutofitStatus'),
       declineLabel: document.getElementById('fastEditDeclineLabel'),
       declineToggle: document.getElementById('fastEditDeclineToggle'),
       leftPad: document.getElementById('fastEditPadLeft'),
@@ -2006,6 +2010,17 @@ window.syncRoyaltyPanelHeight = () => {
     };
 
     const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const setRangeValueWithClamp = (fieldName, value) => {
+      const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
+      if (!field || field.type !== 'range') return;
+      const min = Number(field.min);
+      const max = Number(field.max);
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return;
+      field.value = clampValue(numeric, Number.isFinite(min) ? min : numeric, Number.isFinite(max) ? max : numeric);
+      updateFieldLabel(fieldName);
+    };
 
     const setRangeAttributes = (fieldName, { min, max, step }) => {
       const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
@@ -2451,6 +2466,17 @@ window.syncRoyaltyPanelHeight = () => {
       };
 
       Plotly.react(FAST_EDIT_ELEMENTS.chart, traces, layout, { ...BASE_PLOT_CONFIG });
+      if (!FAST_EDIT_STATE.plotEventsAttached && FAST_EDIT_ELEMENTS.chart?.on) {
+        FAST_EDIT_ELEMENTS.chart.on('plotly_selected', (event) => {
+          handleFastEditSelection(event);
+        });
+        FAST_EDIT_ELEMENTS.chart.on('plotly_deselect', () => {
+          if (FAST_EDIT_STATE.autoFitSelecting) {
+            setFastEditAutofitStatus('Selection cleared. Choose points to fit.');
+          }
+        });
+        FAST_EDIT_STATE.plotEventsAttached = true;
+      }
     };
 
     const updateWellEditorMetrics = (combined) => {
@@ -2620,6 +2646,12 @@ window.syncRoyaltyPanelHeight = () => {
       if (!WELL_EDITOR_ELEMENTS.status) return;
       WELL_EDITOR_ELEMENTS.status.textContent = message;
       WELL_EDITOR_ELEMENTS.status.style.color = isError ? '#fca5a5' : '#f8fafc';
+    };
+
+    const setFastEditAutofitStatus = (message, isError = false) => {
+      if (!FAST_EDIT_ELEMENTS.autoFitStatus) return;
+      FAST_EDIT_ELEMENTS.autoFitStatus.textContent = message;
+      FAST_EDIT_ELEMENTS.autoFitStatus.style.color = isError ? '#fca5a5' : '#e2e8f0';
     };
 
     const showTemporaryStatus = (message) => {
@@ -2804,6 +2836,7 @@ window.syncRoyaltyPanelHeight = () => {
       setFastEditMode('gas');
       FAST_EDIT_STATE.lastLeft = null;
       FAST_EDIT_STATE.lastRight = null;
+      setFastEditSelectionMode(false);
       FAST_EDIT_ELEMENTS.modal.classList.add('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'false');
       updateFastEditView();
@@ -2815,6 +2848,7 @@ window.syncRoyaltyPanelHeight = () => {
 
     const hideFastEdit = () => {
       if (!FAST_EDIT_ELEMENTS.modal) return;
+      setFastEditSelectionMode(false);
       FAST_EDIT_ELEMENTS.modal.classList.remove('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'true');
       updateBodyScroll();
@@ -2868,6 +2902,162 @@ window.syncRoyaltyPanelHeight = () => {
         }
       }
       updateFastEditView();
+    };
+
+    const setFastEditSelectionMode = (isSelecting) => {
+      FAST_EDIT_STATE.autoFitSelecting = isSelecting;
+      if (FAST_EDIT_ELEMENTS.autoFitButton) {
+        FAST_EDIT_ELEMENTS.autoFitButton.classList.toggle('is-active', isSelecting);
+        FAST_EDIT_ELEMENTS.autoFitButton.textContent = isSelecting ? 'Cancel Auto-Fit' : 'Auto-Fit';
+      }
+      if (window.Plotly && FAST_EDIT_ELEMENTS.chart) {
+        Plotly.relayout(FAST_EDIT_ELEMENTS.chart, { dragmode: isSelecting ? 'lasso' : 'pan' });
+        Plotly.restyle(FAST_EDIT_ELEMENTS.chart, { selectedpoints: null });
+      }
+      if (isSelecting) {
+        setFastEditAutofitStatus('Select 3+ points on the chart to auto-fit.');
+      } else {
+        setFastEditAutofitStatus('');
+      }
+    };
+
+    const parsePlotlyPointDate = (point) => {
+      if (!point?.x) return null;
+      const date = new Date(point.x);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const linearRegression = (xs, ys) => {
+      const n = xs.length;
+      if (n === 0) return null;
+      const sumX = xs.reduce((acc, v) => acc + v, 0);
+      const sumY = ys.reduce((acc, v) => acc + v, 0);
+      const sumXY = xs.reduce((acc, v, i) => acc + v * ys[i], 0);
+      const sumXX = xs.reduce((acc, v) => acc + v * v, 0);
+      const denom = n * sumXX - sumX * sumX;
+      if (denom === 0) return null;
+      const slope = (n * sumXY - sumX * sumY) / denom;
+      const intercept = (sumY - slope * sumX) / n;
+      return { slope, intercept };
+    };
+
+    const fitExponential = (points) => {
+      const xs = points.map((point) => point.tYears);
+      const ys = points.map((point) => Math.log(point.rate));
+      const reg = linearRegression(xs, ys);
+      if (!reg) return null;
+      const qi = Math.exp(reg.intercept);
+      const di = Math.max(0, -reg.slope);
+      if (!Number.isFinite(qi) || !Number.isFinite(di)) return null;
+      return { qi, di };
+    };
+
+    const fitHyperbolic = (points, bValues) => {
+      let best = null;
+      bValues.forEach((b) => {
+        const xs = points.map((point) => point.tYears);
+        const ys = points.map((point) => Math.pow(point.rate, -b));
+        const reg = linearRegression(xs, ys);
+        if (!reg || reg.intercept <= 0 || reg.slope <= 0) return;
+        const qi = Math.pow(reg.intercept, -1 / b);
+        const di = reg.slope / (b * reg.intercept);
+        if (!Number.isFinite(qi) || !Number.isFinite(di)) return;
+        const sse = points.reduce((acc, point) => {
+          const qPred = qi / Math.pow(1 + b * di * point.tYears, 1 / b);
+          const err = Math.log(point.rate) - Math.log(qPred);
+          return acc + err * err;
+        }, 0);
+        if (!best || sse < best.sse) {
+          best = { qi, di, b, sse };
+        }
+      });
+      return best;
+    };
+
+    const buildAutoFitPoints = (event) => {
+      if (!event?.points?.length) return [];
+      const points = event.points
+        .filter((point) => point?.data?.name?.includes('History'))
+        .map((point) => {
+          const date = parsePlotlyPointDate(point);
+          const rate = Number(point.y);
+          if (!date || !Number.isFinite(rate) || rate <= 0) return null;
+          return { date, rate };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.date - b.date);
+      if (!points.length) return [];
+      const start = points[0].date;
+      const startKey = monthIndex(start);
+      return points.map((point) => ({
+        ...point,
+        tYears: (monthIndex(point.date) - startKey) / 12,
+      }));
+    };
+
+    const applyAutoFitResults = (result, declineType, startDate) => {
+      const fields = getFastEditFields();
+      const typeField = getFastEditDeclineField();
+      setFieldValue(typeField, declineType);
+      updateDeclineRanges(FAST_EDIT_STATE.mode === 'oil' ? 'OIL' : 'GAS');
+
+      if (startDate) {
+        const startField = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fields.start);
+        if (startField) {
+          const min = Number(startField.min);
+          const max = Number(startField.max);
+          const value = clampValue(dateToSliderValue(startDate), min, max);
+          startField.value = value;
+          updateFieldLabel(fields.start);
+        }
+      }
+
+      setRangeValueWithClamp(fields.qi, result.qi);
+      setRangeValueWithClamp(fields.di, result.di);
+      setRangeValueWithClamp(fields.b, result.b ?? 0.85);
+
+      const dminField = FAST_EDIT_STATE.mode === 'oil' ? 'OIL_D_MIN' : 'GAS_D_MIN';
+      const suggestedDmin = clampValue(result.di * 0.2, 0.05, 0.15);
+      setRangeValueWithClamp(dminField, suggestedDmin);
+
+      syncFastEditDeclineToggle();
+      updateFastEditView();
+    };
+
+    const handleFastEditSelection = (event) => {
+      if (!FAST_EDIT_STATE.autoFitSelecting) return;
+      const points = buildAutoFitPoints(event);
+      if (points.length < 3) {
+        setFastEditAutofitStatus('Pick at least 3 history points to auto-fit.', true);
+        return;
+      }
+      const expFit = fitExponential(points);
+      const bCandidates = Array.from({ length: 21 }, (_, i) => 0.75 + i * 0.01);
+      const hypFit = fitHyperbolic(points, bCandidates);
+      if (!expFit && !hypFit) {
+        setFastEditAutofitStatus('Unable to fit those points. Try a different selection.', true);
+        return;
+      }
+
+      const expSse = expFit
+        ? points.reduce((acc, point) => {
+            const qPred = expFit.qi * Math.exp(-expFit.di * point.tYears);
+            const err = Math.log(point.rate) - Math.log(qPred);
+            return acc + err * err;
+          }, 0)
+        : Infinity;
+      const hypSse = hypFit?.sse ?? Infinity;
+      const chooseHyperbolic = hypFit && hypSse < expSse * 0.97;
+
+      const selectedStart = points[0].date;
+      if (chooseHyperbolic) {
+        applyAutoFitResults(hypFit, 'HYP', selectedStart);
+        setFastEditAutofitStatus(`Auto-fit complete (hyperbolic b=${hypFit.b.toFixed(2)}).`);
+      } else {
+        applyAutoFitResults(expFit || hypFit, 'EXP', selectedStart);
+        setFastEditAutofitStatus('Auto-fit complete (exponential).');
+      }
+      setFastEditSelectionMode(false);
     };
 
     const attachFastEditPad = (pad, isLeftPad) => {
@@ -3144,6 +3334,12 @@ window.syncRoyaltyPanelHeight = () => {
     if (FAST_EDIT_ELEMENTS.resetButton) {
       FAST_EDIT_ELEMENTS.resetButton.addEventListener('click', () => {
         resetFastEditParameters();
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.autoFitButton) {
+      FAST_EDIT_ELEMENTS.autoFitButton.addEventListener('click', () => {
+        setFastEditSelectionMode(!FAST_EDIT_STATE.autoFitSelecting);
       });
     }
 

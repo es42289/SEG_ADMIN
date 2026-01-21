@@ -2574,6 +2574,13 @@ input#year[type="range"] {
       margin: 0.2rem 0 0;
     }
 
+    .fast-edit-autofit-status {
+      color: #e2e8f0;
+      font-size: 0.85rem;
+      margin: 0.35rem 0 0;
+      min-height: 1.1rem;
+    }
+
     .fast-edit-modal__controls {
       align-items: center;
       display: flex;
@@ -2658,6 +2665,21 @@ input#year[type="range"] {
 
     .fast-edit-reset:hover {
       background: rgba(248, 250, 252, 0.2);
+    }
+
+    .fast-edit-autofit {
+      background: rgba(56, 189, 248, 0.2);
+      border: 1px solid rgba(56, 189, 248, 0.8);
+      border-radius: 999px;
+      color: #f8fafc;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 0.45rem 1rem;
+    }
+
+    .fast-edit-autofit.is-active {
+      background: rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4);
     }
 
     .fast-edit-modal__close {
