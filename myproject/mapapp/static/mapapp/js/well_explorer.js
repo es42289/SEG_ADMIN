@@ -86,7 +86,7 @@
     const payload = {
       api_uwi: selected.map((well) => well.api_uwi),
       name: selected.map((well) => well.wellname || well.api_uwi),
-      owner_interest: selected.map(() => 0),
+      owner_interest: selected.map(() => 1),
       pv17: selected.map(() => 0),
       dca_approved: selected.map((well) => Boolean(well.dca_approved)),
     };
