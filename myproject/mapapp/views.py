@@ -655,6 +655,79 @@ def map_data(request):
     payload = _get_cached_map_payload()
     return JsonResponse(payload)
 
+
+def _coerce_well_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, float) and np.isnan(value):
+        return ""
+    return str(value)
+
+
+def _coerce_well_float(value):
+    try:
+        if value is None or (isinstance(value, float) and np.isnan(value)):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def well_explorer_page(request):
+    if 'user' not in request.session:
+        return redirect('/login/')
+
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return HttpResponse("Forbidden", status=403)
+
+    executive_dashboard = get_executive_dashboard_context()
+    return render(
+        request,
+        "well_explorer.html",
+        {
+            "admin_context": admin_context,
+            "current_path": request.get_full_path(),
+            "executive_dashboard": executive_dashboard,
+        },
+    )
+
+
+def well_explorer_data(request):
+    if 'user' not in request.session:
+        return JsonResponse({"detail": "Unauthorized"}, status=401)
+
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return JsonResponse({"detail": "Forbidden"}, status=403)
+
+    df = get_all_wells_with_owners().copy()
+    if df.empty:
+        return JsonResponse({"wells": []})
+
+    if "OWNER_LIST" in df.columns:
+        df = df[df["OWNER_LIST"].fillna("").str.strip() != ""]
+
+    wells = []
+    for _, row in df.iterrows():
+        wells.append(
+            {
+                "api_uwi": _coerce_well_text(row.get("API_UWI")),
+                "owner_list": _coerce_well_text(row.get("OWNER_LIST")),
+                "operator": _coerce_well_text(row.get("ENVOPERATOR")),
+                "status": _coerce_well_text(row.get("ENVWELLSTATUS")),
+                "name": _coerce_well_text(row.get("WELLNAME")),
+                "trajectory": _coerce_well_text(row.get("TRAJECTORY")),
+                "county": _coerce_well_text(row.get("COUNTY")),
+                "latitude": _coerce_well_float(row.get("LATITUDE")),
+                "longitude": _coerce_well_float(row.get("LONGITUDE")),
+                "latitude_bh": _coerce_well_float(row.get("LATITUDE_BH")),
+                "longitude_bh": _coerce_well_float(row.get("LONGITUDE_BH")),
+            }
+        )
+
+    return JsonResponse({"wells": wells})
+
 def get_user_owner_name(user_email):
     """Query Snowflake to get the owner name for a user's email"""
     conn = get_snowflake_connection()

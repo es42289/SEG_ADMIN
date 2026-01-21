@@ -2786,3 +2786,196 @@ input#year[type="range"] {
         display: block;
       }
     }
+
+.well-explorer {
+  margin: 1.5rem auto 3rem;
+  padding: 1.5rem;
+  background: #0f3f52;
+  border-radius: 16px;
+  color: #eaeaea;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+}
+
+.well-explorer__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.well-explorer__eyebrow {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  color: rgba(234, 234, 234, 0.7);
+  margin-bottom: 0.35rem;
+}
+
+.well-explorer__title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.well-explorer__subtitle {
+  margin: 0.35rem 0 0;
+  color: rgba(234, 234, 234, 0.8);
+}
+
+.well-explorer__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  background: rgba(21, 96, 130, 0.35);
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+}
+
+.well-explorer__stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: rgba(234, 234, 234, 0.65);
+}
+
+.well-explorer__stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.well-explorer__filters {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.well-explorer__filter-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.well-explorer__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.well-explorer__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.well-explorer__input,
+.well-explorer__textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(6, 37, 48, 0.85);
+  color: #f5f5f5;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.well-explorer__textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.well-explorer__filter-actions,
+.well-explorer__csv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.well-explorer__button {
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #0f3f52;
+  background: #f2f5f8;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.well-explorer__button:hover,
+.well-explorer__button:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.well-explorer__button--ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #f2f5f8;
+}
+
+.well-explorer__button--danger {
+  background: #b91c1c;
+  color: #fff;
+}
+
+.well-explorer__hint {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: rgba(234, 234, 234, 0.7);
+}
+
+.well-explorer__map {
+  margin-top: 1.5rem;
+  background: #156082;
+  border-radius: 12px;
+  padding: 0.75rem;
+}
+
+.well-explorer__map-plot {
+  width: 100%;
+  height: 440px;
+}
+
+.well-explorer__table {
+  margin-top: 1.5rem;
+}
+
+.well-explorer__table-title {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.well-explorer__table-scroll {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.well-explorer__table-grid {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(6, 37, 48, 0.85);
+}
+
+.well-explorer__table-grid th,
+.well-explorer__table-grid td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.well-explorer__table-grid th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(234, 234, 234, 0.7);
+}
+
+@media (max-width: 900px) {
+  .well-explorer {
+    padding: 1.25rem;
+  }
+
+  .well-explorer__map-plot {
+    height: 340px;
+  }
+}
