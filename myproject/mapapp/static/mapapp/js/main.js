@@ -1862,12 +1862,17 @@ window.syncRoyaltyPanelHeight = () => {
       rightPointer: null,
       lastLeft: null,
       lastRight: null,
+      autoFitActive: false,
+      autoFitPoints: [],
+      autoFitHandlersAttached: false,
     };
 
     const FAST_EDIT_ELEMENTS = {
       modal: document.getElementById('wellFastEditModal'),
       chart: document.getElementById('wellFastEditChart'),
       modeToggle: document.getElementById('fastEditModeToggle'),
+      autoFitButton: document.getElementById('fastEditAutoFit'),
+      autoFitHint: document.getElementById('fastEditAutoFitHint'),
       resetButton: document.getElementById('fastEditReset'),
       declineLabel: document.getElementById('fastEditDeclineLabel'),
       declineToggle: document.getElementById('fastEditDeclineToggle'),
@@ -2006,6 +2011,45 @@ window.syncRoyaltyPanelHeight = () => {
     };
 
     const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const clampToFieldRange = (fieldName, value) => {
+      const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
+      if (!field || field.type !== 'range') return value;
+      const min = Number(field.min);
+      const max = Number(field.max);
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        return clampValue(Number(value), min, max);
+      }
+      if (Number.isFinite(min)) return Math.max(Number(value), min);
+      if (Number.isFinite(max)) return Math.min(Number(value), max);
+      return value;
+    };
+
+    const linearRegression = (xValues, yValues) => {
+      const n = Math.min(xValues.length, yValues.length);
+      if (n === 0) {
+        return { slope: 0, intercept: 0 };
+      }
+      let sumX = 0;
+      let sumY = 0;
+      let sumXX = 0;
+      let sumXY = 0;
+      for (let i = 0; i < n; i++) {
+        const x = Number(xValues[i]) || 0;
+        const y = Number(yValues[i]) || 0;
+        sumX += x;
+        sumY += y;
+        sumXX += x * x;
+        sumXY += x * y;
+      }
+      const denominator = n * sumXX - sumX * sumX;
+      if (denominator === 0) {
+        return { slope: 0, intercept: sumY / n };
+      }
+      const slope = (n * sumXY - sumX * sumY) / denominator;
+      const intercept = (sumY - slope * sumX) / n;
+      return { slope, intercept };
+    };
 
     const setRangeAttributes = (fieldName, { min, max, step }) => {
       const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
@@ -2748,8 +2792,11 @@ window.syncRoyaltyPanelHeight = () => {
       if (FAST_EDIT_ELEMENTS.modeToggle) {
         FAST_EDIT_ELEMENTS.modeToggle.textContent = FAST_EDIT_STATE.mode === 'gas' ? 'Switch to Oil' : 'Switch to Gas';
       }
+      setFastEditAutoFitState(false);
       syncFastEditDeclineToggle();
     };
+
+    const getFastEditPrefix = () => (FAST_EDIT_STATE.mode === 'oil' ? 'OIL' : 'GAS');
 
     const getFastEditDeclineField = () =>
       FAST_EDIT_STATE.mode === 'oil' ? 'OIL_DECLINE_TYPE' : 'GAS_DECLINE_TYPE';
@@ -2779,6 +2826,188 @@ window.syncRoyaltyPanelHeight = () => {
       };
     };
 
+    const setFastEditAutoFitState = (isActive) => {
+      FAST_EDIT_STATE.autoFitActive = Boolean(isActive);
+      if (!FAST_EDIT_STATE.autoFitActive) {
+        FAST_EDIT_STATE.autoFitPoints = [];
+      }
+      if (FAST_EDIT_ELEMENTS.autoFitButton) {
+        FAST_EDIT_ELEMENTS.autoFitButton.classList.toggle('is-active', FAST_EDIT_STATE.autoFitActive);
+        FAST_EDIT_ELEMENTS.autoFitButton.setAttribute(
+          'aria-pressed',
+          FAST_EDIT_STATE.autoFitActive ? 'true' : 'false'
+        );
+        FAST_EDIT_ELEMENTS.autoFitButton.textContent = FAST_EDIT_STATE.autoFitActive ? 'Apply Auto-fit' : 'Auto-fit';
+      }
+      if (FAST_EDIT_ELEMENTS.autoFitHint) {
+        FAST_EDIT_ELEMENTS.autoFitHint.textContent = FAST_EDIT_STATE.autoFitActive
+          ? 'Select 2-8 history points on the chart.'
+          : '';
+      }
+    };
+
+    const updateAutoFitStatus = () => {
+      if (!FAST_EDIT_STATE.autoFitActive) return;
+      const count = FAST_EDIT_STATE.autoFitPoints.length;
+      if (FAST_EDIT_ELEMENTS.autoFitHint) {
+        FAST_EDIT_ELEMENTS.autoFitHint.textContent =
+          count === 0
+            ? 'Select 2-8 history points on the chart.'
+            : `Selected ${count} point${count === 1 ? '' : 's'}. Click Apply Auto-fit.`;
+      }
+    };
+
+    const computeAutoFitParams = (points) => {
+      const pointMap = new Map();
+      points.forEach((point) => {
+        const date = point.date instanceof Date ? point.date : parseDate(point.date || point.x);
+        const value = Number(point.value);
+        if (!date || !Number.isFinite(value) || value <= 0) return;
+        pointMap.set(monthIndex(date), { date, value });
+      });
+
+      const cleaned = Array.from(pointMap.values()).sort((a, b) => a.date - b.date);
+      if (cleaned.length < 2) return null;
+
+      const startDate = cleaned[0].date;
+      const startKey = monthIndex(startDate);
+      const t = cleaned.map((point) => monthIndex(point.date) - startKey);
+      const q = cleaned.map((point) => point.value);
+      const logQ = q.map((value) => Math.log(value));
+
+      const expFit = (() => {
+        const { slope, intercept } = linearRegression(t, logQ);
+        if (!Number.isFinite(intercept)) return null;
+        const di = -slope * 12;
+        const qi = Math.exp(intercept);
+        if (!Number.isFinite(di) || !Number.isFinite(qi) || di <= 0) return null;
+        let sse = 0;
+        for (let i = 0; i < t.length; i++) {
+          const predicted = qi * Math.exp(-(di / 12) * t[i]);
+          sse += (logQ[i] - Math.log(predicted)) ** 2;
+        }
+        return { declineType: 'EXP', qi, di, b: 0.8, sse };
+      })();
+
+      const hyperFit = (() => {
+        let best = null;
+        for (let b = 0.75; b <= 0.951; b += 0.01) {
+          const transformed = q.map((value) => Math.pow(value, -b));
+          if (transformed.some((value) => !Number.isFinite(value))) continue;
+          const { slope, intercept } = linearRegression(t, transformed);
+          if (!Number.isFinite(intercept) || intercept <= 0 || !Number.isFinite(slope) || slope <= 0) continue;
+          const qi = Math.pow(intercept, -1 / b);
+          const di = (12 * slope) / (b * intercept);
+          if (!Number.isFinite(qi) || !Number.isFinite(di)) continue;
+          let sse = 0;
+          for (let i = 0; i < t.length; i++) {
+            const predicted = qi / Math.pow(1 + (b * di * t[i]) / 12, 1 / b);
+            sse += (logQ[i] - Math.log(predicted)) ** 2;
+          }
+          if (!best || sse < best.sse) {
+            best = { declineType: 'HYP', qi, di, b, sse };
+          }
+        }
+        return best;
+      })();
+
+      let declineSoftening = false;
+      if (t.length >= 4) {
+        const mid = Math.floor(t.length / 2);
+        const early = linearRegression(t.slice(0, mid), logQ.slice(0, mid));
+        const late = linearRegression(t.slice(mid), logQ.slice(mid));
+        if (Number.isFinite(early.slope) && Number.isFinite(late.slope)) {
+          declineSoftening = Math.abs(late.slope) < Math.abs(early.slope) * 0.7;
+        }
+      }
+
+      let chosen = expFit;
+      if (expFit && hyperFit) {
+        const hyperPreferred =
+          hyperFit.sse <= expFit.sse * 0.9 || (declineSoftening && hyperFit.sse <= expFit.sse * 1.05);
+        chosen = hyperPreferred ? hyperFit : expFit;
+      } else if (hyperFit) {
+        chosen = hyperFit;
+      }
+
+      if (!chosen) return null;
+      const dminRatio = chosen.declineType === 'HYP' ? 0.25 : 0.2;
+      const dmin = Math.min(Math.max(chosen.di * dminRatio, 0.02), Math.min(chosen.di, 0.15));
+
+      return { ...chosen, dmin, startDate };
+    };
+
+    const applyAutoFitSelection = () => {
+      const fit = computeAutoFitParams(FAST_EDIT_STATE.autoFitPoints);
+      if (!fit) {
+        if (FAST_EDIT_ELEMENTS.autoFitHint) {
+          FAST_EDIT_ELEMENTS.autoFitHint.textContent = 'Auto-fit requires at least two valid history points.';
+        }
+        setWellEditorStatus('Auto-fit requires at least two valid history points.', true);
+        return false;
+      }
+      const prefix = getFastEditPrefix();
+      const fields = getFastEditFields();
+
+      setFieldValue(`${prefix}_DECLINE_TYPE`, fit.declineType);
+      updateDeclineRanges(prefix);
+
+      const qiValue = clampToFieldRange(fields.qi, fit.qi);
+      const diValue = clampToFieldRange(fields.di, fit.di);
+      const bValue = clampToFieldRange(fields.b, fit.b);
+      const dMinValue = clampToFieldRange(`${prefix}_D_MIN`, fit.dmin);
+
+      setFieldValue(fields.qi, qiValue);
+      setFieldValue(fields.di, diValue);
+      setFieldValue(fields.b, bValue);
+      setFieldValue(`${prefix}_D_MIN`, dMinValue);
+
+      const startField = fields.start;
+      const startValue = clampToFieldRange(startField, dateToSliderValue(fit.startDate));
+      setFieldValue(startField, startValue);
+      updateQiRange(FAST_EDIT_STATE.mode, fit.startDate);
+
+      updateFastEditView();
+      syncFastEditDeclineToggle();
+      setWellEditorStatus(
+        `Auto-fit applied (${fit.declineType === 'HYP' ? 'Hyperbolic' : 'Exponential'} decline).`
+      );
+      return true;
+    };
+
+    const attachFastEditChartHandlers = () => {
+      if (!FAST_EDIT_ELEMENTS.chart || FAST_EDIT_STATE.autoFitHandlersAttached || !window.Plotly) return;
+      FAST_EDIT_ELEMENTS.chart.on('plotly_click', (event) => {
+        if (!FAST_EDIT_STATE.autoFitActive) return;
+        const point = event?.points?.[0];
+        if (!point) return;
+        const seriesName = point?.data?.name || '';
+        if (!/history/i.test(seriesName)) {
+          if (FAST_EDIT_ELEMENTS.autoFitHint) {
+            FAST_EDIT_ELEMENTS.autoFitHint.textContent = 'Select points from the history series only.';
+          }
+          setWellEditorStatus('Auto-fit: select points from the history series only.');
+          return;
+        }
+        const date = parseDate(point.x);
+        const value = Number(point.y);
+        if (!date || !Number.isFinite(value) || value <= 0) return;
+        const key = monthIndex(date);
+        const already = FAST_EDIT_STATE.autoFitPoints.some((entry) => monthIndex(entry.date) === key);
+        if (already) return;
+        if (FAST_EDIT_STATE.autoFitPoints.length >= 8) {
+          if (FAST_EDIT_ELEMENTS.autoFitHint) {
+            FAST_EDIT_ELEMENTS.autoFitHint.textContent = 'Auto-fit allows up to 8 points.';
+          }
+          setWellEditorStatus('Auto-fit: up to 8 points can be selected.');
+          return;
+        }
+        FAST_EDIT_STATE.autoFitPoints.push({ date, value });
+        updateAutoFitStatus();
+      });
+      FAST_EDIT_STATE.autoFitHandlersAttached = true;
+    };
+
     const updateFastEditView = () => {
       const { combined, metrics } = updateWellEditorForecast();
       renderFastEditChart(combined, metrics);
@@ -2789,8 +3018,10 @@ window.syncRoyaltyPanelHeight = () => {
       setFastEditMode('gas');
       FAST_EDIT_STATE.lastLeft = null;
       FAST_EDIT_STATE.lastRight = null;
+      setFastEditAutoFitState(false);
       FAST_EDIT_ELEMENTS.modal.classList.add('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'false');
+      attachFastEditChartHandlers();
       updateFastEditView();
       updateBodyScroll();
       if (window.Plotly && FAST_EDIT_ELEMENTS.chart) {
@@ -2802,6 +3033,7 @@ window.syncRoyaltyPanelHeight = () => {
       if (!FAST_EDIT_ELEMENTS.modal) return;
       FAST_EDIT_ELEMENTS.modal.classList.remove('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'true');
+      setFastEditAutoFitState(false);
       updateBodyScroll();
     };
 
@@ -3123,6 +3355,27 @@ window.syncRoyaltyPanelHeight = () => {
       FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
         setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
         updateFastEditView();
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.autoFitButton) {
+      FAST_EDIT_ELEMENTS.autoFitButton.addEventListener('click', () => {
+        if (!FAST_EDIT_STATE.autoFitActive) {
+          setFastEditAutoFitState(true);
+          updateAutoFitStatus();
+          return;
+        }
+        if (FAST_EDIT_STATE.autoFitPoints.length < 2) {
+          if (FAST_EDIT_ELEMENTS.autoFitHint) {
+            FAST_EDIT_ELEMENTS.autoFitHint.textContent = 'Select at least two history points.';
+          }
+          setWellEditorStatus('Auto-fit: select at least two history points.');
+          return;
+        }
+        const applied = applyAutoFitSelection();
+        if (applied) {
+          setFastEditAutoFitState(false);
+        }
       });
     }
 
