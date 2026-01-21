@@ -317,11 +317,21 @@
     <div class="fast-edit-modal__overlay" data-fast-edit-close></div>
     <div class="fast-edit-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="fastEditTitle">
       <header class="fast-edit-modal__header">
-        <div>
+        <div class="fast-edit-modal__intro">
           <p class="fast-edit-modal__eyebrow">Well Forecast Fast Edit</p>
           <h2 id="fastEditTitle" class="fast-edit-modal__title">FAST EDIT</h2>
+          <div class="fast-edit-modal__well-nav">
+            <button type="button" id="fastEditPrevWell" class="fast-edit-nav-button" aria-label="Previous well">
+              <span aria-hidden="true">←</span>
+            </button>
+            <select id="fastEditWellSelect" class="fast-edit-well-select" aria-label="Select well"></select>
+            <button type="button" id="fastEditNextWell" class="fast-edit-nav-button" aria-label="Next well">
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
         <div class="fast-edit-modal__controls">
+          <button type="button" id="fastEditSaveApprove" class="fast-edit-save-approve">Save &amp; Approve</button>
           <button type="button" id="fastEditModeToggle" class="fast-edit-toggle">Switch to Oil</button>
           <button type="button" id="fastEditAutoFit" class="fast-edit-autofit">Auto-Fit DCA</button>
           <button type="button" id="fastEditReset" class="fast-edit-reset">Reset Parameters</button>

@@ -1776,13 +1776,20 @@ window.syncRoyaltyPanelHeight = () => {
 
     const buildWellEditorSelect = () => {
       if (!WELL_EDITOR_ELEMENTS.wellSelect) return;
-      if (!userWellData || !Array.isArray(userWellData.api_uwi)) return;
-      const select = WELL_EDITOR_ELEMENTS.wellSelect;
+      buildWellSelectOptions(WELL_EDITOR_ELEMENTS.wellSelect);
+      if (WELL_EDITOR_STATE.api) {
+        WELL_EDITOR_ELEMENTS.wellSelect.value = WELL_EDITOR_STATE.api;
+      }
+    };
+
+    const buildWellSelectOptions = (select) => {
+      if (!select) return;
       select.innerHTML = '';
       const placeholder = document.createElement('option');
       placeholder.value = '';
       placeholder.textContent = 'Select a well...';
       select.appendChild(placeholder);
+      if (!userWellData || !Array.isArray(userWellData.api_uwi)) return;
       userWellData.api_uwi.forEach((api, idx) => {
         if (!api) return;
         const name = userWellData.name?.[idx] || api;
@@ -1792,9 +1799,41 @@ window.syncRoyaltyPanelHeight = () => {
         option.textContent = `${approved ? '✓ ' : ''}${name} (${api})`;
         select.appendChild(option);
       });
-      if (WELL_EDITOR_STATE.api) {
-        select.value = WELL_EDITOR_STATE.api;
+    };
+
+    const updateFastEditNavigationState = () => {
+      const apis = getWellApiList();
+      const disableNav = apis.length <= 1;
+      if (FAST_EDIT_ELEMENTS.prevWell) {
+        FAST_EDIT_ELEMENTS.prevWell.disabled = disableNav;
       }
+      if (FAST_EDIT_ELEMENTS.nextWell) {
+        FAST_EDIT_ELEMENTS.nextWell.disabled = disableNav;
+      }
+    };
+
+    const updateFastEditWellSelect = () => {
+      if (!FAST_EDIT_ELEMENTS.wellSelect) return;
+      buildWellSelectOptions(FAST_EDIT_ELEMENTS.wellSelect);
+      if (WELL_EDITOR_STATE.api) {
+        FAST_EDIT_ELEMENTS.wellSelect.value = WELL_EDITOR_STATE.api;
+      }
+      updateFastEditNavigationState();
+    };
+
+    const getAdjacentWellApi = (direction) => {
+      const apis = getWellApiList();
+      if (!apis.length) return null;
+      const currentIndex = WELL_EDITOR_STATE.api ? apis.findIndex((api) => api === WELL_EDITOR_STATE.api) : -1;
+      const startIndex = currentIndex >= 0 ? currentIndex : 0;
+      const nextIndex = (startIndex + direction + apis.length) % apis.length;
+      return apis[nextIndex];
+    };
+
+    const navigateFastEditWell = (direction) => {
+      const nextApi = getAdjacentWellApi(direction);
+      if (!nextApi || nextApi === WELL_EDITOR_STATE.api) return;
+      window.openWellEditor(nextApi);
     };
 
     const updateWellApprovalState = (api, approved) => {
@@ -1806,6 +1845,7 @@ window.syncRoyaltyPanelHeight = () => {
       }
       userWellData.dca_approved[idx] = Boolean(approved);
       buildWellEditorSelect();
+      updateFastEditWellSelect();
     };
 
     window.updateWellPvValues = function updateWellPvValues(pvMap) {
@@ -1838,10 +1878,14 @@ window.syncRoyaltyPanelHeight = () => {
         userWellData = data;
       }
       buildWellEditorSelect();
+      updateFastEditWellSelect();
       if (WELL_EDITOR_STATE.api && !userWellData.api_uwi.includes(WELL_EDITOR_STATE.api)) {
         WELL_EDITOR_STATE.api = null;
         if (WELL_EDITOR_ELEMENTS.wellSelect) {
           WELL_EDITOR_ELEMENTS.wellSelect.value = '';
+        }
+        if (FAST_EDIT_ELEMENTS.wellSelect) {
+          FAST_EDIT_ELEMENTS.wellSelect.value = '';
         }
       }
     };
@@ -1891,6 +1935,10 @@ window.syncRoyaltyPanelHeight = () => {
       declineToggle: document.getElementById('fastEditDeclineToggle'),
       leftPad: document.getElementById('fastEditPadLeft'),
       rightPad: document.getElementById('fastEditPadRight'),
+      wellSelect: document.getElementById('fastEditWellSelect'),
+      prevWell: document.getElementById('fastEditPrevWell'),
+      nextWell: document.getElementById('fastEditNextWell'),
+      saveApprove: document.getElementById('fastEditSaveApprove'),
     };
 
     const WELL_EDITOR_FIELDS = Array.from(document.querySelectorAll('[data-field]'));
@@ -1942,6 +1990,9 @@ window.syncRoyaltyPanelHeight = () => {
       return userWellData.api_uwi.findIndex((value) => value === api);
     };
 
+    const getWellApiList = () =>
+      userWellData && Array.isArray(userWellData.api_uwi) ? userWellData.api_uwi.filter(Boolean) : [];
+
     const getWellMeta = (api) => {
       const idx = getWellIndexByApi(api);
       if (idx < 0) return {};
@@ -1987,6 +2038,14 @@ window.syncRoyaltyPanelHeight = () => {
       if (field.type !== 'checkbox') {
         updateFieldLabel(fieldName);
       }
+    };
+
+    const setWellApprovalValue = (approved) => {
+      const field =
+        WELL_EDITOR_FIELDS.find((el) => el.dataset.field === 'APPROVED') ||
+        WELL_EDITOR_FIELDS.find((el) => el.dataset.field === 'DCA_APPROVED');
+      if (!field || field.type !== 'checkbox') return;
+      field.checked = Boolean(approved);
     };
 
     const syncWellEditorDeclineLabels = () => {
@@ -2515,7 +2574,7 @@ window.syncRoyaltyPanelHeight = () => {
       GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
       FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
       GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
-      APPROVED: getFieldValue('APPROVED'),
+      APPROVED: getFieldValue('APPROVED') ?? getFieldValue('DCA_APPROVED'),
     });
 
     const updateWellEditorForecast = () => {
@@ -2904,6 +2963,7 @@ window.syncRoyaltyPanelHeight = () => {
       setFieldValue('GAS_DECLINE_TYPE', params.GAS_DECLINE_TYPE || 'EXP');
       setFieldValue('GAS_FCST_YRS', params.GAS_FCST_YRS ?? 0);
       setFieldValue('APPROVED', params.APPROVED || null);
+      setFieldValue('DCA_APPROVED', params.APPROVED || null);
 
       initializeFixedRanges();
       updateDeclineRanges('OIL');
@@ -3011,6 +3071,7 @@ window.syncRoyaltyPanelHeight = () => {
       FAST_EDIT_STATE.lastRight = null;
       FAST_EDIT_ELEMENTS.modal.classList.add('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'false');
+      updateFastEditWellSelect();
       updateFastEditView();
       updateBodyScroll();
       if (window.Plotly && FAST_EDIT_ELEMENTS.chart) {
@@ -3127,6 +3188,9 @@ window.syncRoyaltyPanelHeight = () => {
       if (WELL_EDITOR_ELEMENTS.save) {
         WELL_EDITOR_ELEMENTS.save.disabled = true;
       }
+      if (FAST_EDIT_ELEMENTS.saveApprove) {
+        FAST_EDIT_ELEMENTS.saveApprove.disabled = true;
+      }
       try {
         setWellEditorStatus('Saving parameters...');
         const params = collectParamsFromFields();
@@ -3166,7 +3230,16 @@ window.syncRoyaltyPanelHeight = () => {
         if (WELL_EDITOR_ELEMENTS.save) {
           WELL_EDITOR_ELEMENTS.save.disabled = false;
         }
+        if (FAST_EDIT_ELEMENTS.saveApprove) {
+          FAST_EDIT_ELEMENTS.saveApprove.disabled = false;
+        }
       }
+    };
+
+    const saveAndApproveWellParams = async () => {
+      if (!WELL_EDITOR_STATE.api) return;
+      setWellApprovalValue(true);
+      await saveWellEditorParams();
     };
 
     const loadApprovedDca = async () => {
@@ -3244,7 +3317,7 @@ window.syncRoyaltyPanelHeight = () => {
 
     WELL_EDITOR_FIELDS.forEach((field) => {
       field.addEventListener('input', () => {
-        if (field.dataset.field === 'APPROVED') {
+        if (field.dataset.field === 'APPROVED' || field.dataset.field === 'DCA_APPROVED') {
           return;
         }
         if (WELL_EDITOR_ELEMENTS.approved && WELL_EDITOR_ELEMENTS.approved.checked) {
@@ -3331,6 +3404,28 @@ window.syncRoyaltyPanelHeight = () => {
       });
     }
 
+    if (FAST_EDIT_ELEMENTS.wellSelect) {
+      FAST_EDIT_ELEMENTS.wellSelect.addEventListener('change', (event) => {
+        const nextApi = event.target.value;
+        if (!nextApi || nextApi === WELL_EDITOR_STATE.api) {
+          return;
+        }
+        window.openWellEditor(nextApi);
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.prevWell) {
+      FAST_EDIT_ELEMENTS.prevWell.addEventListener('click', () => {
+        navigateFastEditWell(-1);
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.nextWell) {
+      FAST_EDIT_ELEMENTS.nextWell.addEventListener('click', () => {
+        navigateFastEditWell(1);
+      });
+    }
+
     if (WELL_EDITOR_ELEMENTS.download) {
       WELL_EDITOR_ELEMENTS.download.addEventListener('click', downloadWellEditorCsv);
     }
@@ -3358,6 +3453,12 @@ window.syncRoyaltyPanelHeight = () => {
     if (FAST_EDIT_ELEMENTS.resetButton) {
       FAST_EDIT_ELEMENTS.resetButton.addEventListener('click', () => {
         resetFastEditParameters();
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.saveApprove) {
+      FAST_EDIT_ELEMENTS.saveApprove.addEventListener('click', () => {
+        saveAndApproveWellParams();
       });
     }
 
@@ -3411,8 +3512,15 @@ window.syncRoyaltyPanelHeight = () => {
           buildWellEditorSelect();
           WELL_EDITOR_ELEMENTS.wellSelect.value = api;
         }
+        if (FAST_EDIT_ELEMENTS.wellSelect) {
+          updateFastEditWellSelect();
+          FAST_EDIT_ELEMENTS.wellSelect.value = api;
+        }
         if (WELL_EDITOR_ELEMENTS.approved) {
           WELL_EDITOR_ELEMENTS.approved.disabled = !isAdminUser();
+        }
+        if (FAST_EDIT_ELEMENTS.saveApprove) {
+          FAST_EDIT_ELEMENTS.saveApprove.disabled = !isAdminUser();
         }
 
         const data = await loadWellEditorData(api);
@@ -3434,6 +3542,9 @@ window.syncRoyaltyPanelHeight = () => {
           updateWellEditorMetrics(combined);
         }
         setWellEditorStatus('');
+        if (isFastEditOpen()) {
+          updateFastEditView();
+        }
         showWellEditor();
       } catch (error) {
         console.error('Failed to load well editor data', error);
