@@ -11,6 +11,9 @@ from .upload_views import (
 
 urlpatterns = [
     path('', views.map_page, name='map_page'),
+    path('well-explorer/', views.well_explorer_page, name='well_explorer_page'),
+    path('well-explorer/data/', views.well_explorer_data, name='well_explorer_data'),
+    path('well-explorer/wells-data/', views.well_explorer_wells_data, name='well_explorer_wells_data'),
     path('map-data/', views.map_data, name='map_data'),
     path('user-wells/', views.user_wells_data, name='user_wells_data'),
     path('login/', auth_views.login, name='login'),

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Well Explorer{% endblock %}
+
+{% block content %}
+<div class="top-banner">
+  {% if admin_context %}
+  <div class="admin-banner">
+    <form method="post" action="{% url 'admin_select_user' %}" class="admin-banner__form">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ current_path }}">
+      <label class="admin-banner__label">Viewing as</label>
+      <select name="selected_email" class="admin-banner__select" onchange="this.form.submit()">
+        {% if admin_context.emails %}
+          {% for email in admin_context.emails %}
+            <option value="{{ email }}" {% if email == admin_context.selected_email %}selected{% endif %}>{{ email }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="">No users found</option>
+        {% endif %}
+      </select>
+      <span class="admin-banner__contact">
+        <span class="admin-banner__contact-label">Contact Name:</span>
+        <span>{{ admin_context.contact_name|default:"Unknown" }}</span>
+      </span>
+    </form>
+  </div>
+  {% endif %}
+  <div class="login-bar">
+    <div class="login-content">
+      {% if request.session.user %}
+        Logged in as: <strong>&nbsp;{{ request.session.user.name|default:request.session.user.email }}</strong>
+        <a href="/logout/" class="login-link">Logout</a>
+      {% else %}
+        <a href="/login/" class="login-link">Login</a>
+      {% endif %}
+    </div>
+    <div class="login-actions" role="navigation" aria-label="Quick links">
+      <a href="/map/" class="login-action" title="Owner dashboard">
+        <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5H15v-6h-6v6H4.5A1.5 1.5 0 0 1 3 19.5Z"/>
+        </svg>
+        <span class="login-action__label">Dashboard</span>
+      </a>
+      <a href="/well-explorer/" class="login-action is-active" title="Well explorer">
+        <svg class="login-action__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 4h16v2H4zm0 7h16v2H4zm0 7h16v2H4z" />
+        </svg>
+        <span class="login-action__label">Well Explorer</span>
+      </a>
+    </div>
+  </div>
+  <div class="top-banner-row">
+    <div class="top-banner-disclaimer">
+      Explore any wells in Snowflake with owner records. Use filters or paste a CSV list of API values to build a selection.
+    </div>
+  </div>
+</div>
+
+<section class="well-explorer" aria-label="Well Explorer">
+  <header class="well-explorer__header">
+    <div>
+      <p class="well-explorer__eyebrow">Admin tools</p>
+      <h1 class="well-explorer__title">Well Explorer</h1>
+      <p class="well-explorer__subtitle">Filter, map, and curate well selections for admin workflows.</p>
+    </div>
+    <div class="well-explorer__counts">
+      <div class="well-explorer__count">
+        <span class="well-explorer__count-label">Filtered wells</span>
+        <span id="filteredWellsCount" class="well-explorer__count-value">0</span>
+      </div>
+      <div class="well-explorer__count">
+        <span class="well-explorer__count-label">Selected wells</span>
+        <span id="selectedWellsCount" class="well-explorer__count-value">0</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="well-explorer__filters">
+    <div class="well-explorer__filter">
+      <label for="filterOperator">ENV Operator</label>
+      <input id="filterOperator" list="filterOperatorOptions" placeholder="Search operators" autocomplete="off">
+      <datalist id="filterOperatorOptions"></datalist>
+    </div>
+    <div class="well-explorer__filter">
+      <label for="filterOwner">Owner</label>
+      <input id="filterOwner" list="filterOwnerOptions" placeholder="Search owners" autocomplete="off">
+      <datalist id="filterOwnerOptions"></datalist>
+    </div>
+    <div class="well-explorer__filter">
+      <label for="filterApi">API/UWI</label>
+      <input id="filterApi" list="filterApiOptions" placeholder="Search API" autocomplete="off">
+      <datalist id="filterApiOptions"></datalist>
+    </div>
+    <div class="well-explorer__filter">
+      <label for="filterStatus">Well status</label>
+      <input id="filterStatus" list="filterStatusOptions" placeholder="Search status" autocomplete="off">
+      <datalist id="filterStatusOptions"></datalist>
+    </div>
+    <div class="well-explorer__filter">
+      <label for="filterName">Well name</label>
+      <input id="filterName" list="filterNameOptions" placeholder="Search well names" autocomplete="off">
+      <datalist id="filterNameOptions"></datalist>
+    </div>
+    <div class="well-explorer__filter">
+      <label for="filterTrajectory">Trajectory</label>
+      <input id="filterTrajectory" list="filterTrajectoryOptions" placeholder="Search trajectories" autocomplete="off">
+      <datalist id="filterTrajectoryOptions"></datalist>
+    </div>
+    <div class="well-explorer__filter">
+      <label for="filterCounty">County</label>
+      <input id="filterCounty" list="filterCountyOptions" placeholder="Search counties" autocomplete="off">
+      <datalist id="filterCountyOptions"></datalist>
+    </div>
+  </div>
+
+  <div class="well-explorer__api-entry">
+    <div>
+      <h2>Paste a CSV list of well API/UWI values</h2>
+      <p class="well-explorer__help">
+        Acceptable formats: comma-separated or one API per line. Hyphens are optional (e.g., <code>42-161-32531</code> or
+        <code>4216132531</code>). Extra spaces are ignored.
+      </p>
+    </div>
+    <div class="well-explorer__api-entry-controls">
+      <textarea id="apiCsvInput" rows="4" placeholder="42-161-32531, 42-161-32532"></textarea>
+      <div class="well-explorer__api-buttons">
+        <button type="button" id="applyApiList">Add to selection</button>
+        <button type="button" id="replaceApiList" class="is-secondary">Replace selection</button>
+      </div>
+      <p id="apiCsvStatus" class="well-explorer__status" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <div class="well-explorer__map-wrapper">
+    <div class="well-explorer__map" id="wellExplorerMap" aria-label="Well explorer map"></div>
+    <div class="well-explorer__map-legend">
+      <span><span class="legend-dot legend-dot--all"></span>Filtered wells</span>
+      <span><span class="legend-dot legend-dot--selected"></span>Selected wells</span>
+    </div>
+  </div>
+
+  <div class="well-explorer__selection">
+    <div class="well-explorer__selection-header">
+      <h2>Selected wells</h2>
+      <div class="well-explorer__selection-actions">
+        <button type="button" id="addFilteredWells" class="is-secondary">Add filtered wells</button>
+        <button type="button" id="clearSelection" class="is-secondary">Clear selection</button>
+      </div>
+    </div>
+    <div class="well-explorer__table-wrapper">
+      <table class="well-explorer__table">
+        <thead>
+          <tr>
+            <th>API/UWI</th>
+            <th>Well name</th>
+            <th>Operator</th>
+            <th>Status</th>
+            <th>County</th>
+            <th>Owners</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="selectedWellsTableBody">
+          <tr>
+            <td colspan="7" class="well-explorer__empty">No wells selected yet.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'mapapp/js/well_explorer.js' %}?v=2025-09-19"></script>
+{% endblock %}

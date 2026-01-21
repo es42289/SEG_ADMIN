@@ -645,6 +645,21 @@ def map_page(request):
         },
     )
 
+
+def well_explorer_page(request):
+    if "user" not in request.session:
+        return redirect("/login/")
+
+    admin_context = get_admin_banner_context(request)
+    return render(
+        request,
+        "well_explorer.html",
+        {
+            "admin_context": admin_context,
+            "current_path": request.get_full_path(),
+        },
+    )
+
 def map_data(request):
     """Returns JSON for map points."""
     # Check if user is logged in
@@ -654,6 +669,222 @@ def map_data(request):
     # Your existing map_data code here...
     payload = _get_cached_map_payload()
     return JsonResponse(payload)
+
+
+@require_http_methods(["GET"])
+def well_explorer_data(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    wells_df = get_all_wells_with_owners()
+    if wells_df is None or wells_df.empty:
+        return JsonResponse({"wells": [], "filters": {}, "extent": None})
+
+    if "OWNER_LIST" not in wells_df.columns:
+        return JsonResponse({"wells": [], "filters": {}, "extent": None})
+
+    wells_df = wells_df[wells_df["OWNER_LIST"].fillna("").str.strip().ne("")]
+    if "API_UWI" in wells_df.columns:
+        wells_df = wells_df.drop_duplicates(subset=["API_UWI"])
+
+    well_name_col = None
+    for candidate in ["WELLNAME", "WELL_NAME"]:
+        if candidate in wells_df.columns:
+            well_name_col = candidate
+            break
+
+    def _clean_value(value):
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    wells = []
+    for _, row in wells_df.iterrows():
+        api_uwi = _clean_value(row.get("API_UWI"))
+        lat = row.get("LATITUDE")
+        lon = row.get("LONGITUDE")
+        if api_uwi == "" or pd.isna(lat) or pd.isna(lon):
+            continue
+        owner_list = _clean_value(row.get("OWNER_LIST"))
+        wells.append({
+            "api_uwi": api_uwi,
+            "api_uwi_no_dash": api_uwi.replace("-", ""),
+            "operator": _clean_value(row.get("ENVOPERATOR")),
+            "owner_list": owner_list,
+            "status": _clean_value(row.get("ENVWELLSTATUS")),
+            "well_name": _clean_value(row.get(well_name_col)) if well_name_col else "",
+            "trajectory": _clean_value(row.get("TRAJECTORY")),
+            "county": _clean_value(row.get("COUNTY")),
+            "lat": float(lat),
+            "lon": float(lon),
+        })
+
+    owners = set()
+    for owners_raw in wells_df["OWNER_LIST"].fillna("").tolist():
+        for owner in str(owners_raw).split("|"):
+            cleaned = owner.strip()
+            if cleaned:
+                owners.add(cleaned)
+
+    filters = {
+        "operator": sorted({w["operator"] for w in wells if w["operator"]}),
+        "owner": sorted(owners),
+        "api": sorted({w["api_uwi"] for w in wells if w["api_uwi"]}),
+        "status": sorted({w["status"] for w in wells if w["status"]}),
+        "name": sorted({w["well_name"] for w in wells if w["well_name"]}),
+        "trajectory": sorted({w["trajectory"] for w in wells if w["trajectory"]}),
+        "county": sorted({w["county"] for w in wells if w["county"]}),
+    }
+
+    extent = None
+    if wells:
+        latitudes = [w["lat"] for w in wells]
+        longitudes = [w["lon"] for w in wells]
+        extent = {
+            "min_lat": min(latitudes),
+            "max_lat": max(latitudes),
+            "min_lon": min(longitudes),
+            "max_lon": max(longitudes),
+        }
+
+    return JsonResponse({
+        "wells": wells,
+        "filters": filters,
+        "extent": extent,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def well_explorer_wells_data(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON body"}, status=400)
+
+    apis = payload.get("apis")
+    if not isinstance(apis, list) or not apis:
+        return JsonResponse({"error": "Provide 'apis' as a non-empty list"}, status=400)
+
+    apis = [str(a).strip() for a in apis if str(a).strip()]
+    normalized = {api.replace("-", ""): api for api in apis}
+
+    wells_df = get_all_wells_with_owners()
+    if wells_df is None or wells_df.empty:
+        return JsonResponse({"lat": [], "lon": [], "text": [], "year": [], "api_uwi": []})
+
+    if "API_NODASH" in wells_df.columns:
+        wells_df = wells_df[wells_df["API_NODASH"].isin(normalized.keys())]
+    elif "API_UWI" in wells_df.columns:
+        wells_df = wells_df[wells_df["API_UWI"].isin(apis)]
+
+    if "API_UWI" in wells_df.columns:
+        wells_df = wells_df.drop_duplicates(subset=["API_UWI"])
+
+    def _safe_date(value):
+        if pd.isna(value):
+            return None
+        return str(value)
+
+    rows = []
+    for _, row in wells_df.iterrows():
+        api_uwi = row.get("API_UWI")
+        if not api_uwi:
+            continue
+        cdate = row.get("COMPLETIONDATE")
+        traj_raw = str(row.get("TRAJECTORY", ""))
+        trajectory = "Horizontal" if traj_raw.strip().upper().startswith("H") else "Vertical"
+        label = f"Well: {api_uwi}"
+        rows.append({
+            "lat": float(row["LATITUDE"]),
+            "lon": float(row["LONGITUDE"]),
+            "lat_bh": float(row["LATITUDE_BH"]) if pd.notnull(row.get("LATITUDE_BH")) else None,
+            "lon_bh": float(row["LONGITUDE_BH"]) if pd.notnull(row.get("LONGITUDE_BH")) else None,
+            "label": label,
+            "year": (
+                int(row["COMPLETION_YEAR"]) if pd.notnull(row.get("COMPLETION_YEAR"))
+                else (
+                    pd.to_datetime(row.get("LASTPRODUCINGMONTH")).year
+                    if pd.notnull(row.get("LASTPRODUCINGMONTH")) else None
+                )
+            ),
+            "api_uwi": api_uwi,
+            "name": row.get("WELL_NAME") or row.get("WELLNAME"),
+            "operator": row.get("ENVOPERATOR"),
+            "trajectory": trajectory,
+            "permit_date": _safe_date(row.get("PERMITAPPROVEDDATE")),
+            "first_prod_date": _safe_date(row.get("FIRSTPRODMONTHOIL")) or _safe_date(row.get("FIRSTPRODMONTHGAS")),
+            "last_prod_date": _safe_date(row.get("LASTPRODUCINGMONTH")),
+            "completion_date": _safe_date(cdate),
+            "gross_oil_eur": row.get("GROSS_OIL_EUR"),
+            "gross_gas_eur": row.get("GROSS_GAS_EUR"),
+            "net_oil_eur": row.get("NET_OIL_EUR"),
+            "net_gas_eur": row.get("NET_GAS_EUR"),
+            "net_ngl_eur": row.get("NET_NGL_EUR"),
+            "remaining_net_oil": row.get("REMAINING_NET_OIL"),
+            "remaining_net_gas": row.get("REMAINING_NET_GAS"),
+            "pv17": row.get("PV17"),
+            "last_producing": _safe_date(row.get("LASTPRODUCINGMONTH")),
+            "owner_interest": 0,
+            "owner_name": row.get("OWNER_LIST"),
+        })
+
+    approved_map = {}
+    apis_for_lookup = [r["api_uwi"] for r in rows if r.get("api_uwi")]
+    if apis_for_lookup:
+        conn = get_snowflake_connection()
+        cur = conn.cursor(DictCursor)
+        try:
+            placeholders = ",".join(["%s"] * len(apis_for_lookup))
+            cur.execute(
+                f"""
+                SELECT API_UWI
+                FROM WELLS.MINERALS.ECON_INPUT_1PASS
+                WHERE API_UWI IN ({placeholders})
+                  AND APPROVED = 'Y'
+                """,
+                apis_for_lookup,
+            )
+            approved_rows = cur.fetchall() or []
+            approved_map = {row.get("API_UWI"): True for row in approved_rows}
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass
+            conn.close()
+
+    return JsonResponse({
+        "lat": [r["lat"] for r in rows],
+        "lon": [r["lon"] for r in rows],
+        "text": [r["label"] for r in rows],
+        "year": [r["year"] for r in rows],
+        "api_uwi": [r["api_uwi"] for r in rows],
+        "name": [r["name"] for r in rows],
+        "operator": [r["operator"] for r in rows],
+        "trajectory": [r["trajectory"] for r in rows],
+        "permit_date": [r["permit_date"] for r in rows],
+        "first_prod_date": [r["first_prod_date"] for r in rows],
+        "last_prod_date": [r["last_prod_date"] for r in rows],
+        "completion_date": [r["completion_date"] for r in rows],
+        "gross_oil_eur": [r["gross_oil_eur"] for r in rows],
+        "gross_gas_eur": [r["gross_gas_eur"] for r in rows],
+        "net_oil_eur": [r["net_oil_eur"] for r in rows],
+        "net_gas_eur": [r["net_gas_eur"] for r in rows],
+        "net_ngl_eur": [r["net_ngl_eur"] for r in rows],
+        "remaining_net_oil": [r["remaining_net_oil"] for r in rows],
+        "remaining_net_gas": [r["remaining_net_gas"] for r in rows],
+        "pv17": [r["pv17"] for r in rows],
+        "dca_approved": [bool(approved_map.get(r["api_uwi"])) for r in rows],
+        "lat_bh": [r["lat_bh"] for r in rows],
+        "lon_bh": [r["lon_bh"] for r in rows],
+        "last_producing": [r["last_producing"] for r in rows],
+        "owner_interest": [r["owner_interest"] for r in rows],
+        "owner_name": [r["owner_name"] for r in rows],
+    })
 
 def get_user_owner_name(user_email):
     """Query Snowflake to get the owner name for a user's email"""

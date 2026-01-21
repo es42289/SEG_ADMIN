@@ -18,6 +18,21 @@ const yearInput = document.getElementById('year');
 const MAPBOX_TOKEN = 'pk.eyJ1Ijoid2VsbG1hcHBlZCIsImEiOiJjbGlreXVsMWowNDg5M2ZxcGZucDV5bnIwIn0.5wYuJnmZvUbHZh9M580M-Q';
 const MAPBOX_STYLE_TERRAIN = 'mapbox://styles/wellmapped/clixrm3dg00fy01pzehcncxie';
 const MAPBOX_STYLE_SATELLITE = 'mapbox://styles/mapbox/satellite-streets-v12';
+const WELL_EXPLORER_PARAMS = new URLSearchParams(window.location.search);
+const WELL_EXPLORER_MODE = WELL_EXPLORER_PARAMS.get('well_explorer') === '1';
+const WELL_EXPLORER_FOCUS_API = WELL_EXPLORER_PARAMS.get('focus_api');
+const WELL_EXPLORER_OPEN_EDITOR = WELL_EXPLORER_PARAMS.get('open_editor') === '1';
+const WELL_EXPLORER_STORAGE_KEY = 'wellExplorerSelection';
+let WELL_EXPLORER_SELECTION = null;
+
+if (WELL_EXPLORER_MODE) {
+  try {
+    const raw = localStorage.getItem(WELL_EXPLORER_STORAGE_KEY);
+    WELL_EXPLORER_SELECTION = raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    WELL_EXPLORER_SELECTION = null;
+  }
+}
 const BASE_PLOT_CONFIG = {
   responsive: true,
   scrollZoom: false,
@@ -838,6 +853,13 @@ window.syncRoyaltyPanelHeight = () => {
     let selectionInitialized = false;
     const WELL_SELECTION_TOGGLE_ID = 'wellSelectionToggle';
 
+    if (WELL_EXPLORER_MODE && Array.isArray(WELL_EXPLORER_SELECTION?.apis)) {
+      WELL_EXPLORER_SELECTION.apis.forEach((api) => {
+        if (api) selectedWellApis.add(api);
+      });
+      selectionInitialized = true;
+    }
+
     function pruneSelectedApis(validApis) {
       const validSet = new Set((validApis || []).filter(Boolean));
       for (const api of Array.from(selectedWellApis)) {
@@ -1463,6 +1485,36 @@ window.syncRoyaltyPanelHeight = () => {
     // Fetch user wells data
     async function fetchUserWells() {
       try {
+        if (WELL_EXPLORER_MODE && Array.isArray(WELL_EXPLORER_SELECTION?.apis) && WELL_EXPLORER_SELECTION.apis.length) {
+          const res = await fetch('/well-explorer/wells-data/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apis: WELL_EXPLORER_SELECTION.apis }),
+          });
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          const data = await res.json();
+          if (!data.lat || data.lat.length === 0) {
+            console.log('No wells found for well explorer selection');
+            updateWellSummaryStats(null);
+            return { lat: [], lon: [], text: [], year: [], lat_bh: [], lon_bh: [], owner_interest: [], owner_name: [], api_uwi: [], last_producing: [], completion_date: [] };
+          }
+          updateWellSummaryStats(data);
+          renderUserWellsTable(data);
+          buildWellEditorSelect();
+          renderUserWellsMap(data);
+          const focusApi = WELL_EXPLORER_FOCUS_API || WELL_EXPLORER_SELECTION?.focus_api;
+          if (WELL_EXPLORER_OPEN_EDITOR && focusApi) {
+            window.pendingWellExplorerApi = focusApi;
+            if (typeof window.openWellEditor === 'function') {
+              window.openWellEditor(focusApi);
+              window.pendingWellExplorerApi = null;
+            }
+          }
+          return data;
+        }
+
         const res = await fetch(`/user-wells-data/`);
         if (!res.ok) { 
           throw new Error(`HTTP ${res.status}: ${res.statusText}`); 
@@ -3424,6 +3476,11 @@ window.syncRoyaltyPanelHeight = () => {
         setWellEditorStatus(error.message || 'Failed to load well data.', true);
       }
     };
+
+    if (WELL_EXPLORER_MODE && WELL_EXPLORER_OPEN_EDITOR && window.pendingWellExplorerApi) {
+      window.openWellEditor(window.pendingWellExplorerApi);
+      window.pendingWellExplorerApi = null;
+    }
 
     function applySelectionToWellData(data) {
       if (!data || !Array.isArray(data.api_uwi)) return data;
