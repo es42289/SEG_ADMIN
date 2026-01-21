@@ -2082,7 +2082,7 @@ window.syncRoyaltyPanelHeight = () => {
       const minObserved = Math.min(...series);
       const maxObserved = Math.max(...series);
       const minRange = Math.max(1, 0.75 * minObserved);
-      const maxRange = Math.max(2, 1.5625 * maxObserved);
+      const maxRange = Math.max(2, 1.1 * maxObserved);
       setRangeAttributes(fieldName, { min: minRange, max: maxRange, step: 1 });
       updateFieldLabel(fieldName);
     };
