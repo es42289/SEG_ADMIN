@@ -698,6 +698,7 @@
         <div class="fast-edit-modal__controls">
           <button type="button" id="fastEditModeToggle" class="fast-edit-toggle">Switch to Oil</button>
           <button type="button" id="fastEditReset" class="fast-edit-reset">Reset Parameters</button>
+          <button type="button" id="fastEditAutoFit" class="fast-edit-auto-fit" aria-pressed="false">Auto-Fit</button>
           <div class="fast-edit-decline-toggle">
             <span id="fastEditDeclineLabel" class="fast-edit-decline-label">Decline: Exponential</span>
             <label class="fast-edit-switch">
@@ -719,6 +720,9 @@
       <div class="fast-edit-modal__content">
         <div class="fast-edit-modal__chart">
           <div id="wellFastEditChart"></div>
+          <div id="fastEditAutoFitHint" class="fast-edit-auto-fit-hint" hidden>
+            Click production points to select them, then click Apply Auto-Fit.
+          </div>
           <div id="fastEditPadLeft" class="fast-edit-pad fast-edit-pad--left" aria-hidden="true">
             <span class="fast-edit-pad__label">↕ qᵢ<br>↔ start date</span>
           </div>

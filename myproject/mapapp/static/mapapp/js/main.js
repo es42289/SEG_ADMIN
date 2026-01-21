@@ -1862,6 +1862,9 @@ window.syncRoyaltyPanelHeight = () => {
       rightPointer: null,
       lastLeft: null,
       lastRight: null,
+      autoFitActive: false,
+      selectedPoints: { oil: [], gas: [] },
+      chartBound: false,
     };
 
     const FAST_EDIT_ELEMENTS = {
@@ -1869,6 +1872,8 @@ window.syncRoyaltyPanelHeight = () => {
       chart: document.getElementById('wellFastEditChart'),
       modeToggle: document.getElementById('fastEditModeToggle'),
       resetButton: document.getElementById('fastEditReset'),
+      autoFitButton: document.getElementById('fastEditAutoFit'),
+      autoFitHint: document.getElementById('fastEditAutoFitHint'),
       declineLabel: document.getElementById('fastEditDeclineLabel'),
       declineToggle: document.getElementById('fastEditDeclineToggle'),
       leftPad: document.getElementById('fastEditPadLeft'),
@@ -2348,7 +2353,7 @@ window.syncRoyaltyPanelHeight = () => {
         );
       }
 
-      return { traces, yRange };
+      return { traces, yRange, x };
     };
 
     const renderWellEditorChart = (data) => {
@@ -2380,11 +2385,23 @@ window.syncRoyaltyPanelHeight = () => {
       if (!FAST_EDIT_ELEMENTS.chart || !window.Plotly) return;
       const now = new Date();
       const cutoff = new Date(Date.UTC(now.getUTCFullYear() + 10, now.getUTCMonth(), 1));
-      const { traces, yRange } = getWellEditorPlotData(data, {
+      const { traces, yRange, x } = getWellEditorPlotData(data, {
         mode: FAST_EDIT_STATE.mode,
         cutoffDate: cutoff,
         historyMode: 'markers',
       });
+      const selectedPoints = getFastEditSelection();
+      const selectedIndices = selectedPoints.length
+        ? selectedPoints
+          .map((point) => x.indexOf(point.x))
+          .filter((idx) => idx >= 0)
+        : [];
+      if (selectedIndices.length && traces[0]) {
+        const traceColor = FAST_EDIT_STATE.mode === 'oil' ? WELL_EDITOR_COLORS.oil : WELL_EDITOR_COLORS.gas;
+        traces[0].selectedpoints = selectedIndices;
+        traces[0].selected = { marker: { color: traceColor, size: 9, opacity: 1 } };
+        traces[0].unselected = { marker: { opacity: 0.35 } };
+      }
       const fields = getFastEditFields();
       const startValue = getFieldValue(fields.start);
       const startDate = sliderValueToDate(startValue);
@@ -2451,6 +2468,10 @@ window.syncRoyaltyPanelHeight = () => {
       };
 
       Plotly.react(FAST_EDIT_ELEMENTS.chart, traces, layout, { ...BASE_PLOT_CONFIG });
+      if (!FAST_EDIT_STATE.chartBound && FAST_EDIT_ELEMENTS.chart?.on) {
+        FAST_EDIT_ELEMENTS.chart.on('plotly_click', handleFastEditChartClick);
+        FAST_EDIT_STATE.chartBound = true;
+      }
     };
 
     const updateWellEditorMetrics = (combined) => {
@@ -2794,6 +2815,243 @@ window.syncRoyaltyPanelHeight = () => {
       };
     };
 
+    const getFastEditSelection = () =>
+      FAST_EDIT_STATE.mode === 'oil'
+        ? FAST_EDIT_STATE.selectedPoints.oil
+        : FAST_EDIT_STATE.selectedPoints.gas;
+
+    const setFastEditSelection = (points) => {
+      if (FAST_EDIT_STATE.mode === 'oil') {
+        FAST_EDIT_STATE.selectedPoints.oil = points;
+      } else {
+        FAST_EDIT_STATE.selectedPoints.gas = points;
+      }
+    };
+
+    const clearFastEditSelection = () => {
+      FAST_EDIT_STATE.selectedPoints = { oil: [], gas: [] };
+    };
+
+    const setFastEditAutoFitActive = (active) => {
+      FAST_EDIT_STATE.autoFitActive = Boolean(active);
+      if (FAST_EDIT_ELEMENTS.autoFitButton) {
+        FAST_EDIT_ELEMENTS.autoFitButton.classList.toggle('is-active', FAST_EDIT_STATE.autoFitActive);
+        FAST_EDIT_ELEMENTS.autoFitButton.setAttribute('aria-pressed', FAST_EDIT_STATE.autoFitActive ? 'true' : 'false');
+        FAST_EDIT_ELEMENTS.autoFitButton.textContent = FAST_EDIT_STATE.autoFitActive ? 'Apply Auto-Fit' : 'Auto-Fit';
+      }
+      if (FAST_EDIT_ELEMENTS.autoFitHint) {
+        if (FAST_EDIT_STATE.autoFitActive) {
+          FAST_EDIT_ELEMENTS.autoFitHint.textContent =
+            'Click production points to select them, then click Apply Auto-Fit.';
+        }
+        FAST_EDIT_ELEMENTS.autoFitHint.hidden = !FAST_EDIT_STATE.autoFitActive;
+      }
+    };
+
+    const setRangeFieldValue = (fieldName, value) => {
+      const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
+      if (!field || field.type !== 'range') {
+        setFieldValue(fieldName, value);
+        return;
+      }
+      const min = Number(field.min);
+      const max = Number(field.max);
+      const nextValue = clampValue(Number(value), Number.isFinite(min) ? min : Number(value), Number.isFinite(max) ? max : Number(value));
+      field.value = nextValue;
+      updateFieldLabel(fieldName);
+    };
+
+    const fitExponentialDecline = (points) => {
+      const n = points.length;
+      const tValues = points.map((point) => point.t);
+      const lnQ = points.map((point) => Math.log(point.q));
+      const tMean = tValues.reduce((sum, t) => sum + t, 0) / n;
+      const qMean = lnQ.reduce((sum, v) => sum + v, 0) / n;
+      let sxx = 0;
+      let sxy = 0;
+      for (let i = 0; i < n; i++) {
+        const dt = tValues[i] - tMean;
+        sxx += dt * dt;
+        sxy += dt * (lnQ[i] - qMean);
+      }
+      if (sxx === 0) return null;
+      const slope = sxy / sxx;
+      const intercept = qMean - slope * tMean;
+      const qi = Math.exp(intercept);
+      const di = -slope * 12;
+      if (!Number.isFinite(qi) || qi <= 0 || !Number.isFinite(di) || di <= 0) return null;
+      let error = 0;
+      for (let i = 0; i < n; i++) {
+        const predicted = Math.log(qi) + slope * tValues[i];
+        const diff = lnQ[i] - predicted;
+        error += diff * diff;
+      }
+      return { qi, di, error };
+    };
+
+    const fitHyperbolicDecline = (points, bMin, bMax, bStep = 0.01) => {
+      const n = points.length;
+      let bestFit = null;
+      const min = Number.isFinite(bMin) ? bMin : 0.75;
+      const max = Number.isFinite(bMax) ? bMax : 0.95;
+      for (let b = min; b <= max + 1e-6; b += bStep) {
+        let sumX = 0;
+        let sumY = 0;
+        let sumXX = 0;
+        let sumXY = 0;
+        for (let i = 0; i < n; i++) {
+          const t = points[i].t;
+          const y = Math.pow(points[i].q, -b);
+          if (!Number.isFinite(y)) return null;
+          sumX += t;
+          sumY += y;
+          sumXX += t * t;
+          sumXY += t * y;
+        }
+        const denom = n * sumXX - sumX * sumX;
+        if (denom === 0) continue;
+        const slope = (n * sumXY - sumX * sumY) / denom;
+        const intercept = (sumY - slope * sumX) / n;
+        if (intercept <= 0 || slope <= 0) continue;
+        const qi = Math.pow(intercept, -1 / b);
+        const di = (slope / intercept) * (12 / b);
+        if (!Number.isFinite(qi) || qi <= 0 || !Number.isFinite(di) || di <= 0) continue;
+        let error = 0;
+        for (let i = 0; i < n; i++) {
+          const t = points[i].t;
+          const predicted = qi / Math.pow(1 + b * di * t / 12, 1 / b);
+          const diff = Math.log(points[i].q) - Math.log(predicted);
+          error += diff * diff;
+        }
+        if (!bestFit || error < bestFit.error) {
+          bestFit = {
+            qi,
+            di,
+            b,
+            error,
+          };
+        }
+      }
+      return bestFit;
+    };
+
+    const buildAutoFitPoints = (selection) => {
+      if (!selection.length) return null;
+      const sorted = [...selection].sort((a, b) => {
+        const aDate = parseDate(a.x);
+        const bDate = parseDate(b.x);
+        return aDate - bDate;
+      });
+      const startDate = parseDate(sorted[0].x);
+      if (!startDate) return null;
+      const points = sorted
+        .map((point) => {
+          const date = parseDate(point.x);
+          const q = Number(point.y);
+          if (!date || !Number.isFinite(q) || q <= 0) return null;
+          const t = monthIndex(date) - monthIndex(startDate);
+          if (t < 0) return null;
+          return { t, q };
+        })
+        .filter(Boolean);
+      if (points.length < 2) return null;
+      return { points, startDate };
+    };
+
+    const autoFitDeclineParameters = () => {
+      const selection = getFastEditSelection();
+      const built = buildAutoFitPoints(selection);
+      if (!built) return null;
+      const { points, startDate } = built;
+      const bField = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === (FAST_EDIT_STATE.mode === 'oil'
+        ? 'OIL_CALC_B_FACTOR'
+        : 'GAS_CALC_B_FACTOR'));
+      const bMin = bField ? Number(bField.min) : 0.75;
+      const bMax = bField ? Number(bField.max) : 0.95;
+
+      const expFit = fitExponentialDecline(points);
+      const hypFit = fitHyperbolicDecline(points, bMin, bMax);
+      const terminalDecline = 0.08;
+
+      const expError = expFit?.error ?? Number.POSITIVE_INFINITY;
+      const hypError = hypFit?.error ?? Number.POSITIVE_INFINITY;
+      const preferHyperbolic = hypFit
+        && hypError < expError * 0.95
+        && hypFit.di > terminalDecline;
+
+      if (preferHyperbolic) {
+        return {
+          declineType: 'HYP',
+          qi: hypFit.qi,
+          di: hypFit.di,
+          b: hypFit.b,
+          terminalDecline,
+          startDate,
+        };
+      }
+
+      if (expFit) {
+        return {
+          declineType: 'EXP',
+          qi: expFit.qi,
+          di: expFit.di,
+          b: 0.85,
+          terminalDecline,
+          startDate,
+        };
+      }
+
+      if (hypFit) {
+        return {
+          declineType: 'HYP',
+          qi: hypFit.qi,
+          di: hypFit.di,
+          b: hypFit.b,
+          terminalDecline,
+          startDate,
+        };
+      }
+
+      return null;
+    };
+
+    const applyAutoFitSelection = () => {
+      const fit = autoFitDeclineParameters();
+      if (!fit) return false;
+      const fields = getFastEditFields();
+      setRangeFieldValue(fields.start, dateToSliderValue(fit.startDate));
+      setFieldValue(fields.qi, fit.qi);
+      setFieldValue(fields.di, fit.di);
+      setFieldValue(fields.b, fit.b);
+      const prefix = FAST_EDIT_STATE.mode === 'oil' ? 'OIL' : 'GAS';
+      setFieldValue(`${prefix}_DECLINE_TYPE`, fit.declineType);
+      setFieldValue(`${prefix}_D_MIN`, fit.terminalDecline);
+      updateDeclineRanges(prefix);
+      updateQiRange(FAST_EDIT_STATE.mode, fit.startDate);
+      syncWellEditorDeclineLabels();
+      syncFastEditDeclineToggle();
+      updateFastEditView();
+      return true;
+    };
+
+    const handleFastEditChartClick = (event) => {
+      if (!FAST_EDIT_STATE.autoFitActive) return;
+      const point = event?.points?.[0];
+      if (!point || !point.data?.name?.includes('History')) return;
+      const xKey = point.x;
+      const yValue = Number(point.y);
+      if (!xKey || !Number.isFinite(yValue) || yValue <= 0) return;
+      const selection = [...getFastEditSelection()];
+      const existingIndex = selection.findIndex((item) => item.x === xKey);
+      if (existingIndex >= 0) {
+        selection.splice(existingIndex, 1);
+      } else {
+        selection.push({ x: xKey, y: yValue });
+      }
+      setFastEditSelection(selection);
+      updateFastEditView();
+    };
+
     const updateFastEditView = () => {
       const { combined, metrics } = updateWellEditorForecast();
       renderFastEditChart(combined, metrics);
@@ -2804,6 +3062,8 @@ window.syncRoyaltyPanelHeight = () => {
       setFastEditMode('gas');
       FAST_EDIT_STATE.lastLeft = null;
       FAST_EDIT_STATE.lastRight = null;
+      clearFastEditSelection();
+      setFastEditAutoFitActive(false);
       FAST_EDIT_ELEMENTS.modal.classList.add('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'false');
       updateFastEditView();
@@ -2817,6 +3077,8 @@ window.syncRoyaltyPanelHeight = () => {
       if (!FAST_EDIT_ELEMENTS.modal) return;
       FAST_EDIT_ELEMENTS.modal.classList.remove('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'true');
+      clearFastEditSelection();
+      setFastEditAutoFitActive(false);
       updateBodyScroll();
     };
 
@@ -2837,6 +3099,8 @@ window.syncRoyaltyPanelHeight = () => {
         renderWellEditorChart(combined);
         updateWellEditorMetrics(combined);
         setFastEditMode(currentMode);
+        clearFastEditSelection();
+        setFastEditAutoFitActive(false);
         updateFastEditView();
         setWellEditorStatus('Parameters reset.');
       } catch (error) {
@@ -3144,6 +3408,32 @@ window.syncRoyaltyPanelHeight = () => {
     if (FAST_EDIT_ELEMENTS.resetButton) {
       FAST_EDIT_ELEMENTS.resetButton.addEventListener('click', () => {
         resetFastEditParameters();
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.autoFitButton) {
+      FAST_EDIT_ELEMENTS.autoFitButton.addEventListener('click', () => {
+        if (!FAST_EDIT_STATE.autoFitActive) {
+          setFastEditAutoFitActive(true);
+          return;
+        }
+        const selection = getFastEditSelection();
+        if (selection.length < 2) {
+          if (FAST_EDIT_ELEMENTS.autoFitHint) {
+            FAST_EDIT_ELEMENTS.autoFitHint.textContent = 'Select at least two points to auto-fit.';
+          }
+          return;
+        }
+        const applied = applyAutoFitSelection();
+        if (!applied) {
+          if (FAST_EDIT_ELEMENTS.autoFitHint) {
+            FAST_EDIT_ELEMENTS.autoFitHint.textContent = 'Auto-fit failed. Try selecting more points.';
+          }
+          return;
+        }
+        clearFastEditSelection();
+        setFastEditAutoFitActive(false);
+        updateFastEditView();
       });
     }
 
