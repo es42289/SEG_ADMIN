@@ -2082,7 +2082,7 @@ window.syncRoyaltyPanelHeight = () => {
       const minObserved = Math.min(...series);
       const maxObserved = Math.max(...series);
       const minRange = Math.max(1, 0.75 * minObserved);
-      const maxRange = Math.max(2, 1.25 * maxObserved);
+      const maxRange = Math.max(2, 1.5625 * maxObserved);
       setRangeAttributes(fieldName, { min: minRange, max: maxRange, step: 1 });
       updateFieldLabel(fieldName);
     };
@@ -2112,6 +2112,7 @@ window.syncRoyaltyPanelHeight = () => {
     const initializeFixedRanges = () => {
       setRangeAttributes('OIL_Q_MIN', { min: 10, max: 1000, step: 1 });
       setRangeAttributes('GAS_Q_MIN', { min: 10, max: 1000, step: 1 });
+      setRangeAttributes('OIL_FCST_YRS', { min: 10, max: 74, step: 1 });
       setRangeAttributes('GAS_FCST_YRS', { min: 10, max: 74, step: 1 });
     };
 
@@ -2256,13 +2257,23 @@ window.syncRoyaltyPanelHeight = () => {
         .filter((row) => row.month <= new Date(Date.UTC(2050, 11, 31)))
         .sort((a, b) => a.month - b.month);
 
+      const minDate = combined.length ? combined[0].month : null;
       const gasYears = Number(params.GAS_FCST_YRS);
-      if (Number.isFinite(gasYears) && gasYears > 0 && combined.length) {
-        const minDate = combined[0].month;
+      if (Number.isFinite(gasYears) && gasYears > 0 && minDate) {
         const cutoff = new Date(Date.UTC(minDate.getUTCFullYear() + gasYears, minDate.getUTCMonth(), 1));
         combined.forEach((row) => {
           if (row.month > cutoff) {
             row.gasFc = null;
+          }
+        });
+      }
+
+      const oilYears = Number(params.OIL_FCST_YRS);
+      if (Number.isFinite(oilYears) && oilYears > 0 && minDate) {
+        const cutoff = new Date(Date.UTC(minDate.getUTCFullYear() + oilYears, minDate.getUTCMonth(), 1));
+        combined.forEach((row) => {
+          if (row.month > cutoff) {
+            row.oilFc = null;
           }
         });
       }
@@ -2472,6 +2483,7 @@ window.syncRoyaltyPanelHeight = () => {
       OIL_D_MIN: getFieldValue('OIL_D_MIN'),
       OIL_DECLINE_TYPE: getFieldValue('OIL_DECLINE_TYPE'),
       FCST_START_OIL: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_OIL'))),
+      OIL_FCST_YRS: getFieldValue('OIL_FCST_YRS'),
       GAS_CALC_QI: getFieldValue('GAS_CALC_QI'),
       GAS_Q_MIN: getFieldValue('GAS_Q_MIN'),
       GAS_EMPIRICAL_DI: getFieldValue('GAS_EMPIRICAL_DI'),
@@ -2675,6 +2687,7 @@ window.syncRoyaltyPanelHeight = () => {
       setFieldValue('OIL_CALC_B_FACTOR', params.OIL_CALC_B_FACTOR ?? 0.8);
       setFieldValue('OIL_D_MIN', params.OIL_D_MIN ?? 0);
       setFieldValue('OIL_DECLINE_TYPE', params.OIL_DECLINE_TYPE || 'EXP');
+      setFieldValue('OIL_FCST_YRS', params.OIL_FCST_YRS ?? 0);
 
       setFieldValue('GAS_CALC_QI', params.GAS_CALC_QI ?? 0);
       setFieldValue('GAS_Q_MIN', params.GAS_Q_MIN ?? 0);

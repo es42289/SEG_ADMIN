@@ -1338,6 +1338,7 @@ def save_well_dca_inputs(request):
         "OIL_D_MIN",
         "OIL_DECLINE_TYPE",
         "FCST_START_OIL",
+        "OIL_FCST_YRS",
         "GAS_CALC_QI",
         "GAS_Q_MIN",
         "GAS_EMPIRICAL_DI",
@@ -1726,6 +1727,13 @@ def _calc_decline_forecast(prd: pd.DataFrame, params: dict) -> pd.DataFrame:
             years=int(gas_years)
         )
         final_df.loc[final_df["PRODUCINGMONTH"] > gas_cutoff_date, "GasFcst_MCF"] = None
+
+    oil_years = params.get("OIL_FCST_YRS")
+    if oil_years and pd.notna(oil_years):
+        oil_cutoff_date = final_df["PRODUCINGMONTH"].min() + pd.DateOffset(
+            years=int(oil_years)
+        )
+        final_df.loc[final_df["PRODUCINGMONTH"] > oil_cutoff_date, "OilFcst_BBL"] = None
 
     if "API_UWI" in final_df.columns:
         if final_df["API_UWI"].notna().any():
