@@ -1774,15 +1774,14 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
-    const buildWellEditorSelect = () => {
-      if (!WELL_EDITOR_ELEMENTS.wellSelect) return;
-      if (!userWellData || !Array.isArray(userWellData.api_uwi)) return;
-      const select = WELL_EDITOR_ELEMENTS.wellSelect;
+    const buildWellSelectOptions = (select, currentApi) => {
+      if (!select) return;
       select.innerHTML = '';
       const placeholder = document.createElement('option');
       placeholder.value = '';
       placeholder.textContent = 'Select a well...';
       select.appendChild(placeholder);
+      if (!userWellData || !Array.isArray(userWellData.api_uwi)) return;
       userWellData.api_uwi.forEach((api, idx) => {
         if (!api) return;
         const name = userWellData.name?.[idx] || api;
@@ -1792,9 +1791,15 @@ window.syncRoyaltyPanelHeight = () => {
         option.textContent = `${approved ? '✓ ' : ''}${name} (${api})`;
         select.appendChild(option);
       });
-      if (WELL_EDITOR_STATE.api) {
-        select.value = WELL_EDITOR_STATE.api;
+      if (currentApi) {
+        select.value = currentApi;
       }
+    };
+
+    const buildWellEditorSelect = () => {
+      buildWellSelectOptions(WELL_EDITOR_ELEMENTS.wellSelect, WELL_EDITOR_STATE.api);
+      buildWellSelectOptions(FAST_EDIT_ELEMENTS.wellSelect, WELL_EDITOR_STATE.api);
+      updateFastEditWellNavigation();
     };
 
     const updateWellApprovalState = (api, approved) => {
@@ -1891,6 +1896,10 @@ window.syncRoyaltyPanelHeight = () => {
       declineToggle: document.getElementById('fastEditDeclineToggle'),
       leftPad: document.getElementById('fastEditPadLeft'),
       rightPad: document.getElementById('fastEditPadRight'),
+      wellSelect: document.getElementById('fastEditWellSelect'),
+      wellPrev: document.getElementById('fastEditWellPrev'),
+      wellNext: document.getElementById('fastEditWellNext'),
+      saveApprove: document.getElementById('fastEditSaveApprove'),
     };
 
     const WELL_EDITOR_FIELDS = Array.from(document.querySelectorAll('[data-field]'));
@@ -2917,6 +2926,42 @@ window.syncRoyaltyPanelHeight = () => {
 
     const isFastEditOpen = () => FAST_EDIT_ELEMENTS.modal?.classList.contains('is-open');
 
+    const getWellApiList = () => (userWellData?.api_uwi || []).filter(Boolean);
+
+    const getAdjacentWellApi = (currentApi, direction) => {
+      const list = getWellApiList();
+      if (list.length === 0) return null;
+      let idx = list.indexOf(currentApi);
+      if (idx === -1) {
+        idx = 0;
+      } else {
+        idx = (idx + direction + list.length) % list.length;
+      }
+      return list[idx];
+    };
+
+    const updateFastEditWellNavigation = () => {
+      const list = getWellApiList();
+      const disableNav = list.length < 2;
+      if (FAST_EDIT_ELEMENTS.wellPrev) {
+        FAST_EDIT_ELEMENTS.wellPrev.disabled = disableNav;
+      }
+      if (FAST_EDIT_ELEMENTS.wellNext) {
+        FAST_EDIT_ELEMENTS.wellNext.disabled = disableNav;
+      }
+      if (FAST_EDIT_ELEMENTS.wellSelect) {
+        FAST_EDIT_ELEMENTS.wellSelect.disabled = list.length === 0;
+      }
+    };
+
+    const switchWellFromFastEdit = async (nextApi) => {
+      if (!nextApi || nextApi === WELL_EDITOR_STATE.api) return;
+      await window.openWellEditor(nextApi);
+      if (isFastEditOpen()) {
+        updateFastEditView();
+      }
+    };
+
     const updateBodyScroll = () => {
       const shouldLock = WELL_EDITOR_ELEMENTS.modal?.classList.contains('is-open') || isFastEditOpen();
       document.body.style.overflow = shouldLock ? 'hidden' : '';
@@ -3342,6 +3387,37 @@ window.syncRoyaltyPanelHeight = () => {
       });
     }
 
+    if (FAST_EDIT_ELEMENTS.wellSelect) {
+      FAST_EDIT_ELEMENTS.wellSelect.addEventListener('change', (event) => {
+        const nextApi = event.target.value;
+        switchWellFromFastEdit(nextApi);
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.wellPrev) {
+      FAST_EDIT_ELEMENTS.wellPrev.addEventListener('click', () => {
+        const nextApi = getAdjacentWellApi(WELL_EDITOR_STATE.api, -1);
+        switchWellFromFastEdit(nextApi);
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.wellNext) {
+      FAST_EDIT_ELEMENTS.wellNext.addEventListener('click', () => {
+        const nextApi = getAdjacentWellApi(WELL_EDITOR_STATE.api, 1);
+        switchWellFromFastEdit(nextApi);
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.saveApprove) {
+      FAST_EDIT_ELEMENTS.saveApprove.addEventListener('click', () => {
+        setFieldValue('APPROVED', 'Y');
+        if (WELL_EDITOR_ELEMENTS.approved) {
+          WELL_EDITOR_ELEMENTS.approved.checked = true;
+        }
+        saveWellEditorParams();
+      });
+    }
+
     if (FAST_EDIT_ELEMENTS.modeToggle) {
       FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
         setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
@@ -3414,6 +3490,9 @@ window.syncRoyaltyPanelHeight = () => {
         if (WELL_EDITOR_ELEMENTS.approved) {
           WELL_EDITOR_ELEMENTS.approved.disabled = !isAdminUser();
         }
+        if (FAST_EDIT_ELEMENTS.saveApprove) {
+          FAST_EDIT_ELEMENTS.saveApprove.disabled = !isAdminUser();
+        }
 
         const data = await loadWellEditorData(api);
         WELL_EDITOR_STATE.production = data.production || [];
@@ -3432,6 +3511,9 @@ window.syncRoyaltyPanelHeight = () => {
         if (Number.isFinite(pvValue)) {
           WELL_EDITOR_STATE.baseNriValue = pvValue;
           updateWellEditorMetrics(combined);
+        }
+        if (isFastEditOpen()) {
+          updateFastEditView();
         }
         setWellEditorStatus('');
         showWellEditor();
