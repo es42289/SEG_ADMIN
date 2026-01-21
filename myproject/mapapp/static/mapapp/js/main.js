@@ -2113,13 +2113,13 @@ window.syncRoyaltyPanelHeight = () => {
       const typeValue = getFieldValue(typeField) || 'EXP';
 
       if (typeValue === 'HYP') {
-        setRangeAttributes(declineField, { min: 0.002, max: 0.99, step: 0.001 });
-        setRangeAttributes(dminField, { min: 0.002, max: 0.99, step: 0.001 });
-        setRangeAttributes(bField, { min: 0.75, max: 0.95, step: 0.01 });
+        setRangeAttributes(declineField, { min: 0.04, max: 0.5, step: 0.005 });
+        setRangeAttributes(dminField, { min: 0.02, max: 0.1, step: 0.005 });
+        setRangeAttributes(bField, { min: 0.5, max: 1.1, step: 0.01 });
       } else {
-        setRangeAttributes(declineField, { min: 0.005, max: 1.6, step: 0.005 });
-        setRangeAttributes(dminField, { min: 0.002, max: 0.99, step: 0.001 });
-        setRangeAttributes(bField, { min: 0.75, max: 0.95, step: 0.01 });
+        setRangeAttributes(declineField, { min: 0.04, max: 0.5, step: 0.005 });
+        setRangeAttributes(dminField, { min: 0.02, max: 0.1, step: 0.005 });
+        setRangeAttributes(bField, { min: 0.5, max: 1.1, step: 0.01 });
       }
 
       updateFieldLabel(declineField);
@@ -2216,7 +2216,7 @@ window.syncRoyaltyPanelHeight = () => {
         const gasDeclineType = params.GAS_DECLINE_TYPE || 'EXP';
         const gasDecline = Number(params.GAS_EMPIRICAL_DI) || 0;
         const gasB = Number(params.GAS_CALC_B_FACTOR);
-        const gasBFactor = !Number.isFinite(gasB) || gasB < 0.75 ? 0.75 : gasB;
+        const gasBFactor = !Number.isFinite(gasB) ? 0.8 : clampValue(gasB, 0.5, 1.1);
         const gasTerminal = Number(params.GAS_D_MIN) || 0;
 
         const gasRates = gasStart
@@ -2228,7 +2228,7 @@ window.syncRoyaltyPanelHeight = () => {
         const oilDeclineType = params.OIL_DECLINE_TYPE || 'EXP';
         const oilDecline = Number(params.OIL_EMPIRICAL_DI) || 0;
         const oilB = Number(params.OIL_CALC_B_FACTOR);
-        const oilBFactor = !Number.isFinite(oilB) || oilB < 0.75 ? 0.75 : oilB;
+        const oilBFactor = !Number.isFinite(oilB) ? 0.8 : clampValue(oilB, 0.5, 1.1);
         const oilTerminal = Number(params.OIL_D_MIN) || 0;
 
         const oilRates = oilStart
@@ -2276,9 +2276,10 @@ window.syncRoyaltyPanelHeight = () => {
         .sort((a, b) => a.month - b.month);
 
       const minDate = combined.length ? combined[0].month : null;
+      const forecastAnchor = lastProdDate || minDate;
       const gasYears = Number(params.GAS_FCST_YRS);
-      if (Number.isFinite(gasYears) && gasYears > 0 && minDate) {
-        const cutoff = new Date(Date.UTC(minDate.getUTCFullYear() + gasYears, minDate.getUTCMonth(), 1));
+      if (Number.isFinite(gasYears) && gasYears > 0 && forecastAnchor) {
+        const cutoff = new Date(Date.UTC(forecastAnchor.getUTCFullYear() + gasYears, forecastAnchor.getUTCMonth(), 1));
         combined.forEach((row) => {
           if (row.month > cutoff) {
             row.gasFc = null;
@@ -2287,8 +2288,8 @@ window.syncRoyaltyPanelHeight = () => {
       }
 
       const oilYears = Number(params.OIL_FCST_YRS);
-      if (Number.isFinite(oilYears) && oilYears > 0 && minDate) {
-        const cutoff = new Date(Date.UTC(minDate.getUTCFullYear() + oilYears, minDate.getUTCMonth(), 1));
+      if (Number.isFinite(oilYears) && oilYears > 0 && forecastAnchor) {
+        const cutoff = new Date(Date.UTC(forecastAnchor.getUTCFullYear() + oilYears, forecastAnchor.getUTCMonth(), 1));
         combined.forEach((row) => {
           if (row.month > cutoff) {
             row.oilFc = null;
