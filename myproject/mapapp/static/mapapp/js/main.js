@@ -1862,12 +1862,15 @@ window.syncRoyaltyPanelHeight = () => {
       rightPointer: null,
       lastLeft: null,
       lastRight: null,
+      autoFitActive: false,
+      selectionAttached: false,
     };
 
     const FAST_EDIT_ELEMENTS = {
       modal: document.getElementById('wellFastEditModal'),
       chart: document.getElementById('wellFastEditChart'),
       modeToggle: document.getElementById('fastEditModeToggle'),
+      autoFitButton: document.getElementById('fastEditAutoFit'),
       resetButton: document.getElementById('fastEditReset'),
       declineLabel: document.getElementById('fastEditDeclineLabel'),
       declineToggle: document.getElementById('fastEditDeclineToggle'),
@@ -2417,6 +2420,7 @@ window.syncRoyaltyPanelHeight = () => {
           gridcolor: '#1f293a1f',
         },
         uirevision: 'fast-edit-zoom',
+        dragmode: FAST_EDIT_STATE.autoFitActive ? 'lasso' : 'zoom',
         paper_bgcolor: '#0b1424',
         plot_bgcolor: '#0b1424',
         font: { color: '#f8fafc' },
@@ -2451,6 +2455,7 @@ window.syncRoyaltyPanelHeight = () => {
       };
 
       Plotly.react(FAST_EDIT_ELEMENTS.chart, traces, layout, { ...BASE_PLOT_CONFIG });
+      attachFastEditSelectionHandlers();
     };
 
     const updateWellEditorMetrics = (combined) => {
@@ -2505,6 +2510,190 @@ window.syncRoyaltyPanelHeight = () => {
       WELL_EDITOR_STATE.baseMetrics = WELL_EDITOR_STATE.baseMetrics || metrics;
       schedulePvEstimateUpdate(params, combined, metrics);
       return { combined, metrics };
+    };
+
+    const getFastEditAutoFitPoints = (event) => {
+      if (!event?.points?.length || !FAST_EDIT_ELEMENTS.chart?.data) return [];
+      return event.points
+        .map((point) => {
+          const trace = FAST_EDIT_ELEMENTS.chart.data?.[point.curveNumber];
+          if (!trace?.name?.includes('History')) return null;
+          const date = parseDate(point.x);
+          const value = Number(point.y);
+          if (!date || !Number.isFinite(value) || value <= 0) return null;
+          return { date, value };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.date - b.date);
+    };
+
+    const clampFieldValue = (fieldName, value) => {
+      const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
+      if (!field || field.type !== 'range') return value;
+      const min = Number(field.min);
+      const max = Number(field.max);
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        return clampValue(value, min, max);
+      }
+      if (Number.isFinite(min)) return Math.max(value, min);
+      if (Number.isFinite(max)) return Math.min(value, max);
+      return value;
+    };
+
+    const computeRegression = (points) => {
+      const n = points.length;
+      if (n < 2) return null;
+      const sumX = points.reduce((sum, point) => sum + point.x, 0);
+      const sumY = points.reduce((sum, point) => sum + point.y, 0);
+      const sumXY = points.reduce((sum, point) => sum + point.x * point.y, 0);
+      const sumXX = points.reduce((sum, point) => sum + point.x * point.x, 0);
+      const denom = n * sumXX - sumX * sumX;
+      if (!Number.isFinite(denom) || denom === 0) return null;
+      const slope = (n * sumXY - sumX * sumY) / denom;
+      const intercept = (sumY - slope * sumX) / n;
+      return { slope, intercept };
+    };
+
+    const fitExponentialDecline = (points, startDate) => {
+      const series = points.map((point) => ({
+        x: (monthIndex(point.date) - monthIndex(startDate)) / 12,
+        y: Math.log(point.value),
+      }));
+      const regression = computeRegression(series);
+      if (!regression) return null;
+      const slope = regression.slope;
+      const intercept = regression.intercept;
+      let decline = -slope;
+      if (!Number.isFinite(decline) || decline <= 0) {
+        decline = 0.15;
+      }
+      const qi = Math.exp(intercept);
+      const rmse =
+        Math.sqrt(
+          series.reduce((sum, point) => {
+            const predicted = Math.log(qi) - decline * point.x;
+            return sum + (point.y - predicted) ** 2;
+          }, 0) / series.length
+        ) || Number.POSITIVE_INFINITY;
+      return { qi, decline, rmse };
+    };
+
+    const fitHyperbolicDecline = (points, startDate) => {
+      const bCandidates = [0.75, 0.8, 0.85, 0.9, 0.95];
+      let best = null;
+      bCandidates.forEach((b) => {
+        const transformed = points.map((point) => ({
+          x: (monthIndex(point.date) - monthIndex(startDate)) / 12,
+          y: Math.pow(point.value, -b),
+        }));
+        const regression = computeRegression(transformed);
+        if (!regression) return;
+        const a = regression.intercept;
+        const c = regression.slope;
+        if (!Number.isFinite(a) || a <= 0 || !Number.isFinite(c) || c <= 0) return;
+        const qi = Math.pow(a, -1 / b);
+        const decline = c / (a * b);
+        if (!Number.isFinite(qi) || !Number.isFinite(decline) || decline <= 0) return;
+        const rmse =
+          Math.sqrt(
+            points.reduce((sum, point) => {
+              const t = (monthIndex(point.date) - monthIndex(startDate)) / 12;
+              const predicted = qi / Math.pow(1 + b * decline * t, 1 / b);
+              return sum + (Math.log(point.value) - Math.log(predicted)) ** 2;
+            }, 0) / points.length
+          ) || Number.POSITIVE_INFINITY;
+        if (!best || rmse < best.rmse) {
+          best = { qi, decline, b, rmse };
+        }
+      });
+      return best;
+    };
+
+    const deriveTerminalDecline = (initialDecline, mode) => {
+      const baseTarget = mode === 'gas' ? 0.08 : 0.06;
+      const target = Math.min(baseTarget, initialDecline * 0.5);
+      return clampValue(target, 0.02, 0.15);
+    };
+
+    const applyAutoFitResults = ({ qi, decline, b, declineType, startDate, terminal }) => {
+      const fields = getFastEditFields();
+      setFieldValue(fields.start, dateToSliderValue(startDate));
+      updateQiRange(FAST_EDIT_STATE.mode, startDate);
+      const declineField = getFastEditDeclineField();
+      setFieldValue(declineField, declineType);
+      updateDeclineRanges(FAST_EDIT_STATE.mode === 'oil' ? 'OIL' : 'GAS');
+
+      const qiValue = clampFieldValue(fields.qi, qi);
+      const diValue = clampFieldValue(fields.di, decline);
+      const bValue = clampFieldValue(fields.b, b);
+      setFieldValue(fields.qi, qiValue);
+      setFieldValue(fields.di, diValue);
+      if (declineType === 'HYP') {
+        setFieldValue(fields.b, bValue);
+      }
+      const terminalField = FAST_EDIT_STATE.mode === 'oil' ? 'OIL_D_MIN' : 'GAS_D_MIN';
+      setFieldValue(terminalField, clampFieldValue(terminalField, terminal));
+
+      updateAllFieldLabels();
+      syncWellEditorDeclineLabels();
+      syncFastEditDeclineToggle();
+      updateFastEditView();
+    };
+
+    const resolveAutoFitSelection = (event) => {
+      if (!FAST_EDIT_STATE.autoFitActive) return;
+      const points = getFastEditAutoFitPoints(event);
+      if (points.length < 2) {
+        showTemporaryStatus('Select at least two history points to auto-fit.');
+        return;
+      }
+      const startDate = points[0].date;
+      const exponentialFit = fitExponentialDecline(points, startDate);
+      const hyperbolicFit = points.length >= 3 ? fitHyperbolicDecline(points, startDate) : null;
+      let declineType = exponentialFit ? 'EXP' : 'HYP';
+      let fit = exponentialFit || hyperbolicFit;
+      if (hyperbolicFit && exponentialFit && hyperbolicFit.rmse <= exponentialFit.rmse * 0.95) {
+        declineType = 'HYP';
+        fit = hyperbolicFit;
+      }
+      if (!fit || !Number.isFinite(fit.qi) || !Number.isFinite(fit.decline)) {
+        showTemporaryStatus('Unable to auto-fit decline from selection.');
+        return;
+      }
+      const result = {
+        qi: fit.qi,
+        decline: fit.decline,
+        b: declineType === 'HYP' ? fit.b : getFieldValue(getFastEditFields().b) || 0.8,
+        declineType,
+        startDate,
+        terminal: deriveTerminalDecline(fit.decline, FAST_EDIT_STATE.mode),
+      };
+      applyAutoFitResults(result);
+      showTemporaryStatus('Auto-fit applied to selected points.');
+      toggleFastEditAutoFit(false);
+    };
+
+    const toggleFastEditAutoFit = (nextState) => {
+      FAST_EDIT_STATE.autoFitActive = nextState;
+      if (FAST_EDIT_ELEMENTS.autoFitButton) {
+        FAST_EDIT_ELEMENTS.autoFitButton.classList.toggle('is-active', nextState);
+        FAST_EDIT_ELEMENTS.autoFitButton.textContent = nextState ? 'Cancel Auto-Fit' : 'Auto-Fit DCA';
+      }
+      if (window.Plotly && FAST_EDIT_ELEMENTS.chart) {
+        const dragmode = nextState ? 'lasso' : 'zoom';
+        window.Plotly.relayout(FAST_EDIT_ELEMENTS.chart, { dragmode });
+      }
+      if (nextState) {
+        setWellEditorStatus('Select points on the chart to auto-fit decline.');
+      } else {
+        setWellEditorStatus('');
+      }
+    };
+
+    const attachFastEditSelectionHandlers = () => {
+      if (!FAST_EDIT_ELEMENTS.chart || !window.Plotly || FAST_EDIT_STATE.selectionAttached) return;
+      FAST_EDIT_STATE.selectionAttached = true;
+      FAST_EDIT_ELEMENTS.chart.on('plotly_selected', resolveAutoFitSelection);
     };
 
     const parseCsvRow = (row) => {
@@ -2817,6 +3006,9 @@ window.syncRoyaltyPanelHeight = () => {
       if (!FAST_EDIT_ELEMENTS.modal) return;
       FAST_EDIT_ELEMENTS.modal.classList.remove('is-open');
       FAST_EDIT_ELEMENTS.modal.setAttribute('aria-hidden', 'true');
+      if (FAST_EDIT_STATE.autoFitActive) {
+        toggleFastEditAutoFit(false);
+      }
       updateBodyScroll();
     };
 
@@ -3138,6 +3330,12 @@ window.syncRoyaltyPanelHeight = () => {
       FAST_EDIT_ELEMENTS.modeToggle.addEventListener('click', () => {
         setFastEditMode(FAST_EDIT_STATE.mode === 'gas' ? 'oil' : 'gas');
         updateFastEditView();
+      });
+    }
+
+    if (FAST_EDIT_ELEMENTS.autoFitButton) {
+      FAST_EDIT_ELEMENTS.autoFitButton.addEventListener('click', () => {
+        toggleFastEditAutoFit(!FAST_EDIT_STATE.autoFitActive);
       });
     }
 
