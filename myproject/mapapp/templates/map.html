@@ -186,10 +186,12 @@
       <button type="button" class="profile-modal__close" data-executive-close aria-label="Close executive dashboard dialog">
         <span aria-hidden="true">&times;</span>
       </button>
-      <div class="profile-modal__logo">
-        <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
+      <div class="executive-modal__header">
+        <div class="profile-modal__logo executive-modal__logo">
+          <img src={% static 'mapapp/img/white_no_mane_logo.png' %} alt="Stable Energy Group logo">
+        </div>
+        <h2 id="executiveDashTitle" class="profile-modal__title">Executive Dashboard</h2>
       </div>
-      <h2 id="executiveDashTitle" class="profile-modal__title">Executive Dashboard</h2>
       <p class="profile-modal__subtitle">Snapshot of owner engagement and support activity.</p>
       <div class="executive-stats">
         <div class="executive-stat">

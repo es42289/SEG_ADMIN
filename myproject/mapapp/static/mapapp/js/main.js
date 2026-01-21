@@ -2283,6 +2283,7 @@ window.syncRoyaltyPanelHeight = () => {
 
     const getWellEditorPlotData = (data, options = {}) => {
       const mode = options.mode || 'all';
+      const historyMode = options.historyMode || 'lines+markers';
       const cutoffDate = options.cutoffDate || null;
       const filteredData = cutoffDate
         ? data.filter((row) => row.month && row.month <= cutoffDate)
@@ -2310,7 +2311,7 @@ window.syncRoyaltyPanelHeight = () => {
             name: 'Oil History (BBL)',
             x,
             y: oil,
-            mode: 'lines+markers',
+            mode: historyMode,
             line: { color: WELL_EDITOR_COLORS.oil, width: 2 },
             marker: { symbol: 'circle-open', size: 7, line: { color: WELL_EDITOR_COLORS.oil, width: 2 } },
             hovertemplate: '%{x}<br>Oil: %{y:,.0f} BBL<extra></extra>',
@@ -2331,7 +2332,7 @@ window.syncRoyaltyPanelHeight = () => {
             name: 'Gas History (MCF)',
             x,
             y: gas,
-            mode: 'lines+markers',
+            mode: historyMode,
             line: { color: WELL_EDITOR_COLORS.gas, width: 2 },
             marker: { symbol: 'circle-open', size: 7, line: { color: WELL_EDITOR_COLORS.gas, width: 2 } },
             hovertemplate: '%{x}<br>Gas: %{y:,.0f} MCF<extra></extra>',
@@ -2382,6 +2383,7 @@ window.syncRoyaltyPanelHeight = () => {
       const { traces, yRange } = getWellEditorPlotData(data, {
         mode: FAST_EDIT_STATE.mode,
         cutoffDate: cutoff,
+        historyMode: 'markers',
       });
       const fields = getFastEditFields();
       const startValue = getFieldValue(fields.start);

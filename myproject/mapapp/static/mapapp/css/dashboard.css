@@ -552,6 +552,21 @@ body {
   width: auto;
 }
 
+.executive-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.executive-modal__logo {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .profile-modal__title {
   margin: 0;
   font-size: 1.75rem;
