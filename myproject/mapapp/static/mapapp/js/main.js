@@ -2595,7 +2595,7 @@ window.syncRoyaltyPanelHeight = () => {
     };
 
     const fitHyperbolicDecline = (points, startDate) => {
-      const bCandidates = [0.75, 0.8, 0.85, 0.9, 0.95];
+      const bCandidates = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1];
       let best = null;
       bCandidates.forEach((b) => {
         const transformed = points.map((point) => ({
