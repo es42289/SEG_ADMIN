@@ -2793,6 +2793,15 @@ input#year[type="range"] {
       gap: 1.5rem;
     }
 
+    @media (min-width: 1025px) {
+      .page-content.well-explorer {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 0.5rem;
+      }
+    }
+
     .well-explorer-card {
       background: #0f172a;
       border: 1px solid rgba(148, 163, 184, 0.3);
