@@ -655,6 +655,98 @@ def map_data(request):
     payload = _get_cached_map_payload()
     return JsonResponse(payload)
 
+
+WELL_EXPLORER_FILTER_FIELDS = {
+    "envoperator": "ENVOPERATOR",
+    "owner_list": "OWNER_LIST",
+    "api_uwi": "API_UWI",
+    "envwellstatus": "ENVWELLSTATUS",
+    "wellname": "WELLNAME",
+    "trajectory": "TRAJECTORY",
+    "county": "COUNTY",
+}
+
+
+def _normalize_filter_values(series):
+    if series is None:
+        return []
+    values = (
+        series.dropna()
+        .astype(str)
+        .map(lambda value: value.strip())
+    )
+    values = values[values != ""]
+    return sorted(set(values))
+
+
+def _build_well_explorer_payload():
+    all_wells = get_all_wells_with_owners()
+    if all_wells is None or all_wells.empty:
+        return {"filters": {}, "wells": []}
+
+    if "OWNER_LIST" in all_wells.columns:
+        owner_mask = all_wells["OWNER_LIST"].fillna("").astype(str).str.strip() != ""
+        wells_df = all_wells.loc[owner_mask].copy()
+    else:
+        wells_df = all_wells.iloc[0:0].copy()
+
+    filters = {}
+    for key, column in WELL_EXPLORER_FILTER_FIELDS.items():
+        if column in wells_df.columns:
+            filters[key] = _normalize_filter_values(wells_df[column])
+        else:
+            filters[key] = []
+
+    wells = []
+    for _, row in wells_df.iterrows():
+        api_uwi = row.get("API_UWI")
+        wells.append(
+            {
+                "api_uwi": api_uwi,
+                "wellname": row.get("WELLNAME") or "",
+                "envoperator": row.get("ENVOPERATOR") or "",
+                "owner_list": row.get("OWNER_LIST") or "",
+                "envwellstatus": row.get("ENVWELLSTATUS") or "",
+                "trajectory": row.get("TRAJECTORY") or "",
+                "county": row.get("COUNTY") or "",
+                "lat": float(row.get("LATITUDE")) if row.get("LATITUDE") is not None else None,
+                "lon": float(row.get("LONGITUDE")) if row.get("LONGITUDE") is not None else None,
+                "dca_approved": bool(row.get("DCA_APPROVED")) if "DCA_APPROVED" in wells_df.columns else False,
+            }
+        )
+
+    return {"filters": filters, "wells": wells}
+
+
+def well_explorer_page(request):
+    if "user" not in request.session:
+        return redirect("/login/")
+
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return HttpResponse("Admin access required.", status=403)
+
+    return render(
+        request,
+        "well_explorer.html",
+        {
+            "admin_context": admin_context,
+            "current_path": request.get_full_path(),
+        },
+    )
+
+
+def well_explorer_data(request):
+    if "user" not in request.session:
+        return redirect("/login/")
+
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return JsonResponse({"detail": "Admin access required."}, status=403)
+
+    payload = _build_well_explorer_payload()
+    return JsonResponse(payload)
+
 def get_user_owner_name(user_email):
     """Query Snowflake to get the owner name for a user's email"""
     conn = get_snowflake_connection()
