@@ -3955,31 +3955,33 @@ window.syncRoyaltyPanelHeight = () => {
       }
     }
 
-    // Event listener
-    yearInput.addEventListener('input', e => drawWithFilteredData(parseInt(e.target.value, 10)));
+    if (yearInput) {
+      // Event listener
+      yearInput.addEventListener('input', e => drawWithFilteredData(parseInt(e.target.value, 10)));
 
-    // Initialize with frontend filtering
-    drawWithFilteredData(parseInt(yearInput.value, 10));
-    
-    // Fire-and-forget: fetch production for user wells once
-    loadUserProductionOnce().then(updateLastProductionMetrics);
+      // Initialize with frontend filtering
+      drawWithFilteredData(parseInt(yearInput.value, 10));
+      
+      // Fire-and-forget: fetch production for user wells once
+      loadUserProductionOnce().then(updateLastProductionMetrics);
 
-    const mapStyleToggleBtn = document.getElementById('mapStyleToggle');
-    if (mapStyleToggleBtn) {
-      const targetMapId = mapStyleToggleBtn.dataset.mapTarget || 'userWellsMap';
-      mapStyleToggleBtn.textContent = getMapStyle(targetMapId) === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
+      const mapStyleToggleBtn = document.getElementById('mapStyleToggle');
+      if (mapStyleToggleBtn) {
+        const targetMapId = mapStyleToggleBtn.dataset.mapTarget || 'userWellsMap';
+        mapStyleToggleBtn.textContent = getMapStyle(targetMapId) === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
 
-      mapStyleToggleBtn.addEventListener('click', () => {
-        const currentStyle = getMapStyle(targetMapId);
-        const nextStyle = currentStyle === MAPBOX_STYLE_TERRAIN ? MAPBOX_STYLE_SATELLITE : MAPBOX_STYLE_TERRAIN;
-        setMapStyle(targetMapId, nextStyle);
-        mapStyleToggleBtn.textContent = nextStyle === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
+        mapStyleToggleBtn.addEventListener('click', () => {
+          const currentStyle = getMapStyle(targetMapId);
+          const nextStyle = currentStyle === MAPBOX_STYLE_TERRAIN ? MAPBOX_STYLE_SATELLITE : MAPBOX_STYLE_TERRAIN;
+          setMapStyle(targetMapId, nextStyle);
+          mapStyleToggleBtn.textContent = nextStyle === MAPBOX_STYLE_TERRAIN ? 'Satellite View' : 'Terrain View';
 
-        const targetMapElement = document.getElementById(targetMapId);
-        if (targetMapElement && targetMapElement.data) {
-          Plotly.relayout(targetMapId, { 'mapbox.style': nextStyle });
-        }
-      });
+          const targetMapElement = document.getElementById(targetMapId);
+          if (targetMapElement && targetMapElement.data) {
+            Plotly.relayout(targetMapId, { 'mapbox.style': nextStyle });
+          }
+        });
+      }
     }
 
     // ===== Supporting documents =====
