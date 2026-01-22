@@ -50,15 +50,19 @@
 
     <div class="well-explorer-wellset-bar">
       <div class="well-explorer-wellset-field">
+        <label class="well-explorer-panel__title" for="wellExplorerWellsetSelect">Saved Wellsets</label>
+        <select id="wellExplorerWellsetSelect" class="well-explorer-input">
+          <option value="">Select a saved wellset</option>
+        </select>
+      </div>
+      <div class="well-explorer-wellset-field">
         <label class="well-explorer-panel__title" for="wellExplorerWellsetName">Wellset Name</label>
         <input
           id="wellExplorerWellsetName"
           class="well-explorer-input"
-          list="wellExplorerWellsetOptions"
-          placeholder="Search or type a wellset name"
+          placeholder="Type a new wellset name"
           autocomplete="off"
         >
-        <datalist id="wellExplorerWellsetOptions"></datalist>
       </div>
       <div class="well-explorer-wellset-actions">
         <button type="button" class="well-explorer-button" id="saveWellsetButton">Save Wellset</button>

@@ -10,8 +10,8 @@
   const tableBody = document.getElementById('wellExplorerTableBody');
   const selectedCount = document.getElementById('wellExplorerSelectedCount');
   const mapDiv = document.getElementById('wellExplorerMap');
+  const wellsetSelect = document.getElementById('wellExplorerWellsetSelect');
   const wellsetNameInput = document.getElementById('wellExplorerWellsetName');
-  const wellsetOptions = document.getElementById('wellExplorerWellsetOptions');
   const saveWellsetButton = document.getElementById('saveWellsetButton');
   const wellsetStatus = document.getElementById('wellExplorerWellsetStatus');
 
@@ -178,6 +178,9 @@
           <button type="button" class="well-explorer-edit-button" data-api="${well.api_uwi || ''}">
             Edit
           </button>
+          <button type="button" class="well-explorer-remove-button" data-api="${well.api_uwi || ''}">
+            Remove
+          </button>
         </td>
       `;
       tableBody.appendChild(row);
@@ -299,6 +302,7 @@
         renderTable();
         updateMapSelection();
         updateWellEditorData();
+        updateWellsetStatus();
       }
     });
   };
@@ -378,17 +382,17 @@
         applyFilters();
       });
     }
-    if (wellsetNameInput) {
-      wellsetNameInput.addEventListener('input', () => {
-        updateWellsetStatus();
-      });
-      wellsetNameInput.addEventListener('change', () => {
-        const name = getCurrentWellsetName();
-        if (!name) {
+    if (wellsetSelect) {
+      wellsetSelect.addEventListener('change', () => {
+        const selectedName = wellsetSelect.value;
+        if (wellsetNameInput) {
+          wellsetNameInput.value = selectedName;
+        }
+        if (!selectedName) {
           updateWellsetStatus();
           return;
         }
-        const key = normalizeWellsetName(name);
+        const key = normalizeWellsetName(selectedName);
         const wellset = state.wellsets.get(key);
         if (!wellset) {
           updateWellsetStatus();
@@ -398,6 +402,17 @@
           .map((api) => state.normalizedWellMap.get(normalizeApi(api)))
           .filter(Boolean);
         updateSelection(mappedApis);
+      });
+    }
+    if (wellsetNameInput) {
+      wellsetNameInput.addEventListener('input', () => {
+        const name = getCurrentWellsetName();
+        if (wellsetSelect) {
+          const key = normalizeWellsetName(name);
+          const wellset = state.wellsets.get(key);
+          wellsetSelect.value = wellset ? wellset.name : '';
+        }
+        updateWellsetStatus();
       });
     }
     if (saveWellsetButton) {
@@ -437,6 +452,9 @@
             if (wellsetNameInput) {
               wellsetNameInput.value = saved.name;
             }
+            if (wellsetSelect) {
+              wellsetSelect.value = saved.name;
+            }
             updateWellsetStatus();
           }
         } catch (error) {
@@ -447,26 +465,43 @@
     }
     if (tableBody) {
       tableBody.addEventListener('click', (event) => {
-        const button = event.target.closest('.well-explorer-edit-button');
-        if (!button) return;
-        const api = button.dataset.api;
-        if (api && typeof window.openWellEditor === 'function') {
-          window.openWellEditor(api);
+        const editButton = event.target.closest('.well-explorer-edit-button');
+        if (editButton) {
+          const api = editButton.dataset.api;
+          if (api && typeof window.openWellEditor === 'function') {
+            window.openWellEditor(api);
+          }
+          return;
+        }
+        const removeButton = event.target.closest('.well-explorer-remove-button');
+        if (removeButton) {
+          const api = removeButton.dataset.api;
+          if (api) {
+            const updated = Array.from(state.selectedApis).filter((entry) => entry !== api);
+            updateSelection(updated);
+          }
         }
       });
     }
   };
 
   const buildWellsetOptions = () => {
-    if (!wellsetOptions) return;
-    wellsetOptions.innerHTML = '';
+    if (!wellsetSelect) return;
+    const currentValue = wellsetSelect.value;
+    wellsetSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select a saved wellset';
+    wellsetSelect.appendChild(placeholder);
     Array.from(state.wellsets.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .forEach(([, value]) => {
         const option = document.createElement('option');
         option.value = value.name;
-        wellsetOptions.appendChild(option);
+        option.textContent = value.name;
+        wellsetSelect.appendChild(option);
       });
+    wellsetSelect.value = currentValue || '';
   };
 
   const loadWellsets = async () => {
