@@ -1493,6 +1493,176 @@ def well_dca_inputs(request):
         conn.close()
 
 
+ECON_SCENARIO_COLUMNS = [
+    "ECON_SCENARIO",
+    "OIL_DIFF_PCT",
+    "OIL_DIFF_AMT",
+    "GAS_DIFF_PCT",
+    "GAS_DIFF_AMT",
+    "NGL_DIFF_PCT",
+    "NGL_DIFF_AMT",
+    "OIL_GPT_DEDUCT",
+    "GAS_GPT_DEDUCT",
+    "NGL_GPT_DEDUCT",
+    "OIL_TAX",
+    "GAS_TAX",
+    "NGL_TAX",
+    "AD_VAL_TAX",
+    "GAS_SHRINK",
+    "NGL_YIELD",
+    "COUNTY",
+    "BASIN",
+    "GAS_OPT_DEDUCT",
+    "NGL_OPT_DEDUCT",
+    "OIL_OPT_DEDUCT",
+]
+
+ECON_SCENARIO_INT_FIELDS = {
+    "OIL_DIFF_AMT",
+    "NGL_DIFF_AMT",
+    "GAS_OPT_DEDUCT",
+}
+
+ECON_SCENARIO_FLOAT_FIELDS = {
+    "OIL_DIFF_PCT",
+    "GAS_DIFF_PCT",
+    "GAS_DIFF_AMT",
+    "NGL_DIFF_PCT",
+    "OIL_GPT_DEDUCT",
+    "GAS_GPT_DEDUCT",
+    "NGL_GPT_DEDUCT",
+    "OIL_TAX",
+    "GAS_TAX",
+    "NGL_TAX",
+    "AD_VAL_TAX",
+    "GAS_SHRINK",
+    "NGL_YIELD",
+    "NGL_OPT_DEDUCT",
+    "OIL_OPT_DEDUCT",
+}
+
+
+def _parse_optional_float(value):
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_optional_int(value):
+    if value is None or value == "":
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+@require_http_methods(["GET"])
+def econ_scenarios(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    scenario_name = (request.GET.get("name") or "").strip()
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    try:
+        if scenario_name:
+            cur.execute(
+                """
+                SELECT *
+                FROM WELLS.MINERALS.ECON_SCENARIOS
+                WHERE ECON_SCENARIO = %s
+                LIMIT 1
+                """,
+                (scenario_name,),
+            )
+            scenario = cur.fetchone()
+            if not scenario:
+                return JsonResponse({"detail": "Scenario not found."}, status=404)
+            return JsonResponse({"scenario": scenario})
+
+        cur.execute(
+            """
+            SELECT ECON_SCENARIO
+            FROM WELLS.MINERALS.ECON_SCENARIOS
+            ORDER BY ECON_SCENARIO
+            """,
+        )
+        scenarios = [row.get("ECON_SCENARIO") for row in cur.fetchall() or []]
+        return JsonResponse({"scenarios": scenarios})
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_econ_scenario(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    scenario_name = (
+        payload.get("scenario")
+        or payload.get("ECON_SCENARIO")
+        or payload.get("econ_scenario")
+        or payload.get("name")
+        or ""
+    ).strip()
+    if not scenario_name:
+        return JsonResponse({"detail": "ECON_SCENARIO is required."}, status=400)
+
+    params = payload.get("params") or {}
+    values = {col: params.get(col) for col in ECON_SCENARIO_COLUMNS}
+    values["ECON_SCENARIO"] = scenario_name
+
+    for field in ECON_SCENARIO_INT_FIELDS:
+        values[field] = _parse_optional_int(values.get(field))
+    for field in ECON_SCENARIO_FLOAT_FIELDS:
+        values[field] = _parse_optional_float(values.get(field))
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            """
+            DELETE FROM WELLS.MINERALS.ECON_SCENARIOS
+            WHERE ECON_SCENARIO = %s
+            """,
+            (scenario_name,),
+        )
+        columns = ", ".join(ECON_SCENARIO_COLUMNS)
+        placeholders = ", ".join(["%s"] * len(ECON_SCENARIO_COLUMNS))
+        insert_sql = f"""
+            INSERT INTO WELLS.MINERALS.ECON_SCENARIOS ({columns})
+            VALUES ({placeholders})
+        """
+        insert_values = [values.get(col) for col in ECON_SCENARIO_COLUMNS]
+        cur.execute(insert_sql, insert_values)
+        conn.commit()
+        return JsonResponse({"saved": True})
+    except snowflake_errors.Error:
+        logger.exception("Failed to save ECON scenario %s", scenario_name)
+        conn.rollback()
+        return JsonResponse({"detail": "Unable to save ECON scenario."}, status=502)
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def save_well_dca_inputs(request):
