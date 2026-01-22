@@ -2348,11 +2348,43 @@ input#year[type="range"] {
       border: 1px solid #cbd5f5;
     }
 
+    .well-editor-field__select {
+      appearance: none;
+    }
+
     .well-editor-field__value {
       font-size: 0.85rem;
       font-weight: 600;
       color: #f8fafc;
       white-space: nowrap;
+    }
+
+    .well-editor-econ-warning {
+      color: #f87171;
+      font-size: 0.85rem;
+      margin: 0 0 12px;
+      min-height: 1.2em;
+    }
+
+    .well-editor-econ-actions {
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      margin-top: 16px;
+      padding-top: 16px;
+    }
+
+    .well-editor-econ-actions__buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .well-editor-save--secondary {
+      background: #1e293b;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .well-editor-save--secondary:hover {
+      background: #334155;
     }
 
     .well-editor-field--inline {

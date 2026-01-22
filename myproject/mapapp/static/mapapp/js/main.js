@@ -1869,6 +1869,12 @@ window.syncRoyaltyPanelHeight = () => {
       ownerInterest: 0,
       lastProdDate: null,
       chartReady: false,
+      econScenarios: [],
+      econScenarioMap: {},
+      econScenariosLoaded: false,
+      econScenarioName: '',
+      econScenarioSavedName: '',
+      econScenarioModified: false,
     };
 
     window.setWellEditorData = function setWellEditorData(data) {
@@ -1913,6 +1919,11 @@ window.syncRoyaltyPanelHeight = () => {
       netGas: document.getElementById('wellEditorNetGasEur'),
       nriPercent: document.getElementById('wellEditorNriPercent'),
       nriValue: document.getElementById('wellEditorNriValue'),
+      econScenarioSelect: document.getElementById('wellEditorEconScenario'),
+      econWarning: document.getElementById('wellEditorEconWarning'),
+      econScenarioName: document.getElementById('wellEditorEconScenarioName'),
+      econSaveScenario: document.getElementById('wellEditorSaveScenario'),
+      econSaveScenarioToWell: document.getElementById('wellEditorSaveScenarioToWell'),
     };
 
     const FAST_EDIT_STATE = {
@@ -1945,6 +1956,7 @@ window.syncRoyaltyPanelHeight = () => {
     const WELL_EDITOR_VALUE_FIELDS = Array.from(document.querySelectorAll('[data-field-value]'));
     const WELL_EDITOR_TABS = Array.from(document.querySelectorAll('[data-well-editor-tab]'));
     const WELL_EDITOR_SECTIONS = Array.from(document.querySelectorAll('[data-well-editor-section]'));
+    const WELL_EDITOR_GPT_FIELDS = Array.from(document.querySelectorAll('[data-gpt-field]'));
 
     const formatNumber = (value, decimals = 0) => {
       const num = Number(value);
@@ -2080,6 +2092,131 @@ window.syncRoyaltyPanelHeight = () => {
 
     const updateAllFieldLabels = () => {
       WELL_EDITOR_FIELDS.forEach((field) => updateFieldLabel(field.dataset.field));
+    };
+
+    const getGptField = (fieldName) =>
+      WELL_EDITOR_GPT_FIELDS.find((el) => el.dataset.gptField === fieldName);
+
+    const getGptFieldValue = (fieldName) => {
+      const field = getGptField(fieldName);
+      if (!field) return null;
+      const type = field.dataset.gptType || 'float';
+      if (type === 'text') {
+        const textValue = field.value.trim();
+        return textValue === '' ? null : textValue;
+      }
+      if (field.value === '') return null;
+      const numericValue = type === 'int' ? Number.parseInt(field.value, 10) : Number.parseFloat(field.value);
+      return Number.isFinite(numericValue) ? numericValue : null;
+    };
+
+    const setGptFieldValue = (fieldName, value) => {
+      const field = getGptField(fieldName);
+      if (!field) return;
+      if (value === null || value === undefined || value === '') {
+        field.value = '';
+      } else {
+        field.value = value;
+      }
+    };
+
+    const collectEconScenarioValues = () => {
+      const values = {};
+      WELL_EDITOR_GPT_FIELDS.forEach((field) => {
+        values[field.dataset.gptField] = getGptFieldValue(field.dataset.gptField);
+      });
+      return values;
+    };
+
+    const applyEconScenarioValues = (scenario) => {
+      WELL_EDITOR_GPT_FIELDS.forEach((field) => {
+        setGptFieldValue(field.dataset.gptField, scenario?.[field.dataset.gptField] ?? '');
+      });
+    };
+
+    const updateEconScenarioWarning = () => {
+      if (!WELL_EDITOR_ELEMENTS.econWarning) return;
+      const hasUnsaved =
+        WELL_EDITOR_STATE.econScenarioModified ||
+        (WELL_EDITOR_STATE.econScenarioName || '') !== (WELL_EDITOR_STATE.econScenarioSavedName || '');
+      WELL_EDITOR_ELEMENTS.econWarning.textContent = hasUnsaved
+        ? 'Scenario changes have not been saved to this well.'
+        : '';
+    };
+
+    const ensureEconScenarioOption = (scenarioName) => {
+      const select = WELL_EDITOR_ELEMENTS.econScenarioSelect;
+      if (!select || !scenarioName) return;
+      const existing = Array.from(select.options).some((option) => option.value === scenarioName);
+      if (!existing) {
+        const option = document.createElement('option');
+        option.value = scenarioName;
+        option.textContent = scenarioName;
+        select.appendChild(option);
+      }
+    };
+
+    const setEconScenarioSelection = (scenarioName, { markSaved = false } = {}) => {
+      const select = WELL_EDITOR_ELEMENTS.econScenarioSelect;
+      const normalized = scenarioName || '';
+      if (select) {
+        ensureEconScenarioOption(normalized);
+        select.value = normalized;
+      }
+      WELL_EDITOR_STATE.econScenarioName = normalized;
+      if (markSaved) {
+        WELL_EDITOR_STATE.econScenarioSavedName = normalized;
+      }
+      const scenario = WELL_EDITOR_STATE.econScenarioMap?.[normalized];
+      if (scenario) {
+        applyEconScenarioValues(scenario);
+        WELL_EDITOR_STATE.econScenarioModified = false;
+      } else if (normalized) {
+        applyEconScenarioValues({});
+        WELL_EDITOR_STATE.econScenarioModified = false;
+      } else if (!normalized) {
+        applyEconScenarioValues({});
+        WELL_EDITOR_STATE.econScenarioModified = false;
+      }
+      updateEconScenarioWarning();
+    };
+
+    const updateEconScenarioSelect = (scenarios) => {
+      const select = WELL_EDITOR_ELEMENTS.econScenarioSelect;
+      if (!select) return;
+      select.innerHTML = '<option value="">Select scenario...</option>';
+      scenarios.forEach((scenario) => {
+        const option = document.createElement('option');
+        option.value = scenario.ECON_SCENARIO;
+        option.textContent = scenario.ECON_SCENARIO;
+        select.appendChild(option);
+      });
+      ensureEconScenarioOption(WELL_EDITOR_STATE.econScenarioSavedName);
+    };
+
+    const loadEconScenarios = async () => {
+      const response = await fetch('/econ-scenarios/');
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || 'Unable to load economics scenarios.');
+      }
+      const data = await response.json();
+      const scenarios = Array.isArray(data.scenarios) ? data.scenarios : [];
+      WELL_EDITOR_STATE.econScenarios = scenarios;
+      WELL_EDITOR_STATE.econScenarioMap = scenarios.reduce((acc, scenario) => {
+        if (scenario?.ECON_SCENARIO) {
+          acc[scenario.ECON_SCENARIO] = scenario;
+        }
+        return acc;
+      }, {});
+      WELL_EDITOR_STATE.econScenariosLoaded = true;
+      updateEconScenarioSelect(scenarios);
+    };
+
+    const ensureEconScenariosLoaded = async () => {
+      if (!WELL_EDITOR_ELEMENTS.econScenarioSelect) return;
+      if (WELL_EDITOR_STATE.econScenariosLoaded) return;
+      await loadEconScenarios();
     };
 
     const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -2574,6 +2711,7 @@ window.syncRoyaltyPanelHeight = () => {
       GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
       FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
       GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
+      ECON_SCENARIO: WELL_EDITOR_STATE.econScenarioName || WELL_EDITOR_ELEMENTS.econScenarioSelect?.value || null,
       APPROVED: getFieldValue('APPROVED') ?? getFieldValue('DCA_APPROVED'),
     });
 
@@ -2964,6 +3102,7 @@ window.syncRoyaltyPanelHeight = () => {
       setFieldValue('GAS_FCST_YRS', params.GAS_FCST_YRS ?? 0);
       setFieldValue('APPROVED', params.APPROVED || null);
       setFieldValue('DCA_APPROVED', params.APPROVED || null);
+      setEconScenarioSelection(params.ECON_SCENARIO || '', { markSaved: true });
 
       initializeFixedRanges();
       updateDeclineRanges('OIL');
@@ -3089,11 +3228,84 @@ window.syncRoyaltyPanelHeight = () => {
       updateBodyScroll();
     };
 
+    const saveEconScenario = async () => {
+      if (!WELL_EDITOR_ELEMENTS.econSaveScenario) return;
+      const scenarioName = WELL_EDITOR_ELEMENTS.econScenarioName?.value?.trim() || WELL_EDITOR_STATE.econScenarioName;
+      if (!scenarioName) {
+        setWellEditorStatus('Scenario name is required to save.', true);
+        return;
+      }
+      WELL_EDITOR_ELEMENTS.econSaveScenario.disabled = true;
+      try {
+        setWellEditorStatus('Saving scenario...');
+        const params = collectEconScenarioValues();
+        const response = await fetch('/econ-scenarios/save/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ econ_scenario: scenarioName, params }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body?.detail || 'Unable to save scenario.');
+        }
+        await loadEconScenarios();
+        setEconScenarioSelection(scenarioName);
+        if (WELL_EDITOR_ELEMENTS.econScenarioName) {
+          WELL_EDITOR_ELEMENTS.econScenarioName.value = '';
+        }
+        WELL_EDITOR_STATE.econScenarioModified = false;
+        updateEconScenarioWarning();
+        setWellEditorStatus('Scenario saved.');
+      } catch (error) {
+        console.error('Failed to save econ scenario', error);
+        setWellEditorStatus(error.message || 'Unable to save scenario.', true);
+      } finally {
+        WELL_EDITOR_ELEMENTS.econSaveScenario.disabled = false;
+      }
+    };
+
+    const saveEconScenarioToWell = async () => {
+      if (!WELL_EDITOR_STATE.api) return;
+      const scenarioName = WELL_EDITOR_STATE.econScenarioName || WELL_EDITOR_ELEMENTS.econScenarioSelect?.value;
+      if (!scenarioName) {
+        setWellEditorStatus('Select a scenario to save to the well.', true);
+        return;
+      }
+      if (WELL_EDITOR_ELEMENTS.econSaveScenarioToWell) {
+        WELL_EDITOR_ELEMENTS.econSaveScenarioToWell.disabled = true;
+      }
+      try {
+        setWellEditorStatus('Saving scenario to well...');
+        const response = await fetch('/well-econ-scenario/save/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api: WELL_EDITOR_STATE.api, econ_scenario: scenarioName }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(body?.detail || 'Unable to save scenario to well.');
+        }
+        WELL_EDITOR_STATE.econScenarioSavedName = scenarioName;
+        WELL_EDITOR_STATE.econScenarioModified = false;
+        updateEconScenarioWarning();
+        wellEditorNeedsRefresh = true;
+        setWellEditorStatus('Scenario saved to well.');
+      } catch (error) {
+        console.error('Failed to save scenario to well', error);
+        setWellEditorStatus(error.message || 'Unable to save scenario to well.', true);
+      } finally {
+        if (WELL_EDITOR_ELEMENTS.econSaveScenarioToWell) {
+          WELL_EDITOR_ELEMENTS.econSaveScenarioToWell.disabled = false;
+        }
+      }
+    };
+
     const resetFastEditParameters = async () => {
       if (!WELL_EDITOR_STATE.api) return;
       const currentMode = FAST_EDIT_STATE.mode;
       try {
         setWellEditorStatus('Resetting parameters...');
+        await ensureEconScenariosLoaded();
         const data = await loadWellEditorData(WELL_EDITOR_STATE.api);
         WELL_EDITOR_STATE.production = data.production || WELL_EDITOR_STATE.production;
         WELL_EDITOR_STATE.params = data.params || {};
@@ -3221,6 +3433,9 @@ window.syncRoyaltyPanelHeight = () => {
           applyPerWellPvMap(window.latestPerWellPvMap);
         }
         updateWellApprovalState(WELL_EDITOR_STATE.api, params.APPROVED === 'Y');
+        WELL_EDITOR_STATE.econScenarioSavedName = WELL_EDITOR_STATE.econScenarioName || '';
+        WELL_EDITOR_STATE.econScenarioModified = false;
+        updateEconScenarioWarning();
         wellEditorNeedsRefresh = true;
         setWellEditorStatus('Parameters saved successfully.');
       } catch (error) {
@@ -3247,6 +3462,7 @@ window.syncRoyaltyPanelHeight = () => {
       const currentMode = FAST_EDIT_STATE.mode;
       try {
         setWellEditorStatus('Loading approved DCA...');
+        await ensureEconScenariosLoaded();
         const data = await loadWellEditorData(WELL_EDITOR_STATE.api, { approvedOnly: true });
         WELL_EDITOR_STATE.production = data.production || WELL_EDITOR_STATE.production;
         WELL_EDITOR_STATE.params = data.params || {};
@@ -3352,6 +3568,20 @@ window.syncRoyaltyPanelHeight = () => {
       });
     });
 
+    WELL_EDITOR_GPT_FIELDS.forEach((field) => {
+      field.addEventListener('input', () => {
+        const type = field.dataset.gptType;
+        if (type === 'int') {
+          const sanitized = field.value.replace(/[^0-9-]/g, '');
+          if (sanitized !== field.value) {
+            field.value = sanitized;
+          }
+        }
+        WELL_EDITOR_STATE.econScenarioModified = true;
+        updateEconScenarioWarning();
+      });
+    });
+
     const setWellEditorTab = (tab) => {
       WELL_EDITOR_TABS.forEach((button) => {
         const isActive = button.dataset.wellEditorTab === tab;
@@ -3386,6 +3616,24 @@ window.syncRoyaltyPanelHeight = () => {
 
     if (WELL_EDITOR_ELEMENTS.save) {
       WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
+    }
+
+    if (WELL_EDITOR_ELEMENTS.econScenarioSelect) {
+      WELL_EDITOR_ELEMENTS.econScenarioSelect.addEventListener('change', (event) => {
+        setEconScenarioSelection(event.target.value);
+      });
+    }
+
+    if (WELL_EDITOR_ELEMENTS.econSaveScenario) {
+      WELL_EDITOR_ELEMENTS.econSaveScenario.addEventListener('click', () => {
+        saveEconScenario();
+      });
+    }
+
+    if (WELL_EDITOR_ELEMENTS.econSaveScenarioToWell) {
+      WELL_EDITOR_ELEMENTS.econSaveScenarioToWell.addEventListener('click', () => {
+        saveEconScenarioToWell();
+      });
     }
 
     if (WELL_EDITOR_ELEMENTS.loadApproved) {
@@ -3500,6 +3748,7 @@ window.syncRoyaltyPanelHeight = () => {
       try {
         setWellEditorTab('oil');
         setWellEditorStatus('Loading well data...');
+        await ensureEconScenariosLoaded();
         const meta = getWellMeta(api);
         WELL_EDITOR_STATE.api = api;
         WELL_EDITOR_STATE.ownerInterest = meta.ownerInterest;
