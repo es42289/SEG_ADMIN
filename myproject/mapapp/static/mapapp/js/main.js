@@ -1869,6 +1869,10 @@ window.syncRoyaltyPanelHeight = () => {
       ownerInterest: 0,
       lastProdDate: null,
       chartReady: false,
+      econScenarioListLoaded: false,
+      econScenarioList: [],
+      econScenarioWellName: '',
+      econScenarioWellValues: {},
     };
 
     window.setWellEditorData = function setWellEditorData(data) {
@@ -1913,6 +1917,11 @@ window.syncRoyaltyPanelHeight = () => {
       netGas: document.getElementById('wellEditorNetGasEur'),
       nriPercent: document.getElementById('wellEditorNriPercent'),
       nriValue: document.getElementById('wellEditorNriValue'),
+      econScenarioSelect: document.getElementById('wellEditorEconScenario'),
+      econScenarioName: document.getElementById('wellEditorScenarioName'),
+      econScenarioStatus: document.getElementById('wellEditorEconScenarioStatus'),
+      econScenarioSave: document.getElementById('wellEditorSaveScenario'),
+      econScenarioSaveToWell: document.getElementById('wellEditorSaveScenarioToWell'),
     };
 
     const FAST_EDIT_STATE = {
@@ -1945,6 +1954,7 @@ window.syncRoyaltyPanelHeight = () => {
     const WELL_EDITOR_VALUE_FIELDS = Array.from(document.querySelectorAll('[data-field-value]'));
     const WELL_EDITOR_TABS = Array.from(document.querySelectorAll('[data-well-editor-tab]'));
     const WELL_EDITOR_SECTIONS = Array.from(document.querySelectorAll('[data-well-editor-section]'));
+    const WELL_EDITOR_ECON_FIELDS = Array.from(document.querySelectorAll('[data-econ-field]'));
 
     const formatNumber = (value, decimals = 0) => {
       const num = Number(value);
@@ -2038,6 +2048,80 @@ window.syncRoyaltyPanelHeight = () => {
       if (field.type !== 'checkbox') {
         updateFieldLabel(fieldName);
       }
+    };
+
+    const getEconScenarioName = () => WELL_EDITOR_ELEMENTS.econScenarioSelect?.value?.trim() || '';
+
+    const getEconFieldInput = (fieldName) =>
+      WELL_EDITOR_ECON_FIELDS.find((el) => el.dataset.econField === fieldName);
+
+    const normalizeEconValue = (input) => {
+      if (!input) return null;
+      const raw = input.value;
+      const type = input.dataset.econType;
+      if (type === 'text') {
+        return raw.trim() ? raw.trim() : null;
+      }
+      if (raw === '') return null;
+      const num = Number(raw);
+      if (!Number.isFinite(num)) return null;
+      if (type === 'int') {
+        return Number.isInteger(num) ? num : Math.trunc(num);
+      }
+      return num;
+    };
+
+    const collectEconScenarioValues = () => {
+      const values = {};
+      WELL_EDITOR_ECON_FIELDS.forEach((input) => {
+        values[input.dataset.econField] = normalizeEconValue(input);
+      });
+      return values;
+    };
+
+    const applyEconScenarioValues = (values = {}) => {
+      WELL_EDITOR_ECON_FIELDS.forEach((input) => {
+        const key = input.dataset.econField;
+        const value = values?.[key];
+        input.value = value === null || value === undefined ? '' : value;
+      });
+    };
+
+    const areEconValuesEqual = (a = {}, b = {}) =>
+      WELL_EDITOR_ECON_FIELDS.every((input) => {
+        const key = input.dataset.econField;
+        const type = input.dataset.econType;
+        const valA = a?.[key];
+        const valB = b?.[key];
+        if (type === 'text') {
+          return String(valA || '') === String(valB || '');
+        }
+        return Number(valA ?? null) === Number(valB ?? null);
+      });
+
+    const setEconScenarioStatus = (message, isWarning = false) => {
+      if (!WELL_EDITOR_ELEMENTS.econScenarioStatus) return;
+      WELL_EDITOR_ELEMENTS.econScenarioStatus.textContent = message;
+      WELL_EDITOR_ELEMENTS.econScenarioStatus.classList.toggle('is-warning', isWarning);
+    };
+
+    const updateEconScenarioWarning = () => {
+      const selectedName = getEconScenarioName();
+      const currentValues = collectEconScenarioValues();
+      const hasChanges =
+        selectedName !== (WELL_EDITOR_STATE.econScenarioWellName || '') ||
+        !areEconValuesEqual(currentValues, WELL_EDITOR_STATE.econScenarioWellValues);
+      if (hasChanges) {
+        setEconScenarioStatus('Scenario changes have not been saved to this well.', true);
+      } else {
+        setEconScenarioStatus('');
+      }
+    };
+
+    const markEconScenarioSavedToWell = () => {
+      WELL_EDITOR_STATE.econScenarioWellName = getEconScenarioName();
+      WELL_EDITOR_STATE.econScenarioWellValues = collectEconScenarioValues();
+      updateEconScenarioWarning();
     };
 
     const setWellApprovalValue = (approved) => {
@@ -2574,6 +2658,7 @@ window.syncRoyaltyPanelHeight = () => {
       GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
       FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
       GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
+      ECON_SCENARIO: getEconScenarioName(),
       APPROVED: getFieldValue('APPROVED') ?? getFieldValue('DCA_APPROVED'),
     });
 
@@ -2906,6 +2991,82 @@ window.syncRoyaltyPanelHeight = () => {
       return response.json();
     };
 
+    const loadEconScenarioList = async () => {
+      const response = await fetch('/econ-scenarios/');
+      if (!response.ok) {
+        throw new Error('Unable to load ECON scenarios.');
+      }
+      const data = await response.json();
+      return Array.isArray(data?.scenarios) ? data.scenarios : [];
+    };
+
+    const loadEconScenarioDetail = async (name) => {
+      if (!name) return null;
+      const params = new URLSearchParams({ name });
+      const response = await fetch(`/econ-scenarios/?${params.toString()}`);
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      return data?.scenario || null;
+    };
+
+    const updateEconScenarioSelect = (scenarios = [], selected = '') => {
+      if (!WELL_EDITOR_ELEMENTS.econScenarioSelect) return;
+      WELL_EDITOR_ELEMENTS.econScenarioSelect.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select scenario...';
+      WELL_EDITOR_ELEMENTS.econScenarioSelect.appendChild(placeholder);
+      scenarios.forEach((name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        WELL_EDITOR_ELEMENTS.econScenarioSelect.appendChild(option);
+      });
+      if (selected && !scenarios.includes(selected)) {
+        const option = document.createElement('option');
+        option.value = selected;
+        option.textContent = selected;
+        WELL_EDITOR_ELEMENTS.econScenarioSelect.appendChild(option);
+      }
+      WELL_EDITOR_ELEMENTS.econScenarioSelect.value = selected;
+    };
+
+    const initializeEconScenarioPanel = async (params = {}) => {
+      if (!WELL_EDITOR_ELEMENTS.econScenarioSelect) return;
+      try {
+        if (!WELL_EDITOR_STATE.econScenarioListLoaded) {
+          const scenarios = await loadEconScenarioList();
+          WELL_EDITOR_STATE.econScenarioListLoaded = true;
+          WELL_EDITOR_STATE.econScenarioList = scenarios;
+        }
+        const scenarioName = (params.ECON_SCENARIO || '').trim();
+        WELL_EDITOR_STATE.econScenarioWellName = scenarioName;
+        updateEconScenarioSelect(WELL_EDITOR_STATE.econScenarioList || [], scenarioName);
+        if (WELL_EDITOR_ELEMENTS.econScenarioName) {
+          WELL_EDITOR_ELEMENTS.econScenarioName.value = scenarioName;
+        }
+        if (scenarioName) {
+          const scenario = await loadEconScenarioDetail(scenarioName);
+          if (scenario) {
+            applyEconScenarioValues(scenario);
+          } else {
+            applyEconScenarioValues({});
+            setEconScenarioStatus('Scenario not found in ECON_SCENARIOS.', true);
+          }
+          WELL_EDITOR_STATE.econScenarioWellValues = collectEconScenarioValues();
+        } else {
+          applyEconScenarioValues({});
+          WELL_EDITOR_STATE.econScenarioWellValues = collectEconScenarioValues();
+        }
+        updateEconScenarioWarning();
+      } catch (error) {
+        console.error('Failed to initialize ECON scenario panel', error);
+        setEconScenarioStatus('Unable to load ECON scenarios.', true);
+      }
+    };
+
     const fetchWellPvValue = async (api) => {
       const deckSelect = document.getElementById('priceDeckSelect');
       const params = new URLSearchParams();
@@ -3103,6 +3264,7 @@ window.syncRoyaltyPanelHeight = () => {
         );
         WELL_EDITOR_STATE.lastProdDate = lastProdDate;
         applyWellEditorParams(data.params || {}, lastProdDate, firstProdDate);
+        await initializeEconScenarioPanel(data.params || {});
         renderWellEditorChart(combined);
         updateWellEditorMetrics(combined);
         setFastEditMode(currentMode);
@@ -3223,9 +3385,14 @@ window.syncRoyaltyPanelHeight = () => {
         updateWellApprovalState(WELL_EDITOR_STATE.api, params.APPROVED === 'Y');
         wellEditorNeedsRefresh = true;
         setWellEditorStatus('Parameters saved successfully.');
+        if (getEconScenarioName()) {
+          markEconScenarioSavedToWell();
+        }
+        return true;
       } catch (error) {
         console.error('Failed to save well parameters', error);
         setWellEditorStatus(error.message || 'Save failed.', true);
+        return false;
       } finally {
         if (WELL_EDITOR_ELEMENTS.save) {
           WELL_EDITOR_ELEMENTS.save.disabled = false;
@@ -3233,6 +3400,70 @@ window.syncRoyaltyPanelHeight = () => {
         if (FAST_EDIT_ELEMENTS.saveApprove) {
           FAST_EDIT_ELEMENTS.saveApprove.disabled = false;
         }
+      }
+    };
+
+    const validateEconInputs = () => {
+      for (const input of WELL_EDITOR_ECON_FIELDS) {
+        if (input.type === 'number' && input.value !== '' && !input.checkValidity()) {
+          input.focus();
+          input.reportValidity();
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const saveEconScenario = async () => {
+      if (!WELL_EDITOR_ELEMENTS.econScenarioName) return;
+      const scenarioName = WELL_EDITOR_ELEMENTS.econScenarioName.value.trim();
+      if (!scenarioName) {
+        setEconScenarioStatus('Scenario name is required.', true);
+        return;
+      }
+      if (!validateEconInputs()) {
+        setEconScenarioStatus('Please fix invalid scenario values.', true);
+        return;
+      }
+      try {
+        setEconScenarioStatus('Saving scenario...');
+        const values = collectEconScenarioValues();
+        const response = await fetch('/econ-scenarios/save/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenario_name: scenarioName, values }),
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || 'Save failed.');
+        }
+        const scenarios = await loadEconScenarioList();
+        WELL_EDITOR_STATE.econScenarioList = scenarios;
+        WELL_EDITOR_STATE.econScenarioListLoaded = true;
+        updateEconScenarioSelect(scenarios, scenarioName);
+        if (WELL_EDITOR_ELEMENTS.econScenarioName) {
+          WELL_EDITOR_ELEMENTS.econScenarioName.value = scenarioName;
+        }
+        setEconScenarioStatus('Scenario saved for future use.');
+        updateEconScenarioWarning();
+      } catch (error) {
+        console.error('Failed to save ECON scenario', error);
+        setEconScenarioStatus(error.message || 'Failed to save scenario.', true);
+      }
+    };
+
+    const saveEconScenarioToWell = async () => {
+      if (!getEconScenarioName()) {
+        setEconScenarioStatus('Select or save a scenario first.', true);
+        return;
+      }
+      if (!validateEconInputs()) {
+        setEconScenarioStatus('Please fix invalid scenario values.', true);
+        return;
+      }
+      const saved = await saveWellEditorParams();
+      if (saved) {
+        setEconScenarioStatus('Scenario saved to well.');
       }
     };
 
@@ -3256,6 +3487,7 @@ window.syncRoyaltyPanelHeight = () => {
         );
         WELL_EDITOR_STATE.lastProdDate = lastProdDate;
         applyWellEditorParams(data.params || {}, lastProdDate, firstProdDate);
+        await initializeEconScenarioPanel(data.params || {});
         renderWellEditorChart(combined);
         updateWellEditorMetrics(combined);
         setFastEditMode(currentMode);
@@ -3352,6 +3584,39 @@ window.syncRoyaltyPanelHeight = () => {
       });
     });
 
+    WELL_EDITOR_ECON_FIELDS.forEach((field) => {
+      field.addEventListener('input', () => {
+        updateEconScenarioWarning();
+      });
+    });
+
+    if (WELL_EDITOR_ELEMENTS.econScenarioSelect) {
+      WELL_EDITOR_ELEMENTS.econScenarioSelect.addEventListener('change', async (event) => {
+        const selectedName = event.target.value;
+        if (WELL_EDITOR_ELEMENTS.econScenarioName) {
+          WELL_EDITOR_ELEMENTS.econScenarioName.value = selectedName;
+        }
+        if (!selectedName) {
+          applyEconScenarioValues({});
+          updateEconScenarioWarning();
+          return;
+        }
+        try {
+          const scenario = await loadEconScenarioDetail(selectedName);
+          if (scenario) {
+            applyEconScenarioValues(scenario);
+          } else {
+            applyEconScenarioValues({});
+            setEconScenarioStatus('Scenario not found in ECON_SCENARIOS.', true);
+          }
+          updateEconScenarioWarning();
+        } catch (error) {
+          console.error('Failed to load ECON scenario', error);
+          setEconScenarioStatus('Unable to load scenario details.', true);
+        }
+      });
+    }
+
     const setWellEditorTab = (tab) => {
       WELL_EDITOR_TABS.forEach((button) => {
         const isActive = button.dataset.wellEditorTab === tab;
@@ -3386,6 +3651,14 @@ window.syncRoyaltyPanelHeight = () => {
 
     if (WELL_EDITOR_ELEMENTS.save) {
       WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
+    }
+
+    if (WELL_EDITOR_ELEMENTS.econScenarioSave) {
+      WELL_EDITOR_ELEMENTS.econScenarioSave.addEventListener('click', saveEconScenario);
+    }
+
+    if (WELL_EDITOR_ELEMENTS.econScenarioSaveToWell) {
+      WELL_EDITOR_ELEMENTS.econScenarioSaveToWell.addEventListener('click', saveEconScenarioToWell);
     }
 
     if (WELL_EDITOR_ELEMENTS.loadApproved) {
@@ -3532,6 +3805,7 @@ window.syncRoyaltyPanelHeight = () => {
         );
         WELL_EDITOR_STATE.lastProdDate = lastProdDate;
         applyWellEditorParams(data.params || {}, lastProdDate, firstProdDate);
+        await initializeEconScenarioPanel(data.params || {});
         renderWellEditorChart(combined);
         const metrics = updateWellEditorMetrics(combined);
         WELL_EDITOR_STATE.baseMetrics = metrics;

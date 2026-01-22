@@ -535,6 +535,7 @@
           <div class="well-editor-toggle">
             <button type="button" class="well-editor-toggle__button is-active" data-well-editor-tab="oil">Oil Inputs</button>
             <button type="button" class="well-editor-toggle__button" data-well-editor-tab="gas">Gas Inputs</button>
+            <button type="button" class="well-editor-toggle__button" data-well-editor-tab="gpt">GPT Inputs</button>
           </div>
 
           <div class="well-editor-form">
@@ -675,6 +676,103 @@
                   <span class="well-editor-field__value" data-field-value="GAS_CALC_B_FACTOR">--</span>
                 </div>
                 <input id="wellGasB" type="range" min="0.5" max="1.1" step="0.01" data-field="GAS_CALC_B_FACTOR">
+              </div>
+            </div>
+
+            <div class="well-editor-form__section" data-well-editor-section="gpt" hidden>
+              <h3 class="well-editor-form__title">GPT Inputs</h3>
+              <div class="well-editor-field">
+                <label for="wellEditorEconScenario">ECON Scenario</label>
+                <select id="wellEditorEconScenario" class="well-editor-select" aria-label="Select ECON scenario"></select>
+              </div>
+              <p id="wellEditorEconScenarioStatus" class="well-editor-scenario-status" role="status" aria-live="polite"></p>
+              <div class="well-editor-field">
+                <label for="wellEditorScenarioName">Scenario Name</label>
+                <input id="wellEditorScenarioName" type="text" class="well-editor-input" placeholder="Enter new scenario name">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorOilDiffPct">Oil Diff %</label>
+                <input id="wellEditorOilDiffPct" type="number" step="any" data-econ-field="OIL_DIFF_PCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorOilDiffAmt">Oil Diff Amt</label>
+                <input id="wellEditorOilDiffAmt" type="number" step="1" data-econ-field="OIL_DIFF_AMT" data-econ-type="int" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorGasDiffPct">Gas Diff %</label>
+                <input id="wellEditorGasDiffPct" type="number" step="any" data-econ-field="GAS_DIFF_PCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorGasDiffAmt">Gas Diff Amt</label>
+                <input id="wellEditorGasDiffAmt" type="number" step="any" data-econ-field="GAS_DIFF_AMT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorNglDiffPct">NGL Diff %</label>
+                <input id="wellEditorNglDiffPct" type="number" step="any" data-econ-field="NGL_DIFF_PCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorNglDiffAmt">NGL Diff Amt</label>
+                <input id="wellEditorNglDiffAmt" type="number" step="1" data-econ-field="NGL_DIFF_AMT" data-econ-type="int" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorOilGptDeduct">Oil GPT Deduct</label>
+                <input id="wellEditorOilGptDeduct" type="number" step="any" data-econ-field="OIL_GPT_DEDUCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorGasGptDeduct">Gas GPT Deduct</label>
+                <input id="wellEditorGasGptDeduct" type="number" step="any" data-econ-field="GAS_GPT_DEDUCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorNglGptDeduct">NGL GPT Deduct</label>
+                <input id="wellEditorNglGptDeduct" type="number" step="any" data-econ-field="NGL_GPT_DEDUCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorOilTax">Oil Tax</label>
+                <input id="wellEditorOilTax" type="number" step="any" data-econ-field="OIL_TAX" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorGasTax">Gas Tax</label>
+                <input id="wellEditorGasTax" type="number" step="any" data-econ-field="GAS_TAX" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorNglTax">NGL Tax</label>
+                <input id="wellEditorNglTax" type="number" step="any" data-econ-field="NGL_TAX" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorAdValTax">Ad Val Tax</label>
+                <input id="wellEditorAdValTax" type="number" step="any" data-econ-field="AD_VAL_TAX" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorGasShrink">Gas Shrink</label>
+                <input id="wellEditorGasShrink" type="number" step="any" data-econ-field="GAS_SHRINK" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorNglYield">NGL Yield</label>
+                <input id="wellEditorNglYield" type="number" step="any" data-econ-field="NGL_YIELD" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorCounty">County</label>
+                <input id="wellEditorCounty" type="text" data-econ-field="COUNTY" data-econ-type="text" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorBasin">Basin</label>
+                <input id="wellEditorBasin" type="text" data-econ-field="BASIN" data-econ-type="text" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorGasOptDeduct">Gas OPT Deduct</label>
+                <input id="wellEditorGasOptDeduct" type="number" step="1" data-econ-field="GAS_OPT_DEDUCT" data-econ-type="int" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorNglOptDeduct">NGL OPT Deduct</label>
+                <input id="wellEditorNglOptDeduct" type="number" step="any" data-econ-field="NGL_OPT_DEDUCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-field">
+                <label for="wellEditorOilOptDeduct">Oil OPT Deduct</label>
+                <input id="wellEditorOilOptDeduct" type="number" step="any" data-econ-field="OIL_OPT_DEDUCT" data-econ-type="float" class="well-editor-input">
+              </div>
+              <div class="well-editor-actions well-editor-actions--gpt">
+                <button type="button" id="wellEditorSaveScenario" class="well-editor-secondary">Save GPT Scenario</button>
+                <button type="button" id="wellEditorSaveScenarioToWell" class="well-editor-save">Save Scenario to Well</button>
               </div>
             </div>
           </div>

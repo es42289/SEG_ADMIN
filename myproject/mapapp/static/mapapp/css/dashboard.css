@@ -2348,6 +2348,15 @@ input#year[type="range"] {
       border: 1px solid #cbd5f5;
     }
 
+    .well-editor-field input[type="text"],
+    .well-editor-field input[type="number"] {
+      padding: 0.35rem;
+      border-radius: 6px;
+      border: 1px solid #cbd5f5;
+      background: #ffffff;
+      color: #0f172a;
+    }
+
     .well-editor-field__value {
       font-size: 0.85rem;
       font-weight: 600;
@@ -2427,6 +2436,22 @@ input#year[type="range"] {
       display: flex;
       justify-content: flex-end;
       gap: 0.6rem;
+    }
+
+    .well-editor-actions--gpt {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .well-editor-scenario-status {
+      margin: 0 0 0.6rem;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+    }
+
+    .well-editor-scenario-status.is-warning {
+      color: #fca5a5;
+      font-weight: 600;
     }
 
     .well-editor-approval {
@@ -2531,6 +2556,20 @@ input#year[type="range"] {
     .well-editor-fast-edit:hover {
       box-shadow: 0 12px 24px rgba(14, 165, 233, 0.35);
       transform: translateY(-1px);
+    }
+
+    .well-editor-secondary {
+      background: transparent;
+      color: #f8fafc;
+      border: 1px solid rgba(248, 250, 252, 0.6);
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .well-editor-secondary:hover {
+      background: rgba(248, 250, 252, 0.12);
     }
 
     .fast-edit-modal {
