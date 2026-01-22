@@ -1509,11 +1509,6 @@ ECON_SCENARIO_COLUMNS = [
     "AD_VAL_TAX",
     "GAS_SHRINK",
     "NGL_YIELD",
-    "COUNTY",
-    "BASIN",
-    "GAS_OPT_DEDUCT",
-    "NGL_OPT_DEDUCT",
-    "OIL_OPT_DEDUCT",
 ]
 
 ECON_SCENARIO_COLUMN_TYPES = {
@@ -1532,12 +1527,63 @@ ECON_SCENARIO_COLUMN_TYPES = {
     "AD_VAL_TAX": "float",
     "GAS_SHRINK": "float",
     "NGL_YIELD": "float",
-    "COUNTY": "text",
-    "BASIN": "text",
-    "GAS_OPT_DEDUCT": "int",
-    "NGL_OPT_DEDUCT": "float",
-    "OIL_OPT_DEDUCT": "float",
 }
+
+ECON_SCENARIO_DEFAULTS = {
+    "OIL_DIFF_PCT": 1.0,
+    "OIL_DIFF_AMT": 0.0,
+    "GAS_DIFF_PCT": 1.0,
+    "GAS_DIFF_AMT": 0.0,
+    "NGL_DIFF_PCT": 0.3,
+    "NGL_DIFF_AMT": 0.0,
+    "NGL_YIELD": 10.0,
+    "GAS_SHRINK": 0.9,
+    "OIL_GPT_DEDUCT": 0.0,
+    "GAS_GPT_DEDUCT": 0.0,
+    "NGL_GPT_DEDUCT": 0.0,
+    "OIL_TAX": 0.046,
+    "GAS_TAX": 0.075,
+    "NGL_TAX": 0.046,
+    "AD_VAL_TAX": 0.02,
+}
+
+
+def _resolve_econ_scenario(values: dict | None) -> dict:
+    resolved = ECON_SCENARIO_DEFAULTS.copy()
+    if not values:
+        return resolved
+    for key in ECON_SCENARIO_COLUMNS:
+        val = values.get(key)
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            continue
+        resolved[key] = float(val) if ECON_SCENARIO_COLUMN_TYPES.get(key) != "text" else val
+    return resolved
+
+
+def _fetch_econ_scenarios(scenario_names: list[str]) -> dict:
+    names = [name for name in scenario_names if name]
+    if not names:
+        return {}
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    try:
+        placeholders = ",".join(["%s"] * len(names))
+        cur.execute(
+            f"""
+            SELECT *
+            FROM WELLS.MINERALS.ECON_SCENARIOS
+            WHERE ECON_SCENARIO IN ({placeholders})
+            """,
+            names,
+        )
+        rows = cur.fetchall() or []
+        return {row.get("ECON_SCENARIO"): row for row in rows if row.get("ECON_SCENARIO")}
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
 
 
 @require_http_methods(["GET"])
@@ -1789,100 +1835,95 @@ def export_well_dca_inputs(request):
     owner_interest = float(interest_map.get(api) or 0)
 
     fc = forecast_df.copy()
-    fc["OilVolWI"] = (
-        fc.get("LIQUIDSPROD_BBL").fillna(fc.get("OilFcst_BBL")).fillna(0)
-    )
-    fc["GasVolWI"] = (
-        fc.get("GASPROD_MCF").fillna(fc.get("GasFcst_MCF")).fillna(0)
-    )
+    fc["OilBlend"] = fc.get("OilFcst_BBL")
+    fc.loc[fc.get("LIQUIDSPROD_BBL").notna(), "OilBlend"] = fc["LIQUIDSPROD_BBL"]
+    fc["GasBlend"] = fc.get("GasFcst_MCF")
+    fc.loc[fc.get("GASPROD_MCF").notna(), "GasBlend"] = fc["GASPROD_MCF"]
+    fc["OilBlend"] = fc["OilBlend"].fillna(0)
+    fc["GasBlend"] = fc["GasBlend"].fillna(0)
     fc["OwnerInterest"] = owner_interest
 
     hist_oil = pd.to_numeric(fc.get("LIQUIDSPROD_BBL"), errors="coerce")
     hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
     fc["has_hist_volume"] = hist_oil.fillna(0).ne(0) | hist_gas.fillna(0).ne(0)
 
-    oil_basis_pct = 1.0
-    oil_basis_amt = 0.0
-    gas_basis_pct = 1.0
-    gas_basis_amt = 0.0
-    ngl_basis_pct = 0.3
-    ngl_basis_amt = 0.0
-    ngl_yield = 10.0
-    gas_shrink = 0.9
-    oil_gpt = gas_gpt = ngl_gpt = 0.0
-    oil_opt = gas_opt = ngl_opt = 0.0
-    oil_tax = 0.046
-    gas_tax = 0.075
-    ngl_tax = 0.046
-    ad_val_tax = 0.02
-    apply_nri_before_tax = True
-
-    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
-    fc = fc.merge(
-        deck_df[["MONTH_DATE", "OIL", "GAS"]],
-        left_on="PRODUCINGMONTH",
-        right_on="MONTH_DATE",
-        how="left",
+    max_years = max(
+        float(params.get("OIL_FCST_YRS") or 0),
+        float(params.get("GAS_FCST_YRS") or 0),
     )
-    fc[["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]] = fc[
-        ["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]
-    ].fillna(0)
+    if max_years > 0:
+        start_date = fc["PRODUCINGMONTH"].min()
+        if pd.notna(start_date):
+            cutoff = start_date + pd.DateOffset(months=int(max_years * 12))
+            fc = fc[fc["PRODUCINGMONTH"] <= cutoff]
 
-    if apply_nri_before_tax:
-        fc["OilVol"] = fc["OilVolWI"] * fc["OwnerInterest"]
-        fc["GasVol"] = fc["GasVolWI"] * fc["OwnerInterest"]
-    else:
-        fc["OilVol"] = fc["OilVolWI"]
-        fc["GasVol"] = fc["GasVolWI"]
+    scenario_name = (params.get("ECON_SCENARIO") or "").strip()
+    scenario_map = _fetch_econ_scenarios([scenario_name])
+    scenario_values = _resolve_econ_scenario(scenario_map.get(scenario_name))
 
-    net_gas = fc["GasVol"] * gas_shrink
-    fc["NGLVol"] = (net_gas / 1000.0) * ngl_yield
-    fc["RealOil"] = fc["OIL"] * oil_basis_pct + oil_basis_amt
-    fc["RealGas"] = fc["GAS"] * gas_basis_pct + gas_basis_amt
-    fc["RealNGL"] = fc["GAS"] * ngl_basis_pct + ngl_basis_amt
-    fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
-    fc["GasRevenue"] = net_gas * fc["RealGas"]
-    fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
-    fc["GrossRevenue"] = fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
-    fc["OilGPT"] = fc["OilVol"] * oil_gpt
-    fc["GasGPT"] = fc["GasVol"] * gas_gpt
-    fc["NGLGPT"] = fc["NGLVol"] * ngl_gpt
-    fc["GPT"] = fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]
-    fc["OilOPT"] = fc["OilVol"] * oil_opt
-    fc["GasOPT"] = fc["GasVol"] * gas_opt
-    fc["NGLOPT"] = fc["NGLVol"] * ngl_opt
-    fc["OPT"] = fc["OilOPT"] + fc["GasOPT"] + fc["NGLOPT"]
-    fc["OilSev"] = fc["OilRevenue"] * oil_tax
-    fc["GasSev"] = fc["GasRevenue"] * gas_tax
-    fc["NGLSev"] = fc["NGLRevenue"] * ngl_tax
-    fc["SevTax"] = fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]
-    fc["AdValTax"] = fc["GrossRevenue"] * ad_val_tax
+    fc["PRODUCINGMONTH"] = pd.to_datetime(fc["PRODUCINGMONTH"], errors="coerce")
+    fc["MONTH_KEY"] = fc["PRODUCINGMONTH"].dt.to_period("M").dt.to_timestamp()
+    deck_df["MONTH_KEY"] = pd.to_datetime(
+        deck_df["MONTH_DATE"], errors="coerce"
+    ).dt.to_period("M").dt.to_timestamp()
+    fc = fc.merge(deck_df[["MONTH_KEY", "OIL", "GAS"]], on="MONTH_KEY", how="left")
+    fc["OIL"] = fc["OIL"].fillna(50.0)
+    fc["GAS"] = fc["GAS"].fillna(3.0)
+
+    ngl_yield = scenario_values["NGL_YIELD"]
+    gas_shrink = scenario_values["GAS_SHRINK"]
+
+    fc["NGLVol"] = ((fc["GasBlend"] / 1000.0) * ngl_yield).round(2)
+    fc["RealOil"] = (
+        fc["OIL"] * scenario_values["OIL_DIFF_PCT"] + scenario_values["OIL_DIFF_AMT"]
+    ).round(2)
+    fc["RealGas"] = (
+        fc["GAS"] * scenario_values["GAS_DIFF_PCT"] + scenario_values["GAS_DIFF_AMT"]
+    ).round(2)
+    fc["RealNGL"] = (
+        fc["OIL"] * scenario_values["NGL_DIFF_PCT"] + scenario_values["NGL_DIFF_AMT"]
+    ).round(2)
+
+    fc["OilRevenue"] = (fc["OilBlend"] * fc["RealOil"]).round(2)
+    fc["GasRevenue"] = (
+        fc["GasBlend"] * fc["RealGas"] * gas_shrink
+    ).round(2)
+    fc["NGLRevenue"] = (fc["NGLVol"] * fc["RealNGL"]).round(2)
+    fc["GrossRevenue"] = (
+        fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
+    ).round(2)
+
+    fc["OilGPT"] = (fc["OilBlend"] * scenario_values["OIL_GPT_DEDUCT"]).round(2)
+    fc["GasGPT"] = (fc["GasBlend"] * scenario_values["GAS_GPT_DEDUCT"]).round(2)
+    fc["NGLGPT"] = (fc["NGLVol"] * scenario_values["NGL_GPT_DEDUCT"]).round(2)
+    fc["GPT"] = (fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]).round(2)
+
+    fc["OilSev"] = (fc["OilRevenue"] * scenario_values["OIL_TAX"]).round(2)
+    fc["GasSev"] = (fc["GasRevenue"] * scenario_values["GAS_TAX"]).round(2)
+    fc["NGLSev"] = (fc["NGLRevenue"] * scenario_values["NGL_TAX"]).round(2)
+    fc["SevTax"] = (fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]).round(2)
+    fc["AdValTax"] = (fc["GrossRevenue"] * scenario_values["AD_VAL_TAX"]).round(2)
     fc["NetCashFlow"] = (
-        fc["GrossRevenue"] - fc["GPT"] - fc["OPT"] - fc["SevTax"] - fc["AdValTax"]
-    )
+        fc["GrossRevenue"] - fc["GPT"] - fc["SevTax"] - fc["AdValTax"]
+    ).round(2)
 
-    if not apply_nri_before_tax:
-        money_cols = [
-            "OilRevenue",
-            "GasRevenue",
-            "NGLRevenue",
-            "GrossRevenue",
-            "OilGPT",
-            "GasGPT",
-            "NGLGPT",
-            "GPT",
-            "OilOPT",
-            "GasOPT",
-            "NGLOPT",
-            "OPT",
-            "OilSev",
-            "GasSev",
-            "NGLSev",
-            "SevTax",
-            "AdValTax",
-            "NetCashFlow",
-        ]
-        fc[money_cols] = fc[money_cols].mul(fc["OwnerInterest"], axis=0)
+    money_cols = [
+        "OilRevenue",
+        "GasRevenue",
+        "NGLRevenue",
+        "GrossRevenue",
+        "OilGPT",
+        "GasGPT",
+        "NGLGPT",
+        "GPT",
+        "OilSev",
+        "GasSev",
+        "NGLSev",
+        "SevTax",
+        "AdValTax",
+        "NetCashFlow",
+    ]
+    fc[money_cols] = fc[money_cols].mul(fc["OwnerInterest"], axis=0).round(2)
 
     fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d")
     export_columns = [
@@ -1892,8 +1933,8 @@ def export_well_dca_inputs(request):
         "GASPROD_MCF",
         "OilFcst_BBL",
         "GasFcst_MCF",
-        "OilVolWI",
-        "GasVolWI",
+        "OilBlend",
+        "GasBlend",
         "OwnerInterest",
         "OIL",
         "GAS",
@@ -1905,7 +1946,6 @@ def export_well_dca_inputs(request):
         "NGLRevenue",
         "GrossRevenue",
         "GPT",
-        "OPT",
         "SevTax",
         "AdValTax",
         "NetCashFlow",
@@ -2158,7 +2198,7 @@ def fetch_forecasts_for_apis(apis):
     ]
 
     if not apis:
-        return pd.DataFrame(columns=base_columns)
+        return pd.DataFrame(columns=base_columns), {}
 
     conn = get_snowflake_connection()
     cur = conn.cursor(DictCursor)
@@ -2235,7 +2275,7 @@ def fetch_forecasts_for_apis(apis):
     if "API_NODASH" not in df.columns and "API_UWI" in df.columns:
         df["API_NODASH"] = df["API_UWI"].str.replace('-', '', regex=False)
 
-    return df
+    return df, params_by_api
 
 
 def economics_data(request):
@@ -2259,16 +2299,13 @@ def economics_data(request):
     apis = list(wells_by_api.keys())
     price_df = fetch_price_decks()
     deck_df = get_blended_price_deck(deck, price_df)
-    fc = fetch_forecasts_for_apis(apis)
-    # Start with 100% working-interest volumes. Depending on the setting below,
-    # the owner's net-interest may be applied before or after economic
-    # deductions are taken so that our results can mirror other applications.
-    fc["OilVolWI"] = (
-        fc["LIQUIDSPROD_BBL"].fillna(fc["OilFcst_BBL"]).fillna(0)
-    )
-    fc["GasVolWI"] = (
-        fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"]).fillna(0)
-    )
+    fc, params_by_api = fetch_forecasts_for_apis(apis)
+    fc["OilBlend"] = fc.get("OilFcst_BBL")
+    fc.loc[fc.get("LIQUIDSPROD_BBL").notna(), "OilBlend"] = fc["LIQUIDSPROD_BBL"]
+    fc["GasBlend"] = fc.get("GasFcst_MCF")
+    fc.loc[fc.get("GASPROD_MCF").notna(), "GasBlend"] = fc["GASPROD_MCF"]
+    fc["OilBlend"] = fc["OilBlend"].fillna(0)
+    fc["GasBlend"] = fc["GasBlend"].fillna(0)
     interest_map = {
         api.replace('-', ''): data["owner_interest"] for api, data in wells_by_api.items()
     }
@@ -2276,104 +2313,113 @@ def economics_data(request):
 
     hist_oil = pd.to_numeric(fc.get("LIQUIDSPROD_BBL"), errors="coerce")
     hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
-    fc["has_hist_volume"] = (
-        hist_oil.fillna(0).ne(0)
-        | hist_gas.fillna(0).ne(0)
+    fc["has_hist_volume"] = hist_oil.fillna(0).ne(0) | hist_gas.fillna(0).ne(0)
+
+    max_years_by_api = {}
+    scenario_names = []
+    for api in apis:
+        params = params_by_api.get(api, {}) or {}
+        max_years = max(
+            float(params.get("OIL_FCST_YRS") or 0),
+            float(params.get("GAS_FCST_YRS") or 0),
+        )
+        max_years_by_api[api] = max_years if max_years > 0 else None
+        scenario_name = (params.get("ECON_SCENARIO") or "").strip()
+        if scenario_name:
+            scenario_names.append(scenario_name)
+
+    scenario_map = _fetch_econ_scenarios(scenario_names)
+    scenario_by_api = {
+        api: _resolve_econ_scenario(scenario_map.get((params_by_api.get(api) or {}).get("ECON_SCENARIO")))
+        for api in apis
+    }
+
+    start_dates = fc.groupby("API_UWI")["PRODUCINGMONTH"].min()
+    cutoff_by_api = {}
+    for api, max_years in max_years_by_api.items():
+        if not max_years:
+            continue
+        start_date = start_dates.get(api)
+        if pd.isna(start_date):
+            continue
+        cutoff_by_api[api] = start_date + pd.DateOffset(months=int(max_years * 12))
+    fc["cutoff_date"] = fc["API_UWI"].map(cutoff_by_api)
+    fc = fc[fc["cutoff_date"].isna() | (fc["PRODUCINGMONTH"] <= fc["cutoff_date"])]
+
+    fc["PRODUCINGMONTH"] = pd.to_datetime(fc["PRODUCINGMONTH"], errors="coerce")
+    fc["MONTH_KEY"] = fc["PRODUCINGMONTH"].dt.to_period("M").dt.to_timestamp()
+    deck_df["MONTH_KEY"] = pd.to_datetime(
+        deck_df["MONTH_DATE"], errors="coerce"
+    ).dt.to_period("M").dt.to_timestamp()
+    fc = fc.merge(deck_df[["MONTH_KEY", "OIL", "GAS"]], on="MONTH_KEY", how="left")
+    fc["OIL"] = fc["OIL"].fillna(50.0)
+    fc["GAS"] = fc["GAS"].fillna(3.0)
+
+    scenario_values = fc["API_UWI"].map(scenario_by_api)
+    scenario_values = scenario_values.apply(
+        lambda v: v if isinstance(v, dict) else ECON_SCENARIO_DEFAULTS
     )
-    # Economic parameters – in a fuller application these would come from a
-    # scenario table. Using defaults allows the economics to run even when
-    # such configuration is absent.
-    oil_basis_pct = 1.0
-    oil_basis_amt = 0.0
-    gas_basis_pct = 1.0
-    gas_basis_amt = 0.0
-    ngl_basis_pct = 0.3
-    ngl_basis_amt = 0.0
-    ngl_yield = 10.0  # BBL/MMCF
-    gas_shrink = 0.9
-    oil_gpt = gas_gpt = ngl_gpt = 0.0
-    oil_opt = gas_opt = ngl_opt = 0.0
-    oil_tax = 0.046
-    gas_tax = 0.075
-    ngl_tax = 0.046
-    ad_val_tax = 0.02
-    apply_nri_before_tax = True
-    # Forecast data often uses the first day of the month while price decks
-    # are keyed by the last day. Shifting to month-end ensures the merge below
-    # finds matching rows instead of leaving the economic charts empty.
-    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
-    fc = fc.merge(
-        deck_df[["MONTH_DATE", "OIL", "GAS"]],
-        left_on="PRODUCINGMONTH",
-        right_on="MONTH_DATE",
-        how="left",
-    )
-    fc[["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]] = fc[
-        ["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]
-    ].fillna(0)
+    fc["OIL_DIFF_PCT"] = scenario_values.apply(lambda v: v["OIL_DIFF_PCT"])
+    fc["OIL_DIFF_AMT"] = scenario_values.apply(lambda v: v["OIL_DIFF_AMT"])
+    fc["GAS_DIFF_PCT"] = scenario_values.apply(lambda v: v["GAS_DIFF_PCT"])
+    fc["GAS_DIFF_AMT"] = scenario_values.apply(lambda v: v["GAS_DIFF_AMT"])
+    fc["NGL_DIFF_PCT"] = scenario_values.apply(lambda v: v["NGL_DIFF_PCT"])
+    fc["NGL_DIFF_AMT"] = scenario_values.apply(lambda v: v["NGL_DIFF_AMT"])
+    fc["NGL_YIELD"] = scenario_values.apply(lambda v: v["NGL_YIELD"])
+    fc["GAS_SHRINK"] = scenario_values.apply(lambda v: v["GAS_SHRINK"])
+    fc["OIL_GPT_DEDUCT"] = scenario_values.apply(lambda v: v["OIL_GPT_DEDUCT"])
+    fc["GAS_GPT_DEDUCT"] = scenario_values.apply(lambda v: v["GAS_GPT_DEDUCT"])
+    fc["NGL_GPT_DEDUCT"] = scenario_values.apply(lambda v: v["NGL_GPT_DEDUCT"])
+    fc["OIL_TAX"] = scenario_values.apply(lambda v: v["OIL_TAX"])
+    fc["GAS_TAX"] = scenario_values.apply(lambda v: v["GAS_TAX"])
+    fc["NGL_TAX"] = scenario_values.apply(lambda v: v["NGL_TAX"])
+    fc["AD_VAL_TAX"] = scenario_values.apply(lambda v: v["AD_VAL_TAX"])
 
-    # Apply NRI to volumes if deductions/taxes should be calculated on the
-    # owner's share. Otherwise volumes remain at 100% working interest and the
-    # money columns are scaled later.
-    if apply_nri_before_tax:
-        fc["OilVol"] = fc["OilVolWI"] * fc["OwnerInterest"]
-        fc["GasVol"] = fc["GasVolWI"] * fc["OwnerInterest"]
-    else:
-        fc["OilVol"] = fc["OilVolWI"]
-        fc["GasVol"] = fc["GasVolWI"]
+    fc["NGLVol"] = ((fc["GasBlend"] / 1000.0) * fc["NGL_YIELD"]).round(2)
 
-    net_gas = fc["GasVol"] * gas_shrink
-    fc["NGLVol"] = (net_gas / 1000.0) * ngl_yield
+    fc["RealOil"] = (fc["OIL"] * fc["OIL_DIFF_PCT"] + fc["OIL_DIFF_AMT"]).round(2)
+    fc["RealGas"] = (fc["GAS"] * fc["GAS_DIFF_PCT"] + fc["GAS_DIFF_AMT"]).round(2)
+    fc["RealNGL"] = (fc["OIL"] * fc["NGL_DIFF_PCT"] + fc["NGL_DIFF_AMT"]).round(2)
 
-    fc["RealOil"] = fc["OIL"] * oil_basis_pct + oil_basis_amt
-    fc["RealGas"] = fc["GAS"] * gas_basis_pct + gas_basis_amt
-    fc["RealNGL"] = fc["GAS"] * ngl_basis_pct + ngl_basis_amt
+    fc["OilRevenue"] = (fc["OilBlend"] * fc["RealOil"]).round(2)
+    fc["GasRevenue"] = (fc["GasBlend"] * fc["RealGas"] * fc["GAS_SHRINK"]).round(2)
+    fc["NGLRevenue"] = (fc["NGLVol"] * fc["RealNGL"]).round(2)
+    fc["GrossRevenue"] = (
+        fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
+    ).round(2)
 
-    fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
-    fc["GasRevenue"] = net_gas * fc["RealGas"]
-    fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
-    fc["GrossRevenue"] = fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
+    fc["OilGPT"] = (fc["OilBlend"] * fc["OIL_GPT_DEDUCT"]).round(2)
+    fc["GasGPT"] = (fc["GasBlend"] * fc["GAS_GPT_DEDUCT"]).round(2)
+    fc["NGLGPT"] = (fc["NGLVol"] * fc["NGL_GPT_DEDUCT"]).round(2)
+    fc["GPT"] = (fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]).round(2)
 
-    fc["OilGPT"] = fc["OilVol"] * oil_gpt
-    fc["GasGPT"] = fc["GasVol"] * gas_gpt
-    fc["NGLGPT"] = fc["NGLVol"] * ngl_gpt
-    fc["GPT"] = fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]
+    fc["OilSev"] = (fc["OilRevenue"] * fc["OIL_TAX"]).round(2)
+    fc["GasSev"] = (fc["GasRevenue"] * fc["GAS_TAX"]).round(2)
+    fc["NGLSev"] = (fc["NGLRevenue"] * fc["NGL_TAX"]).round(2)
+    fc["SevTax"] = (fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]).round(2)
+    fc["AdValTax"] = (fc["GrossRevenue"] * fc["AD_VAL_TAX"]).round(2)
 
-    fc["OilOPT"] = fc["OilVol"] * oil_opt
-    fc["GasOPT"] = fc["GasVol"] * gas_opt
-    fc["NGLOPT"] = fc["NGLVol"] * ngl_opt
-    fc["OPT"] = fc["OilOPT"] + fc["GasOPT"] + fc["NGLOPT"]
+    fc["NetCashFlow"] = (
+        fc["GrossRevenue"] - fc["GPT"] - fc["SevTax"] - fc["AdValTax"]
+    ).round(2)
 
-    fc["OilSev"] = fc["OilRevenue"] * oil_tax
-    fc["GasSev"] = fc["GasRevenue"] * gas_tax
-    fc["NGLSev"] = fc["NGLRevenue"] * ngl_tax
-    fc["SevTax"] = fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]
-    fc["AdValTax"] = fc["GrossRevenue"] * ad_val_tax
-
-    fc["NetCashFlow"] = fc["GrossRevenue"] - fc["GPT"] - fc["OPT"] - fc["SevTax"] - fc["AdValTax"]
-
-    if not apply_nri_before_tax:
-        money_cols = [
-            "OilRevenue",
-            "GasRevenue",
-            "NGLRevenue",
-            "GrossRevenue",
-            "OilGPT",
-            "GasGPT",
-            "NGLGPT",
-            "GPT",
-            "OilOPT",
-            "GasOPT",
-            "NGLOPT",
-            "OPT",
-            "OilSev",
-            "GasSev",
-            "NGLSev",
-            "SevTax",
-            "AdValTax",
-            "NetCashFlow",
-        ]
-        fc[money_cols] = fc[money_cols].mul(fc["OwnerInterest"], axis=0)
+    money_cols = [
+        "OilRevenue",
+        "GasRevenue",
+        "NGLRevenue",
+        "GrossRevenue",
+        "OilGPT",
+        "GasGPT",
+        "NGLGPT",
+        "GPT",
+        "OilSev",
+        "GasSev",
+        "NGLSev",
+        "SevTax",
+        "AdValTax",
+        "NetCashFlow",
+    ]
+    fc[money_cols] = fc[money_cols].mul(fc["OwnerInterest"], axis=0).round(2)
 
     merged = (
         fc.groupby("PRODUCINGMONTH").agg(
@@ -2383,14 +2429,11 @@ def economics_data(request):
                 "NGLRevenue": "sum",
                 "GrossRevenue": "sum",
                 "GPT": "sum",
-                "OPT": "sum",
                 "SevTax": "sum",
                 "AdValTax": "sum",
                 "NetCashFlow": "sum",
-                "OilVol": "sum",
-                "GasVol": "sum",
-                "OilVolWI": "sum",
-                "GasVolWI": "sum",
+                "OilBlend": "sum",
+                "GasBlend": "sum",
             }
         ).reset_index()
     )
@@ -2401,35 +2444,40 @@ def economics_data(request):
         "NGLRevenue",
         "GrossRevenue",
         "GPT",
-        "OPT",
         "SevTax",
         "AdValTax",
         "NetCashFlow",
     ]
     merged[money_cols] = merged[money_cols].fillna(0)
-    merged["OilVol"] = merged["OilVol"].fillna(0)
-    merged["GasVol"] = merged["GasVol"].fillna(0)
-    merged["OilVolWI"] = merged["OilVolWI"].fillna(0)
-    merged["GasVolWI"] = merged["GasVolWI"].fillna(0)
+    merged["OilBlend"] = merged["OilBlend"].fillna(0)
+    merged["GasBlend"] = merged["GasBlend"].fillna(0)
     merged["CumRevenue"] = merged["GrossRevenue"].cumsum().fillna(0)
     merged["CumNCF"] = merged["NetCashFlow"].cumsum().fillna(0)
     merged["month_index"] = merged.index
 
     def npv_and_payback(rate):
-        disc = merged["NetCashFlow"] / (1 + rate) ** (merged["month_index"] / 12)
-        npv = float(disc.sum())
-        cum_disc = disc.cumsum()
+        effective_date = merged["PRODUCINGMONTH"].min()
+        years = (merged["PRODUCINGMONTH"] - effective_date).dt.days / 365.25
+        disc = merged["NetCashFlow"] / (1 + rate) ** years
+        npv = float(disc[years >= 0].sum())
+        cum_ncf = merged["NetCashFlow"].cumsum()
         payback_date = None
-        if (cum_disc >= 0).any():
-            payback_idx = cum_disc.ge(0).idxmax()
+        if (cum_ncf >= npv).any():
+            payback_idx = cum_ncf.ge(npv).idxmax()
             payback_date = merged.loc[payback_idx, "PRODUCINGMONTH"]
+        payback_label = None
+        if payback_date is not None:
+            if payback_date.year >= 2050:
+                payback_label = ">2050"
+            else:
+                payback_label = payback_date.strftime("%b %Y")
         return {
             "rate": rate,
             "npv": npv,
-            "payback": payback_date.strftime("%Y-%m-%d") if payback_date is not None else None,
+            "payback": payback_label,
         }
 
-    npvs = [npv_and_payback(r) for r in [0.0, 0.05, 0.1]]
+    npvs = [npv_and_payback(r) for r in [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30]]
 
     cum = {
         "dates": merged["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d").tolist(),
@@ -2471,42 +2519,23 @@ def economics_data(request):
         return float(sub[col].sum())
 
     ntm_end = today + pd.DateOffset(months=12)
-    ltm_oil = period_sum("OilVolWI", ltm_start, today)
-    ltm_gas = period_sum("GasVolWI", ltm_start, today)
+    ltm_oil = period_sum("OilBlend", ltm_start, today)
+    ltm_gas = period_sum("GasBlend", ltm_start, today)
     ltm_cf = period_sum("NetCashFlow", ltm_start, today)
-    ntm_oil = period_sum("OilVolWI", today, ntm_end)
-    ntm_gas = period_sum("GasVolWI", today, ntm_end)
+    ntm_oil = period_sum("OilBlend", today, ntm_end)
+    ntm_gas = period_sum("GasBlend", today, ntm_end)
     ntm_cf = period_sum("NetCashFlow", today, ntm_end)
 
-    pv_start = pd.Timestamp.today().normalize() + pd.offsets.MonthBegin(1)
-    pv_end = pv_start + pd.DateOffset(years=15)
-
-    pv_cashflows = fc[
-        (~fc["has_hist_volume"])
-        & (fc["PRODUCINGMONTH"] >= pv_start)
-        & (fc["PRODUCINGMONTH"] < pv_end)
-    ].copy()
-
-    pv_monthly = (
-        pv_cashflows.groupby("PRODUCINGMONTH", as_index=False)["NetCashFlow"]
-        .sum()
-        .sort_values("PRODUCINGMONTH")
-        .reset_index(drop=True)
-    )
-    if not pv_monthly.empty:
-        pv_monthly["months_from_start"] = (
-            pv_monthly["PRODUCINGMONTH"].dt.to_period("M") - pv_start.to_period("M")
-        ).apply(lambda r: r.n)
-
-    pv_stats_rates = [0.0, 0.10, 0.12, 0.14, 0.16, 0.17, 0.18]
-    pv_table_rates = pv_stats_rates + [0.20]
+    effective_date = merged["PRODUCINGMONTH"].min()
+    pv_stats_rates = [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.17]
+    pv_table_rates = pv_stats_rates
 
     def pv(rate):
-        if pv_monthly.empty:
+        if merged.empty or pd.isna(effective_date):
             return 0.0
-        disc = pv_monthly["NetCashFlow"] / (1 + rate) ** (
-            pv_monthly["months_from_start"] / 12
-        )
+        years = (merged["PRODUCINGMONTH"] - effective_date).dt.days / 365.25
+        mask = years >= 0
+        disc = merged.loc[mask, "NetCashFlow"] / (1 + rate) ** years[mask]
         return float(disc.sum())
 
     pvs = {f"pv{int(r*100)}": pv(r) for r in pv_stats_rates}
@@ -2515,28 +2544,26 @@ def economics_data(request):
         api: {f"pv{int(r*100)}": 0.0 for r in pv_table_rates}
         for api in wells_by_api.keys()
     }
-    fc_future = pv_cashflows.copy()
-    if not fc_future.empty:
+    if not fc.empty and pd.notna(effective_date):
         api_lookup = {api.replace('-', ''): api for api in wells_by_api.keys()}
-        fc_future["api_key"] = fc_future["API_NODASH"].map(api_lookup)
-        fc_future = fc_future[fc_future["api_key"].notna()]
-        if not fc_future.empty:
-            fc_future = (
-                fc_future.groupby(["api_key", "PRODUCINGMONTH"], as_index=False)["NetCashFlow"]
+        fc_pv = fc.copy()
+        fc_pv["api_key"] = fc_pv["API_NODASH"].map(api_lookup)
+        fc_pv = fc_pv[fc_pv["api_key"].notna()]
+        if not fc_pv.empty:
+            fc_pv = (
+                fc_pv.groupby(["api_key", "PRODUCINGMONTH"], as_index=False)["NetCashFlow"]
                 .sum()
                 .sort_values(["api_key", "PRODUCINGMONTH"])
             )
-            fc_future["months_from_start"] = (
-                fc_future["PRODUCINGMONTH"].dt.to_period("M")
-                - pv_start.to_period("M")
-            ).apply(lambda r: r.n)
-        for api_key, group in fc_future.groupby("api_key"):
+            fc_pv["years"] = (fc_pv["PRODUCINGMONTH"] - effective_date).dt.days / 365.25
+        for api_key, group in fc_pv.groupby("api_key"):
             store = per_well_pv.get(api_key)
             if store is None:
                 store = {f"pv{int(r*100)}": 0.0 for r in pv_table_rates}
                 per_well_pv[api_key] = store
+            group = group[group["years"] >= 0]
             for rate in pv_table_rates:
-                disc = group["NetCashFlow"] / (1 + rate) ** (group["months_from_start"] / 12)
+                disc = group["NetCashFlow"] / (1 + rate) ** group["years"]
                 store[f"pv{int(rate*100)}"] = float(disc.sum())
 
     summary = []
