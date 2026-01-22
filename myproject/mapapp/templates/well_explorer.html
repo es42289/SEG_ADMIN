@@ -4,54 +4,6 @@
 {% block title %}Wellset Explorer{% endblock %}
 
 {% block content %}
-<div class="top-banner">
-  {% if admin_context %}
-  <div class="admin-banner">
-    <form method="post" action="{% url 'admin_select_user' %}" class="admin-banner__form">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{{ current_path }}">
-      <label class="admin-banner__label">Viewing as</label>
-      <select name="selected_email" class="admin-banner__select" onchange="this.form.submit()">
-        {% if admin_context.emails %}
-          {% for email in admin_context.emails %}
-            <option value="{{ email }}" {% if email == admin_context.selected_email %}selected{% endif %}>{{ email }}</option>
-          {% endfor %}
-        {% else %}
-          <option value="">No users found</option>
-        {% endif %}
-      </select>
-      <span class="admin-banner__contact">
-        <span class="admin-banner__contact-label">Contact Name:</span>
-        <span>{{ admin_context.contact_name|default:"Unknown" }}</span>
-      </span>
-    </form>
-  </div>
-  {% endif %}
-  <div class="login-bar">
-    <div class="login-content">
-      {% if request.session.user %}
-        Logged in as: <strong>&nbsp;{{ request.session.user.name|default:request.session.user.email }}</strong>
-        <a href="/logout/" class="login-link">Logout</a>
-      {% else %}
-        <a href="/login/" class="login-link">Login</a>
-      {% endif %}
-    </div>
-    <div class="login-actions" role="navigation" aria-label="Quick links">
-      <a href="/map/" class="login-action" title="Return to dashboard">
-        <span class="login-action__label">Dashboard</span>
-      </a>
-      <a href="/well-explorer/" class="login-action login-action--active" title="Wellset explorer">
-        <span class="login-action__label">Wellset Explorer</span>
-      </a>
-    </div>
-  </div>
-  <div class="top-banner-row">
-    <div class="top-banner-disclaimer">
-      Use the filters below to build a custom well selection from Snowflake data (owners only). Selected wells will appear in green on the map and in the table below.
-    </div>
-  </div>
-</div>
-
 <div class="page-content well-explorer">
   <section class="well-explorer-card">
     <header class="well-explorer-card__header">
@@ -60,6 +12,9 @@
         <h1 class="section-title">Wellset Explorer</h1>
       </div>
       <div class="well-explorer-card__actions">
+        <a href="/" id="ownerExplorerButton" class="login-action" title="Owner explorer">
+          <span class="login-action__label">OWNER EXPLORER</span>
+        </a>
         <button type="button" class="well-explorer-button" id="applyWellExplorerFilters">Apply Filters</button>
         <button type="button" class="well-explorer-button well-explorer-button--ghost" id="clearWellExplorerFilters">Clear Filters</button>
         <button type="button" class="well-explorer-button well-explorer-button--ghost" id="clearWellExplorerSelection">Clear Selection</button>
@@ -151,14 +106,6 @@
               <span class="well-editor-metric__label">Gross Gas EUR (MCF)</span>
               <span id="wellEditorGrossGasEur" class="well-editor-metric__value">--</span>
             </div>
-            <div class="well-editor-metric">
-              <span class="well-editor-metric__label">Net Oil EUR (BBL)</span>
-              <span id="wellEditorNetOilEur" class="well-editor-metric__value">--</span>
-            </div>
-            <div class="well-editor-metric">
-              <span class="well-editor-metric__label">Net Gas EUR (MCF)</span>
-              <span id="wellEditorNetGasEur" class="well-editor-metric__value">--</span>
-            </div>
             <div class="well-editor-metric well-editor-metric--wide">
               <span class="well-editor-metric__label">Estimated NRI Value</span>
               <span class="well-editor-metric__value">
@@ -189,41 +136,6 @@
               </div>
               <div class="well-editor-field">
                 <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Initial Production (BBL/Month)</span>
-                  <span class="well-editor-field__value" data-field-value="OIL_CALC_QI">--</span>
-                </div>
-                <input type="range" min="0" max="100000" step="10" data-field="OIL_CALC_QI">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Minimum Decline (BBL/Month)</span>
-                  <span class="well-editor-field__value" data-field-value="OIL_Q_MIN">--</span>
-                </div>
-                <input type="range" min="0" max="10000" step="1" data-field="OIL_Q_MIN">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Empirical Decline Rate</span>
-                  <span class="well-editor-field__value" data-field-value="OIL_EMPIRICAL_DI">--</span>
-                </div>
-                <input type="range" min="0.04" max="0.5" step="0.005" data-field="OIL_EMPIRICAL_DI">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">b-Factor</span>
-                  <span class="well-editor-field__value" data-field-value="OIL_CALC_B_FACTOR">--</span>
-                </div>
-                <input type="range" min="0.5" max="1.1" step="0.01" data-field="OIL_CALC_B_FACTOR">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Minimum Decline Rate</span>
-                  <span class="well-editor-field__value" data-field-value="OIL_D_MIN">--</span>
-                </div>
-                <input type="range" min="0.02" max="0.1" step="0.005" data-field="OIL_D_MIN">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
                   <span class="well-editor-field__label">Forecast Start</span>
                   <span class="well-editor-field__value" data-field-value="FCST_START_OIL">--</span>
                 </div>
@@ -235,6 +147,41 @@
                   <span class="well-editor-field__value" data-field-value="OIL_FCST_YRS">--</span>
                 </div>
                 <input type="range" min="1" max="50" step="1" data-field="OIL_FCST_YRS">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Qi (bbl/month)</span>
+                  <span class="well-editor-field__value" data-field-value="OIL_CALC_QI">--</span>
+                </div>
+                <input type="range" min="0" max="100000" step="10" data-field="OIL_CALC_QI">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Qmin (bbl/month)</span>
+                  <span class="well-editor-field__value" data-field-value="OIL_Q_MIN">--</span>
+                </div>
+                <input type="range" min="0" max="10000" step="1" data-field="OIL_Q_MIN">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Di (annual)</span>
+                  <span class="well-editor-field__value" data-field-value="OIL_EMPIRICAL_DI">--</span>
+                </div>
+                <input type="range" min="0.04" max="0.5" step="0.005" data-field="OIL_EMPIRICAL_DI">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Dmin (annual)</span>
+                  <span class="well-editor-field__value" data-field-value="OIL_D_MIN">--</span>
+                </div>
+                <input type="range" min="0.02" max="0.1" step="0.005" data-field="OIL_D_MIN">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">b</span>
+                  <span class="well-editor-field__value" data-field-value="OIL_CALC_B_FACTOR">--</span>
+                </div>
+                <input type="range" min="0.5" max="1.1" step="0.01" data-field="OIL_CALC_B_FACTOR">
               </div>
             </div>
             <div class="well-editor-form__section" data-well-editor-section="gas" hidden>
@@ -251,41 +198,6 @@
               </div>
               <div class="well-editor-field">
                 <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Initial Production (MCF/Month)</span>
-                  <span class="well-editor-field__value" data-field-value="GAS_CALC_QI">--</span>
-                </div>
-                <input type="range" min="0" max="100000" step="10" data-field="GAS_CALC_QI">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Minimum Decline (MCF/Month)</span>
-                  <span class="well-editor-field__value" data-field-value="GAS_Q_MIN">--</span>
-                </div>
-                <input type="range" min="0" max="10000" step="1" data-field="GAS_Q_MIN">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Empirical Decline Rate</span>
-                  <span class="well-editor-field__value" data-field-value="GAS_EMPIRICAL_DI">--</span>
-                </div>
-                <input type="range" min="0.04" max="0.5" step="0.005" data-field="GAS_EMPIRICAL_DI">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">b-Factor</span>
-                  <span class="well-editor-field__value" data-field-value="GAS_CALC_B_FACTOR">--</span>
-                </div>
-                <input type="range" min="0.5" max="1.1" step="0.01" data-field="GAS_CALC_B_FACTOR">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
-                  <span class="well-editor-field__label">Minimum Decline Rate</span>
-                  <span class="well-editor-field__value" data-field-value="GAS_D_MIN">--</span>
-                </div>
-                <input type="range" min="0.02" max="0.1" step="0.005" data-field="GAS_D_MIN">
-              </div>
-              <div class="well-editor-field">
-                <div class="well-editor-field__header">
                   <span class="well-editor-field__label">Forecast Start</span>
                   <span class="well-editor-field__value" data-field-value="FCST_START_GAS">--</span>
                 </div>
@@ -298,6 +210,41 @@
                 </div>
                 <input type="range" min="1" max="50" step="1" data-field="GAS_FCST_YRS">
               </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Qi (MCF/month)</span>
+                  <span class="well-editor-field__value" data-field-value="GAS_CALC_QI">--</span>
+                </div>
+                <input type="range" min="0" max="100000" step="10" data-field="GAS_CALC_QI">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Qmin (MCF/month)</span>
+                  <span class="well-editor-field__value" data-field-value="GAS_Q_MIN">--</span>
+                </div>
+                <input type="range" min="0" max="10000" step="1" data-field="GAS_Q_MIN">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Di (annual)</span>
+                  <span class="well-editor-field__value" data-field-value="GAS_EMPIRICAL_DI">--</span>
+                </div>
+                <input type="range" min="0.04" max="0.5" step="0.005" data-field="GAS_EMPIRICAL_DI">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">Dmin (annual)</span>
+                  <span class="well-editor-field__value" data-field-value="GAS_D_MIN">--</span>
+                </div>
+                <input type="range" min="0.02" max="0.1" step="0.005" data-field="GAS_D_MIN">
+              </div>
+              <div class="well-editor-field">
+                <div class="well-editor-field__header">
+                  <span class="well-editor-field__label">b</span>
+                  <span class="well-editor-field__value" data-field-value="GAS_CALC_B_FACTOR">--</span>
+                </div>
+                <input type="range" min="0.5" max="1.1" step="0.01" data-field="GAS_CALC_B_FACTOR">
+              </div>
             </div>
           </div>
           <div class="well-editor-actions">
@@ -305,7 +252,7 @@
               <input type="checkbox" id="wellEditorApproved" data-field="DCA_APPROVED" />
               <span>Approved DCA</span>
             </label>
-            <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Load Approved DCA</button>
+            <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Reset to Last Approved</button>
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
           </div>
         </div>

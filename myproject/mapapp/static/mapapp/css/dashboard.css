@@ -1193,7 +1193,8 @@ body {
 }
 
 #executiveDashButton,
-#wellsetExplorerButton {
+#wellsetExplorerButton,
+#ownerExplorerButton {
   background: #156082;
   color: #ffffff;
   border-color: #156082;
@@ -1204,12 +1205,15 @@ body {
 }
 
 #executiveDashButton .login-action__label,
-#wellsetExplorerButton .login-action__label {
+#wellsetExplorerButton .login-action__label,
+#ownerExplorerButton .login-action__label {
   display: inline;
 }
 
 #executiveDashButton:hover,
 #executiveDashButton:focus,
+#ownerExplorerButton:hover,
+#ownerExplorerButton:focus,
 #wellsetExplorerButton:hover,
 #wellsetExplorerButton:focus {
   background: #0f4b64;
