@@ -3117,6 +3117,13 @@ input#year[type="range"] {
       color: #fecaca;
     }
 
+    .well-explorer-approval {
+      width: 16px;
+      height: 16px;
+      accent-color: #22c55e;
+      cursor: not-allowed;
+    }
+
     .well-explorer-title {
       display: flex;
       align-items: center;

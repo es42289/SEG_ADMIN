@@ -157,7 +157,7 @@
     if (!selected.length) {
       const row = document.createElement('tr');
       const cell = document.createElement('td');
-      cell.colSpan = 7;
+      cell.colSpan = 8;
       cell.className = 'well-explorer-table__empty';
       cell.textContent = 'No wells selected yet.';
       row.appendChild(cell);
@@ -174,6 +174,15 @@
         <td>${well.envoperator || '--'}</td>
         <td>${well.envwellstatus || '--'}</td>
         <td>${well.trajectory || '--'}</td>
+        <td>
+          <input
+            type="checkbox"
+            class="well-explorer-approval"
+            ${well.dca_approved ? 'checked' : ''}
+            disabled
+            aria-label="DCA approval status"
+          >
+        </td>
         <td>
           <button type="button" class="well-explorer-edit-button" data-api="${well.api_uwi || ''}">
             Edit
