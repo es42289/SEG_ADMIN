@@ -2342,6 +2342,15 @@ input#year[type="range"] {
       width: 100%;
     }
 
+    .well-editor-field input[type="number"],
+    .well-editor-field input[type="text"] {
+      padding: 0.35rem;
+      border-radius: 6px;
+      border: 1px solid #cbd5f5;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
     .well-editor-field select {
       padding: 0.35rem;
       border-radius: 6px;
@@ -2376,6 +2385,12 @@ input#year[type="range"] {
       color: #e2e8f0;
       font-size: 0.85rem;
       font-weight: 600;
+    }
+
+    .well-editor-gpt-status {
+      color: #fca5a5;
+      font-size: 0.85rem;
+      margin: 0.35rem 0 0.6rem;
     }
 
     .well-editor-switch {

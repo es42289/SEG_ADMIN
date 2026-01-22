@@ -1493,6 +1493,122 @@ def well_dca_inputs(request):
         conn.close()
 
 
+def _normalize_scenario_value(value):
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
+
+
+@require_http_methods(["GET"])
+def econ_scenarios(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    name = (request.GET.get("name") or "").strip()
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    try:
+        if name:
+            cur.execute(
+                """
+                SELECT *
+                FROM WELLS.MINERALS.ECON_SCENARIOS
+                WHERE ECON_SCENARIO = %s
+                ORDER BY ECON_SCENARIO
+                """,
+                (name,),
+            )
+        else:
+            cur.execute(
+                """
+                SELECT *
+                FROM WELLS.MINERALS.ECON_SCENARIOS
+                ORDER BY ECON_SCENARIO
+                """
+            )
+        rows = cur.fetchall() or []
+        return JsonResponse({"scenarios": rows})
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_econ_scenario(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    scenario_name = (payload.get("econ_scenario") or "").strip()
+    values = payload.get("values") or {}
+    if not scenario_name:
+        return JsonResponse({"detail": "Scenario name is required."}, status=400)
+
+    columns = [
+        "OIL_DIFF_PCT",
+        "OIL_DIFF_AMT",
+        "GAS_DIFF_PCT",
+        "GAS_DIFF_AMT",
+        "NGL_DIFF_PCT",
+        "NGL_DIFF_AMT",
+        "OIL_GPT_DEDUCT",
+        "GAS_GPT_DEDUCT",
+        "NGL_GPT_DEDUCT",
+        "OIL_TAX",
+        "GAS_TAX",
+        "NGL_TAX",
+        "AD_VAL_TAX",
+        "GAS_SHRINK",
+        "NGL_YIELD",
+        "COUNTY",
+        "BASIN",
+        "GAS_OPT_DEDUCT",
+        "NGL_OPT_DEDUCT",
+        "OIL_OPT_DEDUCT",
+    ]
+
+    row_values = [_normalize_scenario_value(values.get(col)) for col in columns]
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    try:
+        insert_cols = ", ".join(["ECON_SCENARIO"] + columns)
+        insert_values = ", ".join([f"source.{col}" for col in ["ECON_SCENARIO"] + columns])
+        update_values = ", ".join([f"{col} = source.{col}" for col in columns])
+        select_cols = ", ".join(["%s AS ECON_SCENARIO"] + ["%s AS " + col for col in columns])
+        merge_sql = f"""
+            MERGE INTO WELLS.MINERALS.ECON_SCENARIOS AS target
+            USING (SELECT {select_cols}) AS source
+            ON target.ECON_SCENARIO = source.ECON_SCENARIO
+            WHEN MATCHED THEN UPDATE SET {update_values}
+            WHEN NOT MATCHED THEN INSERT ({insert_cols})
+            VALUES ({insert_values})
+        """
+        cur.execute(merge_sql, [scenario_name] + row_values)
+        conn.commit()
+        return JsonResponse({"saved": True, "econ_scenario": scenario_name})
+    except snowflake_errors.Error:
+        logger.exception("Failed to save econ scenario %s", scenario_name)
+        conn.rollback()
+        return JsonResponse({"detail": "Unable to save econ scenario."}, status=502)
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def save_well_dca_inputs(request):
