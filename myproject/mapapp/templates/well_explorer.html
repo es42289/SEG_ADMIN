@@ -4,56 +4,10 @@
 {% block title %}Wellset Explorer{% endblock %}
 
 {% block content %}
-<div class="top-banner">
-  {% if admin_context %}
-  <div class="admin-banner">
-    <form method="post" action="{% url 'admin_select_user' %}" class="admin-banner__form">
-      {% csrf_token %}
-      <input type="hidden" name="next" value="{{ current_path }}">
-      <label class="admin-banner__label">Viewing as</label>
-      <select name="selected_email" class="admin-banner__select" onchange="this.form.submit()">
-        {% if admin_context.emails %}
-          {% for email in admin_context.emails %}
-            <option value="{{ email }}" {% if email == admin_context.selected_email %}selected{% endif %}>{{ email }}</option>
-          {% endfor %}
-        {% else %}
-          <option value="">No users found</option>
-        {% endif %}
-      </select>
-      <span class="admin-banner__contact">
-        <span class="admin-banner__contact-label">Contact Name:</span>
-        <span>{{ admin_context.contact_name|default:"Unknown" }}</span>
-      </span>
-    </form>
-  </div>
-  {% endif %}
-  <div class="login-bar">
-    <div class="login-content">
-      {% if request.session.user %}
-        Logged in as: <strong>&nbsp;{{ request.session.user.name|default:request.session.user.email }}</strong>
-        <a href="/logout/" class="login-link">Logout</a>
-      {% else %}
-        <a href="/login/" class="login-link">Login</a>
-      {% endif %}
-    </div>
-    <div class="login-actions" role="navigation" aria-label="Quick links">
-      <a href="/" class="login-action" title="Owner explorer">
-        <span class="login-action__label">OWNER EXPLORER</span>
-      </a>
-    </div>
-  </div>
-  <div class="top-banner-row">
-    <div class="top-banner-disclaimer">
-      Use the filters below to build a custom well selection from Snowflake data (owners only). Selected wells will appear in green on the map and in the table below.
-    </div>
-  </div>
-</div>
-
 <div class="page-content well-explorer">
   <section class="well-explorer-card">
     <header class="well-explorer-card__header">
       <div class="well-explorer-title">
-        <img src="{% static 'mapapp/img/white_no_mane_logo.png' %}" alt="Stable Energy Group logo" class="well-explorer-logo">
         <h1 class="section-title">Wellset Explorer</h1>
       </div>
       <div class="well-explorer-card__actions">
@@ -92,6 +46,28 @@
       </div>
     </div>
 
+    <div class="well-explorer-wellset-bar">
+      <div class="well-explorer-wellset-field">
+        <label class="well-explorer-panel__title" for="wellExplorerWellsetSelect">Saved Wellsets</label>
+        <select id="wellExplorerWellsetSelect" class="well-explorer-input">
+          <option value="">Select a saved wellset</option>
+        </select>
+      </div>
+      <div class="well-explorer-wellset-field">
+        <label class="well-explorer-panel__title" for="wellExplorerWellsetName">Wellset Name</label>
+        <input
+          id="wellExplorerWellsetName"
+          class="well-explorer-input"
+          placeholder="Type a new wellset name"
+          autocomplete="off"
+        >
+      </div>
+      <div class="well-explorer-wellset-actions">
+        <button type="button" class="well-explorer-button" id="saveWellsetButton">Save Wellset</button>
+        <span id="wellExplorerWellsetStatus" class="well-explorer-wellset-status is-unsaved">Wellset not saved yet</span>
+      </div>
+    </div>
+
     <div class="well-explorer-table-wrap">
       <h2 class="well-explorer-panel__title">Selected Wells</h2>
       <table class="well-explorer-table">
@@ -103,12 +79,13 @@
             <th>Operator</th>
             <th>Status</th>
             <th>Trajectory</th>
+            <th>DCA Approved</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="wellExplorerTableBody">
           <tr>
-            <td colspan="7" class="well-explorer-table__empty">No wells selected yet.</td>
+            <td colspan="8" class="well-explorer-table__empty">No wells selected yet.</td>
           </tr>
         </tbody>
       </table>
