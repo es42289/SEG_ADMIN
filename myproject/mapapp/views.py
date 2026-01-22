@@ -666,6 +666,35 @@ WELL_EXPLORER_FILTER_FIELDS = {
     "county": "COUNTY",
 }
 
+WELLSET_EXPLORER_SELECT_SQL = """
+    SELECT WELLSET_NAME, APIS
+    FROM WELLS.MINERALS.WELLSET_EXPLORER
+    ORDER BY WELLSET_NAME
+"""
+
+WELLSET_EXPLORER_MERGE_SQL = """
+    MERGE INTO WELLS.MINERALS.WELLSET_EXPLORER AS target
+    USING (
+        SELECT %s AS WELLSET_NAME,
+               %s AS APIS
+    ) AS source
+    ON target.WELLSET_NAME = source.WELLSET_NAME
+    WHEN MATCHED THEN UPDATE SET
+        APIS = source.APIS,
+        UPDATED_AT = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN INSERT (
+        WELLSET_NAME,
+        APIS,
+        CREATED_AT,
+        UPDATED_AT
+    ) VALUES (
+        source.WELLSET_NAME,
+        source.APIS,
+        CURRENT_TIMESTAMP(),
+        CURRENT_TIMESTAMP()
+    )
+"""
+
 
 def _normalize_filter_values(series):
     if series is None:
@@ -677,6 +706,14 @@ def _normalize_filter_values(series):
     )
     values = values[values != ""]
     return sorted(set(values))
+
+
+def _parse_api_list(value):
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(entry).strip() for entry in value if str(entry).strip()]
+    return [entry.strip() for entry in str(value).split(",") if entry.strip()]
 
 
 def _build_well_explorer_payload():
@@ -746,6 +783,56 @@ def well_explorer_data(request):
 
     payload = _build_well_explorer_payload()
     return JsonResponse(payload)
+
+
+@require_http_methods(["GET", "POST"])
+def well_explorer_wellsets(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return JsonResponse({"detail": "Admin access required."}, status=403)
+
+    if request.method == "GET":
+        try:
+            rows = snowflake_helpers.fetch_all(WELLSET_EXPLORER_SELECT_SQL)
+        except snowflake_errors.Error:
+            logger.exception("Failed to load wellset explorer entries.")
+            return JsonResponse({"detail": "Unable to load wellsets."}, status=502)
+
+        wellsets = [
+            {
+                "name": row.get("WELLSET_NAME") or "",
+                "apis": _parse_api_list(row.get("APIS")),
+            }
+            for row in rows
+            if row.get("WELLSET_NAME")
+        ]
+        return JsonResponse({"wellsets": wellsets})
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    wellset_name = (payload.get("wellset_name") or "").strip()
+    api_list = _parse_api_list(payload.get("apis"))
+
+    if not wellset_name:
+        return JsonResponse({"detail": "Wellset name is required."}, status=400)
+    if not api_list:
+        return JsonResponse({"detail": "At least one API is required."}, status=400)
+
+    api_csv = ",".join(api_list)
+
+    try:
+        snowflake_helpers.execute(WELLSET_EXPLORER_MERGE_SQL, (wellset_name, api_csv))
+    except snowflake_errors.Error:
+        logger.exception("Failed to save wellset explorer entry.")
+        return JsonResponse({"detail": "Unable to save wellset."}, status=502)
+
+    return JsonResponse({"wellset": {"name": wellset_name, "apis": api_list}})
 
 def get_user_owner_name(user_email):
     """Query Snowflake to get the owner name for a user's email"""
