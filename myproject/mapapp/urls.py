@@ -14,6 +14,7 @@ urlpatterns = [
     path('map-data/', views.map_data, name='map_data'),
     path('well-explorer/', views.well_explorer_page, name='well_explorer'),
     path('well-explorer/data/', views.well_explorer_data, name='well_explorer_data'),
+    path('well-explorer/wellsets/', views.well_explorer_wellsets, name='well_explorer_wellsets'),
     path('user-wells/', views.user_wells_data, name='user_wells_data'),
     path('login/', auth_views.login, name='login'),
     path('logout/', auth_views.logout, name='logout'),

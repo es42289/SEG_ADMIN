@@ -48,6 +48,24 @@
       </div>
     </div>
 
+    <div class="well-explorer-wellset-bar">
+      <div class="well-explorer-wellset-field">
+        <label class="well-explorer-panel__title" for="wellExplorerWellsetName">Wellset Name</label>
+        <input
+          id="wellExplorerWellsetName"
+          class="well-explorer-input"
+          list="wellExplorerWellsetOptions"
+          placeholder="Search or type a wellset name"
+          autocomplete="off"
+        >
+        <datalist id="wellExplorerWellsetOptions"></datalist>
+      </div>
+      <div class="well-explorer-wellset-actions">
+        <button type="button" class="well-explorer-button" id="saveWellsetButton">Save Wellset</button>
+        <span id="wellExplorerWellsetStatus" class="well-explorer-wellset-status is-unsaved">Wellset not saved yet</span>
+      </div>
+    </div>
+
     <div class="well-explorer-table-wrap">
       <h2 class="well-explorer-panel__title">Selected Wells</h2>
       <table class="well-explorer-table">

@@ -3018,6 +3018,45 @@ input#year[type="range"] {
       border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
+    .well-explorer-wellset-bar {
+      margin: 1.75rem 0 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: flex-end;
+      justify-content: space-between;
+      background: rgba(21, 96, 130, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+    }
+
+    .well-explorer-wellset-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-width: min(360px, 100%);
+    }
+
+    .well-explorer-wellset-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .well-explorer-wellset-status {
+      font-weight: 600;
+    }
+
+    .well-explorer-wellset-status.is-saved {
+      color: #22c55e;
+    }
+
+    .well-explorer-wellset-status.is-unsaved {
+      color: #f87171;
+    }
+
     .well-explorer-table-wrap {
       margin-top: 1.5rem;
     }
