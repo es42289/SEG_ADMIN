@@ -71,16 +71,13 @@ ECON_SCENARIO_COLUMNS = [
     "AD_VAL_TAX",
     "GAS_SHRINK",
     "NGL_YIELD",
-    "GAS_OPT_DEDUCT",
-    "NGL_OPT_DEDUCT",
-    "OIL_OPT_DEDUCT",
 ]
 
 
 def _normalize_econ_scenario(value):
     if value is None:
         return None
-    text = str(value).strip()
+    text = str(value).strip().upper()
     return text or None
 
 
@@ -1696,9 +1693,7 @@ def export_well_dca_inputs(request):
     oil_gpt = _scenario_value("OIL_GPT_DEDUCT")
     gas_gpt = _scenario_value("GAS_GPT_DEDUCT")
     ngl_gpt = _scenario_value("NGL_GPT_DEDUCT")
-    oil_opt = _scenario_value("OIL_OPT_DEDUCT")
-    gas_opt = _scenario_value("GAS_OPT_DEDUCT")
-    ngl_opt = _scenario_value("NGL_OPT_DEDUCT")
+    oil_opt = gas_opt = ngl_opt = 0.0
     oil_tax = _scenario_value("OIL_TAX")
     gas_tax = _scenario_value("GAS_TAX")
     ngl_tax = _scenario_value("NGL_TAX")
@@ -1987,7 +1982,7 @@ def fetch_econ_scenarios(scenarios):
             f"""
             SELECT {", ".join(ECON_SCENARIO_COLUMNS)}
             FROM WELLS.MINERALS.ECON_SCENARIOS
-            WHERE ECON_SCENARIO IN ({placeholders})
+            WHERE UPPER(ECON_SCENARIO) IN ({placeholders})
             """,
             scenarios,
         )
@@ -2247,9 +2242,9 @@ def economics_data(request):
     fc["NGLGPT"] = fc["NGLVol"] * fc["NGL_GPT_DEDUCT"]
     fc["GPT"] = fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]
 
-    fc["OilOPT"] = fc["OilVol"] * fc["OIL_OPT_DEDUCT"]
-    fc["GasOPT"] = fc["GasVol"] * fc["GAS_OPT_DEDUCT"]
-    fc["NGLOPT"] = fc["NGLVol"] * fc["NGL_OPT_DEDUCT"]
+    fc["OilOPT"] = 0.0
+    fc["GasOPT"] = 0.0
+    fc["NGLOPT"] = 0.0
     fc["OPT"] = fc["OilOPT"] + fc["GasOPT"] + fc["NGLOPT"]
 
     fc["OilSev"] = fc["OilRevenue"] * fc["OIL_TAX"]
