@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+from decimal import Decimal
 from functools import lru_cache
 from threading import Lock
 
@@ -53,6 +54,50 @@ WITHHOLDING_CANONICAL = {
     "EXEMPT": "Exempt",
     "BACKUP": "Backup",
 }
+
+ECON_SCENARIO_COLUMNS = [
+    "ECON_SCENARIO",
+    "OIL_DIFF_PCT",
+    "OIL_DIFF_AMT",
+    "GAS_DIFF_PCT",
+    "GAS_DIFF_AMT",
+    "NGL_DIFF_PCT",
+    "NGL_DIFF_AMT",
+    "OIL_GPT_DEDUCT",
+    "GAS_GPT_DEDUCT",
+    "NGL_GPT_DEDUCT",
+    "OIL_TAX",
+    "GAS_TAX",
+    "NGL_TAX",
+    "AD_VAL_TAX",
+    "GAS_SHRINK",
+    "NGL_YIELD",
+]
+
+ECON_SCENARIO_DEFAULTS = {
+    "OIL_DIFF_PCT": 1.0,
+    "OIL_DIFF_AMT": 0.0,
+    "GAS_DIFF_PCT": 1.0,
+    "GAS_DIFF_AMT": 0.0,
+    "NGL_DIFF_PCT": 0.3,
+    "NGL_DIFF_AMT": 0.0,
+    "NGL_YIELD": 10.0,
+    "GAS_SHRINK": 0.9,
+    "OIL_GPT_DEDUCT": 0.0,
+    "GAS_GPT_DEDUCT": 0.0,
+    "NGL_GPT_DEDUCT": 0.0,
+    "OIL_TAX": 0.046,
+    "GAS_TAX": 0.075,
+    "NGL_TAX": 0.046,
+    "AD_VAL_TAX": 0.02,
+}
+
+
+def _normalize_econ_scenario(value):
+    if value is None:
+        return None
+    text = str(value).strip().upper()
+    return text or None
 
 
 OWNER_PROFILE_SELECT_SQL = (
@@ -1649,20 +1694,37 @@ def export_well_dca_inputs(request):
     hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
     fc["has_hist_volume"] = hist_oil.fillna(0).ne(0) | hist_gas.fillna(0).ne(0)
 
-    oil_basis_pct = 1.0
-    oil_basis_amt = 0.0
-    gas_basis_pct = 1.0
-    gas_basis_amt = 0.0
-    ngl_basis_pct = 0.3
-    ngl_basis_amt = 0.0
-    ngl_yield = 10.0
-    gas_shrink = 0.9
-    oil_gpt = gas_gpt = ngl_gpt = 0.0
+    econ_scenario = _normalize_econ_scenario(params.get("ECON_SCENARIO"))
+    scenario_df = fetch_econ_scenarios([econ_scenario] if econ_scenario else [])
+    scenario = scenario_df.iloc[0].to_dict() if not scenario_df.empty else {}
+
+    def _scenario_value(key):
+        override = params.get(key)
+        if override not in (None, ""):
+            value = pd.to_numeric(override, errors="coerce")
+            if pd.notna(value):
+                return value
+        value = pd.to_numeric(scenario.get(key), errors="coerce")
+        if pd.isna(value):
+            return ECON_SCENARIO_DEFAULTS.get(key)
+        return value
+
+    oil_basis_pct = _scenario_value("OIL_DIFF_PCT")
+    oil_basis_amt = _scenario_value("OIL_DIFF_AMT")
+    gas_basis_pct = _scenario_value("GAS_DIFF_PCT")
+    gas_basis_amt = _scenario_value("GAS_DIFF_AMT")
+    ngl_basis_pct = _scenario_value("NGL_DIFF_PCT")
+    ngl_basis_amt = _scenario_value("NGL_DIFF_AMT")
+    ngl_yield = _scenario_value("NGL_YIELD")
+    gas_shrink = _scenario_value("GAS_SHRINK")
+    oil_gpt = _scenario_value("OIL_GPT_DEDUCT")
+    gas_gpt = _scenario_value("GAS_GPT_DEDUCT")
+    ngl_gpt = _scenario_value("NGL_GPT_DEDUCT")
     oil_opt = gas_opt = ngl_opt = 0.0
-    oil_tax = 0.046
-    gas_tax = 0.075
-    ngl_tax = 0.046
-    ad_val_tax = 0.02
+    oil_tax = _scenario_value("OIL_TAX")
+    gas_tax = _scenario_value("GAS_TAX")
+    ngl_tax = _scenario_value("NGL_TAX")
+    ad_val_tax = _scenario_value("AD_VAL_TAX")
     apply_nri_before_tax = True
 
     fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
@@ -1687,7 +1749,7 @@ def export_well_dca_inputs(request):
     fc["NGLVol"] = (net_gas / 1000.0) * ngl_yield
     fc["RealOil"] = fc["OIL"] * oil_basis_pct + oil_basis_amt
     fc["RealGas"] = fc["GAS"] * gas_basis_pct + gas_basis_amt
-    fc["RealNGL"] = fc["GAS"] * ngl_basis_pct + ngl_basis_amt
+    fc["RealNGL"] = fc["OIL"] * ngl_basis_pct + ngl_basis_amt
     fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
     fc["GasRevenue"] = net_gas * fc["RealGas"]
     fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
@@ -1934,6 +1996,136 @@ def fetch_price_decks():
     return pd.DataFrame(rows, columns=cols)
 
 
+def _parse_econ_value(value, default=None):
+    if value in (None, ""):
+        return default
+    parsed = pd.to_numeric(value, errors="coerce")
+    if pd.isna(parsed):
+        return default
+    return float(parsed)
+
+
+@require_http_methods(["GET"])
+def econ_scenarios(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    try:
+        cur.execute(
+            f"""
+            SELECT {", ".join(ECON_SCENARIO_COLUMNS)}
+            FROM WELLS.MINERALS.ECON_SCENARIOS
+            ORDER BY ECON_SCENARIO
+            """
+        )
+        rows = cur.fetchall() or []
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+    serialized = []
+    for row in rows:
+        normalized = {}
+        for key, value in row.items():
+            if isinstance(value, Decimal):
+                normalized[key] = float(value)
+            else:
+                normalized[key] = value
+        serialized.append(normalized)
+    return JsonResponse({"scenarios": serialized})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_econ_scenario(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return JsonResponse({"detail": "Admin access required."}, status=403)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    scenario_name = (payload.get("name") or "").strip()
+    params = payload.get("params") or {}
+    if not scenario_name:
+        return JsonResponse({"detail": "Scenario name is required."}, status=400)
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT 1 FROM WELLS.MINERALS.ECON_SCENARIOS WHERE ECON_SCENARIO = %s LIMIT 1",
+            (scenario_name,),
+        )
+        if cur.fetchone():
+            return JsonResponse({"detail": "Scenario already exists."}, status=409)
+
+        values = {"ECON_SCENARIO": scenario_name}
+        for key in ECON_SCENARIO_COLUMNS:
+            if key == "ECON_SCENARIO":
+                continue
+            values[key] = _parse_econ_value(params.get(key), ECON_SCENARIO_DEFAULTS.get(key))
+
+        insert_cols = ", ".join(ECON_SCENARIO_COLUMNS)
+        insert_placeholders = ", ".join(["%s"] * len(ECON_SCENARIO_COLUMNS))
+        cur.execute(
+            f"""
+            INSERT INTO WELLS.MINERALS.ECON_SCENARIOS ({insert_cols})
+            VALUES ({insert_placeholders})
+            """,
+            [values[col] for col in ECON_SCENARIO_COLUMNS],
+        )
+        conn.commit()
+        return JsonResponse({"saved": True, "scenario": values})
+    except snowflake_errors.Error:
+        logger.exception("Failed to save econ scenario %s", scenario_name)
+        conn.rollback()
+        return JsonResponse({"detail": "Unable to save scenario."}, status=502)
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+
+
+def fetch_econ_scenarios(scenarios):
+    scenarios = [_normalize_econ_scenario(s) for s in scenarios]
+    scenarios = [s for s in scenarios if s]
+    if not scenarios:
+        return pd.DataFrame(columns=ECON_SCENARIO_COLUMNS)
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    placeholders = ",".join(["%s"] * len(scenarios))
+    try:
+        cur.execute(
+            f"""
+            SELECT {", ".join(ECON_SCENARIO_COLUMNS)}
+            FROM WELLS.MINERALS.ECON_SCENARIOS
+            WHERE UPPER(ECON_SCENARIO) IN ({placeholders})
+            """,
+            scenarios,
+        )
+        rows = cur.fetchall() or []
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+    df = pd.DataFrame(rows, columns=ECON_SCENARIO_COLUMNS)
+    if not df.empty:
+        df["ECON_SCENARIO"] = df["ECON_SCENARIO"].map(_normalize_econ_scenario)
+    return df
+
+
 def _price_deck_trailing_average(price_decks, years=10):
     hist = price_decks[price_decks["PRICE_DECK_NAME"] == "HIST"].copy()
     if hist.empty:
@@ -2003,6 +2195,7 @@ def fetch_forecasts_for_apis(apis):
         "OilFcst_BBL",
         "GasFcst_MCF",
         "API_NODASH",
+        "ECON_SCENARIO",
     ]
 
     if not apis:
@@ -2067,6 +2260,7 @@ def fetch_forecasts_for_apis(apis):
             )
         params = params_by_api.get(api, {})
         fc = _calc_decline_forecast(prd, params)
+        fc["ECON_SCENARIO"] = _normalize_econ_scenario(params.get("ECON_SCENARIO"))
         forecasts.append(fc)
 
     df = pd.concat(forecasts, ignore_index=True) if forecasts else pd.DataFrame()
@@ -2128,23 +2322,16 @@ def economics_data(request):
         hist_oil.fillna(0).ne(0)
         | hist_gas.fillna(0).ne(0)
     )
-    # Economic parameters – in a fuller application these would come from a
-    # scenario table. Using defaults allows the economics to run even when
-    # such configuration is absent.
-    oil_basis_pct = 1.0
-    oil_basis_amt = 0.0
-    gas_basis_pct = 1.0
-    gas_basis_amt = 0.0
-    ngl_basis_pct = 0.3
-    ngl_basis_amt = 0.0
-    ngl_yield = 10.0  # BBL/MMCF
-    gas_shrink = 0.9
-    oil_gpt = gas_gpt = ngl_gpt = 0.0
-    oil_opt = gas_opt = ngl_opt = 0.0
-    oil_tax = 0.046
-    gas_tax = 0.075
-    ngl_tax = 0.046
-    ad_val_tax = 0.02
+    fc["ECON_SCENARIO"] = fc["ECON_SCENARIO"].map(_normalize_econ_scenario)
+    scenario_names = fc["ECON_SCENARIO"].dropna().unique().tolist()
+    scenario_df = fetch_econ_scenarios(scenario_names)
+    fc = fc.merge(scenario_df, on="ECON_SCENARIO", how="left")
+    for col in ECON_SCENARIO_COLUMNS:
+        if col != "ECON_SCENARIO":
+            fc[col] = pd.to_numeric(fc[col], errors="coerce")
+            if col in ECON_SCENARIO_DEFAULTS:
+                fc[col] = fc[col].fillna(ECON_SCENARIO_DEFAULTS[col])
+
     apply_nri_before_tax = True
     # Forecast data often uses the first day of the month while price decks
     # are keyed by the last day. Shifting to month-end ensures the merge below
@@ -2170,33 +2357,33 @@ def economics_data(request):
         fc["OilVol"] = fc["OilVolWI"]
         fc["GasVol"] = fc["GasVolWI"]
 
-    net_gas = fc["GasVol"] * gas_shrink
-    fc["NGLVol"] = (net_gas / 1000.0) * ngl_yield
+    net_gas = fc["GasVol"] * fc["GAS_SHRINK"]
+    fc["NGLVol"] = (net_gas / 1000.0) * fc["NGL_YIELD"]
 
-    fc["RealOil"] = fc["OIL"] * oil_basis_pct + oil_basis_amt
-    fc["RealGas"] = fc["GAS"] * gas_basis_pct + gas_basis_amt
-    fc["RealNGL"] = fc["GAS"] * ngl_basis_pct + ngl_basis_amt
+    fc["RealOil"] = fc["OIL"] * fc["OIL_DIFF_PCT"] + fc["OIL_DIFF_AMT"]
+    fc["RealGas"] = fc["GAS"] * fc["GAS_DIFF_PCT"] + fc["GAS_DIFF_AMT"]
+    fc["RealNGL"] = fc["OIL"] * fc["NGL_DIFF_PCT"] + fc["NGL_DIFF_AMT"]
 
     fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
     fc["GasRevenue"] = net_gas * fc["RealGas"]
     fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
     fc["GrossRevenue"] = fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
 
-    fc["OilGPT"] = fc["OilVol"] * oil_gpt
-    fc["GasGPT"] = fc["GasVol"] * gas_gpt
-    fc["NGLGPT"] = fc["NGLVol"] * ngl_gpt
+    fc["OilGPT"] = fc["OilVol"] * fc["OIL_GPT_DEDUCT"]
+    fc["GasGPT"] = fc["GasVol"] * fc["GAS_GPT_DEDUCT"]
+    fc["NGLGPT"] = fc["NGLVol"] * fc["NGL_GPT_DEDUCT"]
     fc["GPT"] = fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]
 
-    fc["OilOPT"] = fc["OilVol"] * oil_opt
-    fc["GasOPT"] = fc["GasVol"] * gas_opt
-    fc["NGLOPT"] = fc["NGLVol"] * ngl_opt
+    fc["OilOPT"] = 0.0
+    fc["GasOPT"] = 0.0
+    fc["NGLOPT"] = 0.0
     fc["OPT"] = fc["OilOPT"] + fc["GasOPT"] + fc["NGLOPT"]
 
-    fc["OilSev"] = fc["OilRevenue"] * oil_tax
-    fc["GasSev"] = fc["GasRevenue"] * gas_tax
-    fc["NGLSev"] = fc["NGLRevenue"] * ngl_tax
+    fc["OilSev"] = fc["OilRevenue"] * fc["OIL_TAX"]
+    fc["GasSev"] = fc["GasRevenue"] * fc["GAS_TAX"]
+    fc["NGLSev"] = fc["NGLRevenue"] * fc["NGL_TAX"]
     fc["SevTax"] = fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]
-    fc["AdValTax"] = fc["GrossRevenue"] * ad_val_tax
+    fc["AdValTax"] = fc["GrossRevenue"] * fc["AD_VAL_TAX"]
 
     fc["NetCashFlow"] = fc["GrossRevenue"] - fc["GPT"] - fc["OPT"] - fc["SevTax"] - fc["AdValTax"]
 
