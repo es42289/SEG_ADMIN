@@ -1529,6 +1529,10 @@ ECON_SCENARIO_COLUMN_TYPES = {
     "NGL_YIELD": "float",
 }
 
+def _normalize_econ_scenario_name(name: str) -> str:
+    return (name or "").strip().upper()
+
+
 def _require_econ_scenario(values: dict | None, scenario_name: str) -> dict:
     if not values:
         raise ValueError(f"ECON scenario '{scenario_name}' not found.")
@@ -1542,7 +1546,8 @@ def _require_econ_scenario(values: dict | None, scenario_name: str) -> dict:
 
 
 def _fetch_econ_scenarios(scenario_names: list[str]) -> dict:
-    names = [name for name in scenario_names if name]
+    names = [_normalize_econ_scenario_name(name) for name in scenario_names if name]
+    names = [name for name in names if name]
     if not names:
         return {}
     conn = get_snowflake_connection()
@@ -1553,12 +1558,16 @@ def _fetch_econ_scenarios(scenario_names: list[str]) -> dict:
             f"""
             SELECT *
             FROM WELLS.MINERALS.ECON_SCENARIOS
-            WHERE ECON_SCENARIO IN ({placeholders})
+            WHERE UPPER(ECON_SCENARIO) IN ({placeholders})
             """,
             names,
         )
         rows = cur.fetchall() or []
-        return {row.get("ECON_SCENARIO"): row for row in rows if row.get("ECON_SCENARIO")}
+        return {
+            _normalize_econ_scenario_name(row.get("ECON_SCENARIO")): row
+            for row in rows
+            if row.get("ECON_SCENARIO")
+        }
     finally:
         try:
             cur.close()
@@ -1577,13 +1586,14 @@ def econ_scenarios(request):
     cur = conn.cursor(DictCursor)
     try:
         if name:
+            name_key = _normalize_econ_scenario_name(name)
             cur.execute(
                 """
                 SELECT *
                 FROM WELLS.MINERALS.ECON_SCENARIOS
-                WHERE ECON_SCENARIO = %s
+                WHERE UPPER(ECON_SCENARIO) = %s
                 """,
-                (name,),
+                (name_key,),
             )
             row = cur.fetchone()
             if not row:
@@ -1845,9 +1855,10 @@ def export_well_dca_inputs(request):
     scenario_name = (params.get("ECON_SCENARIO") or "").strip()
     if not scenario_name:
         return JsonResponse({"detail": "ECON_SCENARIO is required."}, status=400)
-    scenario_map = _fetch_econ_scenarios([scenario_name])
+    scenario_key = _normalize_econ_scenario_name(scenario_name)
+    scenario_map = _fetch_econ_scenarios([scenario_key])
     try:
-        scenario_values = _require_econ_scenario(scenario_map.get(scenario_name), scenario_name)
+        scenario_values = _require_econ_scenario(scenario_map.get(scenario_key), scenario_name)
     except ValueError as exc:
         return JsonResponse({"detail": str(exc)}, status=400)
 
@@ -2316,9 +2327,10 @@ def economics_data(request):
         )
         max_years_by_api[api] = max_years if max_years > 0 else None
         scenario_name = (params.get("ECON_SCENARIO") or "").strip()
-        scenario_name_by_api[api] = scenario_name
-        if scenario_name:
-            scenario_names.append(scenario_name)
+        scenario_key = _normalize_econ_scenario_name(scenario_name)
+        scenario_name_by_api[api] = scenario_key
+        if scenario_key:
+            scenario_names.append(scenario_key)
 
     scenario_map = _fetch_econ_scenarios(scenario_names)
     missing_scenarios = [
