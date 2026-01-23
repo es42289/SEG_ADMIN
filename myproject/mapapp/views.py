@@ -54,6 +54,28 @@ WITHHOLDING_CANONICAL = {
     "BACKUP": "Backup",
 }
 
+ECON_SCENARIO_COLUMNS = [
+    "ECON_SCENARIO",
+    "OIL_DIFF_PCT",
+    "OIL_DIFF_AMT",
+    "GAS_DIFF_PCT",
+    "GAS_DIFF_AMT",
+    "NGL_DIFF_PCT",
+    "NGL_DIFF_AMT",
+    "OIL_GPT_DEDUCT",
+    "GAS_GPT_DEDUCT",
+    "NGL_GPT_DEDUCT",
+    "OIL_TAX",
+    "GAS_TAX",
+    "NGL_TAX",
+    "AD_VAL_TAX",
+    "GAS_SHRINK",
+    "NGL_YIELD",
+    "GAS_OPT_DEDUCT",
+    "NGL_OPT_DEDUCT",
+    "OIL_OPT_DEDUCT",
+]
+
 
 OWNER_PROFILE_SELECT_SQL = (
     "SELECT {columns} "
@@ -1649,20 +1671,31 @@ def export_well_dca_inputs(request):
     hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
     fc["has_hist_volume"] = hist_oil.fillna(0).ne(0) | hist_gas.fillna(0).ne(0)
 
-    oil_basis_pct = 1.0
-    oil_basis_amt = 0.0
-    gas_basis_pct = 1.0
-    gas_basis_amt = 0.0
-    ngl_basis_pct = 0.3
-    ngl_basis_amt = 0.0
-    ngl_yield = 10.0
-    gas_shrink = 0.9
-    oil_gpt = gas_gpt = ngl_gpt = 0.0
-    oil_opt = gas_opt = ngl_opt = 0.0
-    oil_tax = 0.046
-    gas_tax = 0.075
-    ngl_tax = 0.046
-    ad_val_tax = 0.02
+    econ_scenario = params.get("ECON_SCENARIO")
+    scenario_df = fetch_econ_scenarios([econ_scenario] if econ_scenario else [])
+    scenario = scenario_df.iloc[0].to_dict() if not scenario_df.empty else {}
+
+    def _scenario_value(key):
+        return pd.to_numeric(scenario.get(key), errors="coerce")
+
+    oil_basis_pct = _scenario_value("OIL_DIFF_PCT")
+    oil_basis_amt = _scenario_value("OIL_DIFF_AMT")
+    gas_basis_pct = _scenario_value("GAS_DIFF_PCT")
+    gas_basis_amt = _scenario_value("GAS_DIFF_AMT")
+    ngl_basis_pct = _scenario_value("NGL_DIFF_PCT")
+    ngl_basis_amt = _scenario_value("NGL_DIFF_AMT")
+    ngl_yield = _scenario_value("NGL_YIELD")
+    gas_shrink = _scenario_value("GAS_SHRINK")
+    oil_gpt = _scenario_value("OIL_GPT_DEDUCT")
+    gas_gpt = _scenario_value("GAS_GPT_DEDUCT")
+    ngl_gpt = _scenario_value("NGL_GPT_DEDUCT")
+    oil_opt = _scenario_value("OIL_OPT_DEDUCT")
+    gas_opt = _scenario_value("GAS_OPT_DEDUCT")
+    ngl_opt = _scenario_value("NGL_OPT_DEDUCT")
+    oil_tax = _scenario_value("OIL_TAX")
+    gas_tax = _scenario_value("GAS_TAX")
+    ngl_tax = _scenario_value("NGL_TAX")
+    ad_val_tax = _scenario_value("AD_VAL_TAX")
     apply_nri_before_tax = True
 
     fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
@@ -1934,6 +1967,31 @@ def fetch_price_decks():
     return pd.DataFrame(rows, columns=cols)
 
 
+def fetch_econ_scenarios(scenarios):
+    if not scenarios:
+        return pd.DataFrame(columns=ECON_SCENARIO_COLUMNS)
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    placeholders = ",".join(["%s"] * len(scenarios))
+    try:
+        cur.execute(
+            f"""
+            SELECT {", ".join(ECON_SCENARIO_COLUMNS)}
+            FROM WELLS.MINERALS.ECON_SCENARIOS
+            WHERE ECON_SCENARIO IN ({placeholders})
+            """,
+            scenarios,
+        )
+        rows = cur.fetchall() or []
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+    return pd.DataFrame(rows, columns=ECON_SCENARIO_COLUMNS)
+
+
 def _price_deck_trailing_average(price_decks, years=10):
     hist = price_decks[price_decks["PRICE_DECK_NAME"] == "HIST"].copy()
     if hist.empty:
@@ -2003,6 +2061,7 @@ def fetch_forecasts_for_apis(apis):
         "OilFcst_BBL",
         "GasFcst_MCF",
         "API_NODASH",
+        "ECON_SCENARIO",
     ]
 
     if not apis:
@@ -2067,6 +2126,7 @@ def fetch_forecasts_for_apis(apis):
             )
         params = params_by_api.get(api, {})
         fc = _calc_decline_forecast(prd, params)
+        fc["ECON_SCENARIO"] = params.get("ECON_SCENARIO")
         forecasts.append(fc)
 
     df = pd.concat(forecasts, ignore_index=True) if forecasts else pd.DataFrame()
@@ -2128,23 +2188,13 @@ def economics_data(request):
         hist_oil.fillna(0).ne(0)
         | hist_gas.fillna(0).ne(0)
     )
-    # Economic parameters – in a fuller application these would come from a
-    # scenario table. Using defaults allows the economics to run even when
-    # such configuration is absent.
-    oil_basis_pct = 1.0
-    oil_basis_amt = 0.0
-    gas_basis_pct = 1.0
-    gas_basis_amt = 0.0
-    ngl_basis_pct = 0.3
-    ngl_basis_amt = 0.0
-    ngl_yield = 10.0  # BBL/MMCF
-    gas_shrink = 0.9
-    oil_gpt = gas_gpt = ngl_gpt = 0.0
-    oil_opt = gas_opt = ngl_opt = 0.0
-    oil_tax = 0.046
-    gas_tax = 0.075
-    ngl_tax = 0.046
-    ad_val_tax = 0.02
+    scenario_names = fc["ECON_SCENARIO"].dropna().unique().tolist()
+    scenario_df = fetch_econ_scenarios(scenario_names)
+    fc = fc.merge(scenario_df, on="ECON_SCENARIO", how="left")
+    for col in ECON_SCENARIO_COLUMNS:
+        if col != "ECON_SCENARIO":
+            fc[col] = pd.to_numeric(fc[col], errors="coerce")
+
     apply_nri_before_tax = True
     # Forecast data often uses the first day of the month while price decks
     # are keyed by the last day. Shifting to month-end ensures the merge below
@@ -2170,33 +2220,33 @@ def economics_data(request):
         fc["OilVol"] = fc["OilVolWI"]
         fc["GasVol"] = fc["GasVolWI"]
 
-    net_gas = fc["GasVol"] * gas_shrink
-    fc["NGLVol"] = (net_gas / 1000.0) * ngl_yield
+    net_gas = fc["GasVol"] * fc["GAS_SHRINK"]
+    fc["NGLVol"] = (net_gas / 1000.0) * fc["NGL_YIELD"]
 
-    fc["RealOil"] = fc["OIL"] * oil_basis_pct + oil_basis_amt
-    fc["RealGas"] = fc["GAS"] * gas_basis_pct + gas_basis_amt
-    fc["RealNGL"] = fc["GAS"] * ngl_basis_pct + ngl_basis_amt
+    fc["RealOil"] = fc["OIL"] * fc["OIL_DIFF_PCT"] + fc["OIL_DIFF_AMT"]
+    fc["RealGas"] = fc["GAS"] * fc["GAS_DIFF_PCT"] + fc["GAS_DIFF_AMT"]
+    fc["RealNGL"] = fc["GAS"] * fc["NGL_DIFF_PCT"] + fc["NGL_DIFF_AMT"]
 
     fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
     fc["GasRevenue"] = net_gas * fc["RealGas"]
     fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
     fc["GrossRevenue"] = fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
 
-    fc["OilGPT"] = fc["OilVol"] * oil_gpt
-    fc["GasGPT"] = fc["GasVol"] * gas_gpt
-    fc["NGLGPT"] = fc["NGLVol"] * ngl_gpt
+    fc["OilGPT"] = fc["OilVol"] * fc["OIL_GPT_DEDUCT"]
+    fc["GasGPT"] = fc["GasVol"] * fc["GAS_GPT_DEDUCT"]
+    fc["NGLGPT"] = fc["NGLVol"] * fc["NGL_GPT_DEDUCT"]
     fc["GPT"] = fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]
 
-    fc["OilOPT"] = fc["OilVol"] * oil_opt
-    fc["GasOPT"] = fc["GasVol"] * gas_opt
-    fc["NGLOPT"] = fc["NGLVol"] * ngl_opt
+    fc["OilOPT"] = fc["OilVol"] * fc["OIL_OPT_DEDUCT"]
+    fc["GasOPT"] = fc["GasVol"] * fc["GAS_OPT_DEDUCT"]
+    fc["NGLOPT"] = fc["NGLVol"] * fc["NGL_OPT_DEDUCT"]
     fc["OPT"] = fc["OilOPT"] + fc["GasOPT"] + fc["NGLOPT"]
 
-    fc["OilSev"] = fc["OilRevenue"] * oil_tax
-    fc["GasSev"] = fc["GasRevenue"] * gas_tax
-    fc["NGLSev"] = fc["NGLRevenue"] * ngl_tax
+    fc["OilSev"] = fc["OilRevenue"] * fc["OIL_TAX"]
+    fc["GasSev"] = fc["GasRevenue"] * fc["GAS_TAX"]
+    fc["NGLSev"] = fc["NGLRevenue"] * fc["NGL_TAX"]
     fc["SevTax"] = fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]
-    fc["AdValTax"] = fc["GrossRevenue"] * ad_val_tax
+    fc["AdValTax"] = fc["GrossRevenue"] * fc["AD_VAL_TAX"]
 
     fc["NetCashFlow"] = fc["GrossRevenue"] - fc["GPT"] - fc["OPT"] - fc["SevTax"] - fc["AdValTax"]
 
