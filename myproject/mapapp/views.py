@@ -1529,33 +1529,14 @@ ECON_SCENARIO_COLUMN_TYPES = {
     "NGL_YIELD": "float",
 }
 
-ECON_SCENARIO_DEFAULTS = {
-    "OIL_DIFF_PCT": 1.0,
-    "OIL_DIFF_AMT": 0.0,
-    "GAS_DIFF_PCT": 1.0,
-    "GAS_DIFF_AMT": 0.0,
-    "NGL_DIFF_PCT": 0.3,
-    "NGL_DIFF_AMT": 0.0,
-    "NGL_YIELD": 10.0,
-    "GAS_SHRINK": 0.9,
-    "OIL_GPT_DEDUCT": 0.0,
-    "GAS_GPT_DEDUCT": 0.0,
-    "NGL_GPT_DEDUCT": 0.0,
-    "OIL_TAX": 0.046,
-    "GAS_TAX": 0.075,
-    "NGL_TAX": 0.046,
-    "AD_VAL_TAX": 0.02,
-}
-
-
-def _resolve_econ_scenario(values: dict | None) -> dict:
-    resolved = ECON_SCENARIO_DEFAULTS.copy()
+def _require_econ_scenario(values: dict | None, scenario_name: str) -> dict:
     if not values:
-        return resolved
+        raise ValueError(f"ECON scenario '{scenario_name}' not found.")
+    resolved = {}
     for key in ECON_SCENARIO_COLUMNS:
         val = values.get(key)
         if val is None or (isinstance(val, float) and np.isnan(val)):
-            continue
+            raise ValueError(f"Missing ECON scenario value for {key}.")
         resolved[key] = float(val) if ECON_SCENARIO_COLUMN_TYPES.get(key) != "text" else val
     return resolved
 
@@ -1729,6 +1710,10 @@ def save_well_dca_inputs(request):
     ]
 
     values = {col: params.get(col) for col in columns}
+    econ_scenario = (values.get("ECON_SCENARIO") or "").strip()
+    if not econ_scenario:
+        return JsonResponse({"detail": "ECON_SCENARIO is required."}, status=400)
+    values["ECON_SCENARIO"] = econ_scenario
     approved_value = values.get("APPROVED")
     if approved_value != "Y":
         values["APPROVED"] = None
@@ -1858,8 +1843,13 @@ def export_well_dca_inputs(request):
             fc = fc[fc["PRODUCINGMONTH"] <= cutoff]
 
     scenario_name = (params.get("ECON_SCENARIO") or "").strip()
+    if not scenario_name:
+        return JsonResponse({"detail": "ECON_SCENARIO is required."}, status=400)
     scenario_map = _fetch_econ_scenarios([scenario_name])
-    scenario_values = _resolve_econ_scenario(scenario_map.get(scenario_name))
+    try:
+        scenario_values = _require_econ_scenario(scenario_map.get(scenario_name), scenario_name)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
 
     fc["PRODUCINGMONTH"] = pd.to_datetime(fc["PRODUCINGMONTH"], errors="coerce")
     fc["MONTH_KEY"] = fc["PRODUCINGMONTH"].dt.to_period("M").dt.to_timestamp()
@@ -2317,6 +2307,7 @@ def economics_data(request):
 
     max_years_by_api = {}
     scenario_names = []
+    scenario_name_by_api = {}
     for api in apis:
         params = params_by_api.get(api, {}) or {}
         max_years = max(
@@ -2325,14 +2316,30 @@ def economics_data(request):
         )
         max_years_by_api[api] = max_years if max_years > 0 else None
         scenario_name = (params.get("ECON_SCENARIO") or "").strip()
+        scenario_name_by_api[api] = scenario_name
         if scenario_name:
             scenario_names.append(scenario_name)
 
     scenario_map = _fetch_econ_scenarios(scenario_names)
-    scenario_by_api = {
-        api: _resolve_econ_scenario(scenario_map.get((params_by_api.get(api) or {}).get("ECON_SCENARIO")))
-        for api in apis
-    }
+    missing_scenarios = [
+        api
+        for api, name in scenario_name_by_api.items()
+        if not name or name not in scenario_map
+    ]
+    if missing_scenarios:
+        return JsonResponse(
+            {
+                "detail": "Missing ECON scenario for APIs.",
+                "apis": missing_scenarios,
+            },
+            status=400,
+        )
+    scenario_by_api = {}
+    try:
+        for api, name in scenario_name_by_api.items():
+            scenario_by_api[api] = _require_econ_scenario(scenario_map.get(name), name)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
 
     start_dates = fc.groupby("API_UWI")["PRODUCINGMONTH"].min()
     cutoff_by_api = {}
@@ -2356,9 +2363,6 @@ def economics_data(request):
     fc["GAS"] = fc["GAS"].fillna(3.0)
 
     scenario_values = fc["API_UWI"].map(scenario_by_api)
-    scenario_values = scenario_values.apply(
-        lambda v: v if isinstance(v, dict) else ECON_SCENARIO_DEFAULTS
-    )
     fc["OIL_DIFF_PCT"] = scenario_values.apply(lambda v: v["OIL_DIFF_PCT"])
     fc["OIL_DIFF_AMT"] = scenario_values.apply(lambda v: v["OIL_DIFF_AMT"])
     fc["GAS_DIFF_PCT"] = scenario_values.apply(lambda v: v["GAS_DIFF_PCT"])
