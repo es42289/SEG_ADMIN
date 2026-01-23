@@ -73,6 +73,24 @@ ECON_SCENARIO_COLUMNS = [
     "NGL_YIELD",
 ]
 
+ECON_SCENARIO_DEFAULTS = {
+    "OIL_DIFF_PCT": 1.0,
+    "OIL_DIFF_AMT": 0.0,
+    "GAS_DIFF_PCT": 1.0,
+    "GAS_DIFF_AMT": 0.0,
+    "NGL_DIFF_PCT": 0.3,
+    "NGL_DIFF_AMT": 0.0,
+    "NGL_YIELD": 10.0,
+    "GAS_SHRINK": 0.9,
+    "OIL_GPT_DEDUCT": 0.0,
+    "GAS_GPT_DEDUCT": 0.0,
+    "NGL_GPT_DEDUCT": 0.0,
+    "OIL_TAX": 0.046,
+    "GAS_TAX": 0.075,
+    "NGL_TAX": 0.046,
+    "AD_VAL_TAX": 0.02,
+}
+
 
 def _normalize_econ_scenario(value):
     if value is None:
@@ -1680,7 +1698,10 @@ def export_well_dca_inputs(request):
     scenario = scenario_df.iloc[0].to_dict() if not scenario_df.empty else {}
 
     def _scenario_value(key):
-        return pd.to_numeric(scenario.get(key), errors="coerce")
+        value = pd.to_numeric(scenario.get(key), errors="coerce")
+        if pd.isna(value):
+            return ECON_SCENARIO_DEFAULTS.get(key)
+        return value
 
     oil_basis_pct = _scenario_value("OIL_DIFF_PCT")
     oil_basis_amt = _scenario_value("OIL_DIFF_AMT")
@@ -1722,7 +1743,7 @@ def export_well_dca_inputs(request):
     fc["NGLVol"] = (net_gas / 1000.0) * ngl_yield
     fc["RealOil"] = fc["OIL"] * oil_basis_pct + oil_basis_amt
     fc["RealGas"] = fc["GAS"] * gas_basis_pct + gas_basis_amt
-    fc["RealNGL"] = fc["GAS"] * ngl_basis_pct + ngl_basis_amt
+    fc["RealNGL"] = fc["OIL"] * ngl_basis_pct + ngl_basis_amt
     fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
     fc["GasRevenue"] = net_gas * fc["RealGas"]
     fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
@@ -2202,6 +2223,8 @@ def economics_data(request):
     for col in ECON_SCENARIO_COLUMNS:
         if col != "ECON_SCENARIO":
             fc[col] = pd.to_numeric(fc[col], errors="coerce")
+            if col in ECON_SCENARIO_DEFAULTS:
+                fc[col] = fc[col].fillna(ECON_SCENARIO_DEFAULTS[col])
 
     apply_nri_before_tax = True
     # Forecast data often uses the first day of the month while price decks
@@ -2233,7 +2256,7 @@ def economics_data(request):
 
     fc["RealOil"] = fc["OIL"] * fc["OIL_DIFF_PCT"] + fc["OIL_DIFF_AMT"]
     fc["RealGas"] = fc["GAS"] * fc["GAS_DIFF_PCT"] + fc["GAS_DIFF_AMT"]
-    fc["RealNGL"] = fc["GAS"] * fc["NGL_DIFF_PCT"] + fc["NGL_DIFF_AMT"]
+    fc["RealNGL"] = fc["OIL"] * fc["NGL_DIFF_PCT"] + fc["NGL_DIFF_AMT"]
 
     fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
     fc["GasRevenue"] = net_gas * fc["RealGas"]
