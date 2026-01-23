@@ -1993,7 +1993,10 @@ def fetch_econ_scenarios(scenarios):
         except Exception:
             pass
         conn.close()
-    return pd.DataFrame(rows, columns=ECON_SCENARIO_COLUMNS)
+    df = pd.DataFrame(rows, columns=ECON_SCENARIO_COLUMNS)
+    if not df.empty:
+        df["ECON_SCENARIO"] = df["ECON_SCENARIO"].map(_normalize_econ_scenario)
+    return df
 
 
 def _price_deck_trailing_average(price_decks, years=10):
