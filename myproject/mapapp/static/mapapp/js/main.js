@@ -1869,6 +1869,8 @@ window.syncRoyaltyPanelHeight = () => {
       ownerInterest: 0,
       lastProdDate: null,
       chartReady: false,
+      econScenarioMap: {},
+      econScenarioList: [],
     };
 
     window.setWellEditorData = function setWellEditorData(data) {
@@ -1913,6 +1915,11 @@ window.syncRoyaltyPanelHeight = () => {
       netGas: document.getElementById('wellEditorNetGasEur'),
       nriPercent: document.getElementById('wellEditorNriPercent'),
       nriValue: document.getElementById('wellEditorNriValue'),
+      econScenario: document.getElementById('wellEditorEconScenario'),
+      gptWarning: document.getElementById('wellEditorGptWarning'),
+      gptScenarioName: document.getElementById('wellEditorNewScenarioName'),
+      gptSaveScenario: document.getElementById('wellEditorSaveScenario'),
+      gptSaveToWell: document.getElementById('wellEditorSaveGptToWell'),
     };
 
     const FAST_EDIT_STATE = {
@@ -1945,6 +1952,40 @@ window.syncRoyaltyPanelHeight = () => {
     const WELL_EDITOR_VALUE_FIELDS = Array.from(document.querySelectorAll('[data-field-value]'));
     const WELL_EDITOR_TABS = Array.from(document.querySelectorAll('[data-well-editor-tab]'));
     const WELL_EDITOR_SECTIONS = Array.from(document.querySelectorAll('[data-well-editor-section]'));
+    const GPT_FIELDS = [
+      'OIL_DIFF_PCT',
+      'OIL_DIFF_AMT',
+      'GAS_DIFF_PCT',
+      'GAS_DIFF_AMT',
+      'NGL_DIFF_PCT',
+      'NGL_DIFF_AMT',
+      'NGL_YIELD',
+      'GAS_SHRINK',
+      'OIL_GPT_DEDUCT',
+      'GAS_GPT_DEDUCT',
+      'NGL_GPT_DEDUCT',
+      'OIL_TAX',
+      'GAS_TAX',
+      'NGL_TAX',
+      'AD_VAL_TAX',
+    ];
+    const GPT_DEFAULTS = {
+      OIL_DIFF_PCT: 1.0,
+      OIL_DIFF_AMT: 0.0,
+      GAS_DIFF_PCT: 1.0,
+      GAS_DIFF_AMT: 0.0,
+      NGL_DIFF_PCT: 0.3,
+      NGL_DIFF_AMT: 0.0,
+      NGL_YIELD: 10.0,
+      GAS_SHRINK: 0.9,
+      OIL_GPT_DEDUCT: 0.0,
+      GAS_GPT_DEDUCT: 0.0,
+      NGL_GPT_DEDUCT: 0.0,
+      OIL_TAX: 0.046,
+      GAS_TAX: 0.075,
+      NGL_TAX: 0.046,
+      AD_VAL_TAX: 0.02,
+    };
 
     const formatNumber = (value, decimals = 0) => {
       const num = Number(value);
@@ -1984,6 +2025,11 @@ window.syncRoyaltyPanelHeight = () => {
     };
 
     const isAdminUser = () => WELL_EDITOR_ELEMENTS.modal?.dataset?.isAdmin === 'true';
+    const normalizeScenarioName = (value) => {
+      if (!value) return null;
+      const text = String(value).trim().toUpperCase();
+      return text || null;
+    };
 
     const getWellIndexByApi = (api) => {
       if (!userWellData || !Array.isArray(userWellData.api_uwi)) return -1;
@@ -2004,6 +2050,88 @@ window.syncRoyaltyPanelHeight = () => {
         pv17: Number.isFinite(pv17) ? pv17 : Number(userWellData.pv17?.[idx]) || 0,
         name: userWellData.name?.[idx] || api,
       };
+    };
+
+    const buildScenarioMap = (scenarios) => {
+      const map = {};
+      (scenarios || []).forEach((row) => {
+        const key = normalizeScenarioName(row.ECON_SCENARIO);
+        if (!key) return;
+        map[key] = { ...row, ECON_SCENARIO: key };
+      });
+      return map;
+    };
+
+    const setScenarioOptions = (scenarios, selected) => {
+      if (!WELL_EDITOR_ELEMENTS.econScenario) return;
+      WELL_EDITOR_ELEMENTS.econScenario.innerHTML = '';
+      const sorted = [...(scenarios || [])].sort((a, b) =>
+        String(a.ECON_SCENARIO || '').localeCompare(String(b.ECON_SCENARIO || ''))
+      );
+      sorted.forEach((scenario) => {
+        const option = document.createElement('option');
+        const key = normalizeScenarioName(scenario.ECON_SCENARIO);
+        option.value = key || '';
+        option.textContent = scenario.ECON_SCENARIO || '';
+        WELL_EDITOR_ELEMENTS.econScenario.appendChild(option);
+      });
+      if (selected && WELL_EDITOR_ELEMENTS.econScenario.options.length) {
+        WELL_EDITOR_ELEMENTS.econScenario.value = selected;
+      }
+    };
+
+    const getScenarioValues = (scenarioName) => {
+      const key = normalizeScenarioName(scenarioName);
+      return key || key === '' ? WELL_EDITOR_STATE.econScenarioMap[key] : null;
+    };
+
+    const applyScenarioToGptFields = (scenarioName) => {
+      const scenario = getScenarioValues(scenarioName);
+      GPT_FIELDS.forEach((field) => {
+        const value = scenario?.[field];
+        const fallback = GPT_DEFAULTS[field];
+        setFieldValue(field, value ?? fallback);
+      });
+    };
+
+    const getGptParams = () => {
+      const params = {};
+      GPT_FIELDS.forEach((field) => {
+        params[field] = getFieldValue(field);
+      });
+      return params;
+    };
+
+    const gptValuesMatchScenario = (scenarioName) => {
+      const scenario = getScenarioValues(scenarioName);
+      return GPT_FIELDS.every((field) => {
+        const current = Number(getFieldValue(field));
+        const baseValue = scenario?.[field];
+        const fallback = GPT_DEFAULTS[field];
+        const target = baseValue !== null && baseValue !== undefined ? Number(baseValue) : Number(fallback);
+        if (!Number.isFinite(current) && !Number.isFinite(target)) return true;
+        return Math.abs((Number(current) || 0) - (Number(target) || 0)) < 1e-6;
+      });
+    };
+
+    const updateGptWarning = () => {
+      if (!WELL_EDITOR_ELEMENTS.gptWarning) return;
+      const scenarioName = getFieldValue('ECON_SCENARIO');
+      const hasScenario = Boolean(getScenarioValues(scenarioName));
+      const shouldWarn = hasScenario && !gptValuesMatchScenario(scenarioName);
+      WELL_EDITOR_ELEMENTS.gptWarning.hidden = !shouldWarn;
+    };
+
+    const loadEconScenarioData = async () => {
+      try {
+        const response = await fetch('/econ-scenarios/');
+        if (!response.ok) return;
+        const data = await response.json();
+        WELL_EDITOR_STATE.econScenarioList = data.scenarios || [];
+        WELL_EDITOR_STATE.econScenarioMap = buildScenarioMap(WELL_EDITOR_STATE.econScenarioList);
+      } catch (error) {
+        console.error('Failed to load econ scenarios', error);
+      }
     };
 
     const getFieldValue = (fieldName) => {
@@ -2574,6 +2702,8 @@ window.syncRoyaltyPanelHeight = () => {
       GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
       FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
       GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
+      ECON_SCENARIO: getFieldValue('ECON_SCENARIO'),
+      ...getGptParams(),
       APPROVED: getFieldValue('APPROVED') ?? getFieldValue('DCA_APPROVED'),
     });
 
@@ -2964,6 +3094,15 @@ window.syncRoyaltyPanelHeight = () => {
       setFieldValue('GAS_FCST_YRS', params.GAS_FCST_YRS ?? 0);
       setFieldValue('APPROVED', params.APPROVED || null);
       setFieldValue('DCA_APPROVED', params.APPROVED || null);
+      const scenarioKey = normalizeScenarioName(params.ECON_SCENARIO);
+      setScenarioOptions(WELL_EDITOR_STATE.econScenarioList, scenarioKey);
+      if (scenarioKey) {
+        setFieldValue('ECON_SCENARIO', scenarioKey);
+        applyScenarioToGptFields(scenarioKey);
+      } else {
+        applyScenarioToGptFields(null);
+      }
+      updateGptWarning();
 
       initializeFixedRanges();
       updateDeclineRanges('OIL');
@@ -3236,6 +3375,71 @@ window.syncRoyaltyPanelHeight = () => {
       }
     };
 
+    const saveGptScenario = async () => {
+      if (!isAdminUser()) {
+        setWellEditorStatus('Admin access required to save GPT scenarios.', true);
+        return;
+      }
+      const name = WELL_EDITOR_ELEMENTS.gptScenarioName?.value?.trim();
+      if (!name) {
+        setWellEditorStatus('Enter a new GPT scenario name first.', true);
+        return;
+      }
+      const scenarioKey = normalizeScenarioName(name);
+      if (getScenarioValues(scenarioKey)) {
+        setWellEditorStatus('Scenario already exists.', true);
+        return;
+      }
+      try {
+        setWellEditorStatus('Saving GPT scenario...');
+        const payload = {
+          name,
+          params: getGptParams(),
+        };
+        const response = await fetch('/econ-scenarios/save/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || 'Unable to save GPT scenario.');
+        }
+        WELL_EDITOR_STATE.econScenarioList = [
+          ...WELL_EDITOR_STATE.econScenarioList,
+          body.scenario || payload,
+        ];
+        WELL_EDITOR_STATE.econScenarioMap = buildScenarioMap(WELL_EDITOR_STATE.econScenarioList);
+        setScenarioOptions(WELL_EDITOR_STATE.econScenarioList, scenarioKey);
+        setFieldValue('ECON_SCENARIO', scenarioKey);
+        updateGptWarning();
+        if (WELL_EDITOR_ELEMENTS.gptScenarioName) {
+          WELL_EDITOR_ELEMENTS.gptScenarioName.value = '';
+        }
+        setWellEditorStatus('GPT scenario saved.');
+      } catch (error) {
+        console.error('Failed to save GPT scenario', error);
+        setWellEditorStatus(error.message || 'Failed to save GPT scenario.', true);
+      }
+    };
+
+    const saveGptToWell = async () => {
+      if (!isAdminUser()) {
+        setWellEditorStatus('Admin access required to save GPT to well.', true);
+        return;
+      }
+      const scenarioKey = normalizeScenarioName(getFieldValue('ECON_SCENARIO'));
+      if (!scenarioKey || !getScenarioValues(scenarioKey)) {
+        setWellEditorStatus('Save the GPT scenario before assigning it to a well.', true);
+        return;
+      }
+      if (!gptValuesMatchScenario(scenarioKey)) {
+        setWellEditorStatus('GPT parameters must be saved as a scenario before assigning to a well.', true);
+        return;
+      }
+      await saveWellEditorParams();
+    };
+
     const saveAndApproveWellParams = async () => {
       if (!WELL_EDITOR_STATE.api) return;
       setWellApprovalValue(true);
@@ -3348,9 +3552,22 @@ window.syncRoyaltyPanelHeight = () => {
             syncFastEditDeclineToggle();
           }
         }
+        if (GPT_FIELDS.includes(field.dataset.field)) {
+          updateGptWarning();
+        }
         updateWellEditorForecast();
       });
     });
+
+    if (WELL_EDITOR_ELEMENTS.econScenario) {
+      WELL_EDITOR_ELEMENTS.econScenario.addEventListener('change', () => {
+        const scenarioKey = normalizeScenarioName(WELL_EDITOR_ELEMENTS.econScenario.value);
+        setFieldValue('ECON_SCENARIO', scenarioKey);
+        applyScenarioToGptFields(scenarioKey);
+        updateGptWarning();
+        updateWellEditorForecast();
+      });
+    }
 
     const setWellEditorTab = (tab) => {
       WELL_EDITOR_TABS.forEach((button) => {
@@ -3386,6 +3603,14 @@ window.syncRoyaltyPanelHeight = () => {
 
     if (WELL_EDITOR_ELEMENTS.save) {
       WELL_EDITOR_ELEMENTS.save.addEventListener('click', saveWellEditorParams);
+    }
+
+    if (WELL_EDITOR_ELEMENTS.gptSaveScenario) {
+      WELL_EDITOR_ELEMENTS.gptSaveScenario.addEventListener('click', saveGptScenario);
+    }
+
+    if (WELL_EDITOR_ELEMENTS.gptSaveToWell) {
+      WELL_EDITOR_ELEMENTS.gptSaveToWell.addEventListener('click', saveGptToWell);
     }
 
     if (WELL_EDITOR_ELEMENTS.loadApproved) {
@@ -3522,6 +3747,14 @@ window.syncRoyaltyPanelHeight = () => {
         if (FAST_EDIT_ELEMENTS.saveApprove) {
           FAST_EDIT_ELEMENTS.saveApprove.disabled = !isAdminUser();
         }
+        if (WELL_EDITOR_ELEMENTS.gptSaveScenario) {
+          WELL_EDITOR_ELEMENTS.gptSaveScenario.disabled = !isAdminUser();
+        }
+        if (WELL_EDITOR_ELEMENTS.gptSaveToWell) {
+          WELL_EDITOR_ELEMENTS.gptSaveToWell.disabled = !isAdminUser();
+        }
+        await loadEconScenarioData();
+        setScenarioOptions(WELL_EDITOR_STATE.econScenarioList, null);
 
         const data = await loadWellEditorData(api);
         WELL_EDITOR_STATE.production = data.production || [];

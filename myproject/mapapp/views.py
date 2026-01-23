@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+from decimal import Decimal
 from functools import lru_cache
 from threading import Lock
 
@@ -1698,6 +1699,11 @@ def export_well_dca_inputs(request):
     scenario = scenario_df.iloc[0].to_dict() if not scenario_df.empty else {}
 
     def _scenario_value(key):
+        override = params.get(key)
+        if override not in (None, ""):
+            value = pd.to_numeric(override, errors="coerce")
+            if pd.notna(value):
+                return value
         value = pd.to_numeric(scenario.get(key), errors="coerce")
         if pd.isna(value):
             return ECON_SCENARIO_DEFAULTS.get(key)
@@ -1988,6 +1994,106 @@ def fetch_price_decks():
     cols = [c[0] for c in cur.description]
     conn.close()
     return pd.DataFrame(rows, columns=cols)
+
+
+def _parse_econ_value(value, default=None):
+    if value in (None, ""):
+        return default
+    parsed = pd.to_numeric(value, errors="coerce")
+    if pd.isna(parsed):
+        return default
+    return float(parsed)
+
+
+@require_http_methods(["GET"])
+def econ_scenarios(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+    conn = get_snowflake_connection()
+    cur = conn.cursor(DictCursor)
+    try:
+        cur.execute(
+            f"""
+            SELECT {", ".join(ECON_SCENARIO_COLUMNS)}
+            FROM WELLS.MINERALS.ECON_SCENARIOS
+            ORDER BY ECON_SCENARIO
+            """
+        )
+        rows = cur.fetchall() or []
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
+    serialized = []
+    for row in rows:
+        normalized = {}
+        for key, value in row.items():
+            if isinstance(value, Decimal):
+                normalized[key] = float(value)
+            else:
+                normalized[key] = value
+        serialized.append(normalized)
+    return JsonResponse({"scenarios": serialized})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def save_econ_scenario(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+    admin_context = get_admin_banner_context(request)
+    if not admin_context.get("is_admin"):
+        return JsonResponse({"detail": "Admin access required."}, status=403)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    scenario_name = (payload.get("name") or "").strip()
+    params = payload.get("params") or {}
+    if not scenario_name:
+        return JsonResponse({"detail": "Scenario name is required."}, status=400)
+
+    conn = get_snowflake_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute(
+            "SELECT 1 FROM WELLS.MINERALS.ECON_SCENARIOS WHERE ECON_SCENARIO = %s LIMIT 1",
+            (scenario_name,),
+        )
+        if cur.fetchone():
+            return JsonResponse({"detail": "Scenario already exists."}, status=409)
+
+        values = {"ECON_SCENARIO": scenario_name}
+        for key in ECON_SCENARIO_COLUMNS:
+            if key == "ECON_SCENARIO":
+                continue
+            values[key] = _parse_econ_value(params.get(key), ECON_SCENARIO_DEFAULTS.get(key))
+
+        insert_cols = ", ".join(ECON_SCENARIO_COLUMNS)
+        insert_placeholders = ", ".join(["%s"] * len(ECON_SCENARIO_COLUMNS))
+        cur.execute(
+            f"""
+            INSERT INTO WELLS.MINERALS.ECON_SCENARIOS ({insert_cols})
+            VALUES ({insert_placeholders})
+            """,
+            [values[col] for col in ECON_SCENARIO_COLUMNS],
+        )
+        conn.commit()
+        return JsonResponse({"saved": True, "scenario": values})
+    except snowflake_errors.Error:
+        logger.exception("Failed to save econ scenario %s", scenario_name)
+        conn.rollback()
+        return JsonResponse({"detail": "Unable to save scenario."}, status=502)
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
 
 
 def fetch_econ_scenarios(scenarios):
