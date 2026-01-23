@@ -77,6 +77,13 @@ ECON_SCENARIO_COLUMNS = [
 ]
 
 
+def _normalize_econ_scenario(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
 OWNER_PROFILE_SELECT_SQL = (
     "SELECT {columns} "
     "FROM WELLS.MINERALS.USER_INFO "
@@ -1671,7 +1678,7 @@ def export_well_dca_inputs(request):
     hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
     fc["has_hist_volume"] = hist_oil.fillna(0).ne(0) | hist_gas.fillna(0).ne(0)
 
-    econ_scenario = params.get("ECON_SCENARIO")
+    econ_scenario = _normalize_econ_scenario(params.get("ECON_SCENARIO"))
     scenario_df = fetch_econ_scenarios([econ_scenario] if econ_scenario else [])
     scenario = scenario_df.iloc[0].to_dict() if not scenario_df.empty else {}
 
@@ -1968,6 +1975,8 @@ def fetch_price_decks():
 
 
 def fetch_econ_scenarios(scenarios):
+    scenarios = [_normalize_econ_scenario(s) for s in scenarios]
+    scenarios = [s for s in scenarios if s]
     if not scenarios:
         return pd.DataFrame(columns=ECON_SCENARIO_COLUMNS)
     conn = get_snowflake_connection()
@@ -2126,7 +2135,7 @@ def fetch_forecasts_for_apis(apis):
             )
         params = params_by_api.get(api, {})
         fc = _calc_decline_forecast(prd, params)
-        fc["ECON_SCENARIO"] = params.get("ECON_SCENARIO")
+        fc["ECON_SCENARIO"] = _normalize_econ_scenario(params.get("ECON_SCENARIO"))
         forecasts.append(fc)
 
     df = pd.concat(forecasts, ignore_index=True) if forecasts else pd.DataFrame()
@@ -2188,6 +2197,7 @@ def economics_data(request):
         hist_oil.fillna(0).ne(0)
         | hist_gas.fillna(0).ne(0)
     )
+    fc["ECON_SCENARIO"] = fc["ECON_SCENARIO"].map(_normalize_econ_scenario)
     scenario_names = fc["ECON_SCENARIO"].dropna().unique().tolist()
     scenario_df = fetch_econ_scenarios(scenario_names)
     fc = fc.merge(scenario_df, on="ECON_SCENARIO", how="left")
