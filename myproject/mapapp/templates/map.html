@@ -492,7 +492,6 @@
         </div>
         <div class="well-editor-modal__header-actions">
           <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
-          <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
         </div>
       </header>
 
@@ -527,89 +526,6 @@
               </span>
             </div>
           </div>
-
-          <div class="well-editor-form__section">
-            <h3 class="well-editor-form__title">GPT Inputs</h3>
-            <div class="well-editor-field">
-              <label class="well-editor-field__label" for="wellEditorEconScenario">Economic Scenario</label>
-              <select id="wellEditorEconScenario" data-field="ECON_SCENARIO"></select>
-            </div>
-            <p id="wellEditorGptWarning" class="well-editor-warning" hidden>GPT parameters are not saved to well.</p>
-            <div class="well-editor-gpt-grid">
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorOilDiffPct">Oil Diff %</label>
-                <input id="wellEditorOilDiffPct" type="number" step="0.001" inputmode="decimal" data-field="OIL_DIFF_PCT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorOilDiffAmt">Oil Diff $/BBL</label>
-                <input id="wellEditorOilDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="OIL_DIFF_AMT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorGasDiffPct">Gas Diff %</label>
-                <input id="wellEditorGasDiffPct" type="number" step="0.001" inputmode="decimal" data-field="GAS_DIFF_PCT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorGasDiffAmt">Gas Diff $/MCF</label>
-                <input id="wellEditorGasDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="GAS_DIFF_AMT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorNglDiffPct">NGL Diff %</label>
-                <input id="wellEditorNglDiffPct" type="number" step="0.001" inputmode="decimal" data-field="NGL_DIFF_PCT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorNglDiffAmt">NGL Diff $/BBL</label>
-                <input id="wellEditorNglDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="NGL_DIFF_AMT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorNglYield">NGL Yield (BBL/MMCF)</label>
-                <input id="wellEditorNglYield" type="number" step="0.01" inputmode="decimal" data-field="NGL_YIELD">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorGasShrink">Gas Shrink</label>
-                <input id="wellEditorGasShrink" type="number" step="0.001" inputmode="decimal" data-field="GAS_SHRINK">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorOilGpt">Oil GPT $/BBL</label>
-                <input id="wellEditorOilGpt" type="number" step="0.01" inputmode="decimal" data-field="OIL_GPT_DEDUCT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorGasGpt">Gas GPT $/MCF</label>
-                <input id="wellEditorGasGpt" type="number" step="0.01" inputmode="decimal" data-field="GAS_GPT_DEDUCT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorNglGpt">NGL GPT $/BBL</label>
-                <input id="wellEditorNglGpt" type="number" step="0.01" inputmode="decimal" data-field="NGL_GPT_DEDUCT">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorOilTax">Oil Tax</label>
-                <input id="wellEditorOilTax" type="number" step="0.001" inputmode="decimal" data-field="OIL_TAX">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorGasTax">Gas Tax</label>
-                <input id="wellEditorGasTax" type="number" step="0.001" inputmode="decimal" data-field="GAS_TAX">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorNglTax">NGL Tax</label>
-                <input id="wellEditorNglTax" type="number" step="0.001" inputmode="decimal" data-field="NGL_TAX">
-              </div>
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorAdValTax">Ad Valorem Tax</label>
-                <input id="wellEditorAdValTax" type="number" step="0.001" inputmode="decimal" data-field="AD_VAL_TAX">
-              </div>
-            </div>
-            <div class="well-editor-gpt-actions">
-              <div class="well-editor-field">
-                <label class="well-editor-field__label" for="wellEditorNewScenarioName">New GPT Scenario</label>
-                <input id="wellEditorNewScenarioName" type="text" placeholder="Enter new scenario name">
-              </div>
-              <div class="well-editor-gpt-buttons">
-                <button type="button" id="wellEditorSaveScenario" class="well-editor-secondary">Save GPT Scenario</button>
-                <button type="button" id="wellEditorSaveGptToWell" class="well-editor-secondary">Save GPT to Well</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="wellEditorStatus" class="well-editor-status" role="status" aria-live="polite"></div>
         </div>
 
         <div class="well-editor-right">
@@ -766,10 +682,92 @@
               <input id="wellEditorApproved" type="checkbox" data-field="APPROVED">
               <span>Approve Forecast</span>
             </label>
+            <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
             <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Reset to Last Approved</button>
             <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
           </div>
         </div>
+        <div class="well-editor-form__section well-editor-gpt">
+          <h3 class="well-editor-form__title">GPT Inputs</h3>
+          <div class="well-editor-field">
+            <label class="well-editor-field__label" for="wellEditorEconScenario">Economic Scenario</label>
+            <select id="wellEditorEconScenario" data-field="ECON_SCENARIO"></select>
+          </div>
+          <p id="wellEditorGptWarning" class="well-editor-warning" hidden>GPT parameters are not saved to well.</p>
+          <div class="well-editor-gpt-grid">
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorOilDiffPct">Oil Diff %</label>
+              <input id="wellEditorOilDiffPct" type="number" step="0.001" inputmode="decimal" data-field="OIL_DIFF_PCT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorOilDiffAmt">Oil Diff $/BBL</label>
+              <input id="wellEditorOilDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="OIL_DIFF_AMT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorGasDiffPct">Gas Diff %</label>
+              <input id="wellEditorGasDiffPct" type="number" step="0.001" inputmode="decimal" data-field="GAS_DIFF_PCT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorGasDiffAmt">Gas Diff $/MCF</label>
+              <input id="wellEditorGasDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="GAS_DIFF_AMT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorNglDiffPct">NGL Diff %</label>
+              <input id="wellEditorNglDiffPct" type="number" step="0.001" inputmode="decimal" data-field="NGL_DIFF_PCT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorNglDiffAmt">NGL Diff $/BBL</label>
+              <input id="wellEditorNglDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="NGL_DIFF_AMT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorNglYield">NGL Yield (BBL/MMCF)</label>
+              <input id="wellEditorNglYield" type="number" step="0.01" inputmode="decimal" data-field="NGL_YIELD">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorGasShrink">Gas Shrink</label>
+              <input id="wellEditorGasShrink" type="number" step="0.001" inputmode="decimal" data-field="GAS_SHRINK">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorOilGpt">Oil GPT $/BBL</label>
+              <input id="wellEditorOilGpt" type="number" step="0.01" inputmode="decimal" data-field="OIL_GPT_DEDUCT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorGasGpt">Gas GPT $/MCF</label>
+              <input id="wellEditorGasGpt" type="number" step="0.01" inputmode="decimal" data-field="GAS_GPT_DEDUCT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorNglGpt">NGL GPT $/BBL</label>
+              <input id="wellEditorNglGpt" type="number" step="0.01" inputmode="decimal" data-field="NGL_GPT_DEDUCT">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorOilTax">Oil Tax</label>
+              <input id="wellEditorOilTax" type="number" step="0.001" inputmode="decimal" data-field="OIL_TAX">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorGasTax">Gas Tax</label>
+              <input id="wellEditorGasTax" type="number" step="0.001" inputmode="decimal" data-field="GAS_TAX">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorNglTax">NGL Tax</label>
+              <input id="wellEditorNglTax" type="number" step="0.001" inputmode="decimal" data-field="NGL_TAX">
+            </div>
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorAdValTax">Ad Valorem Tax</label>
+              <input id="wellEditorAdValTax" type="number" step="0.001" inputmode="decimal" data-field="AD_VAL_TAX">
+            </div>
+          </div>
+          <div class="well-editor-gpt-actions">
+            <div class="well-editor-field">
+              <label class="well-editor-field__label" for="wellEditorNewScenarioName">New GPT Scenario</label>
+              <input id="wellEditorNewScenarioName" type="text" placeholder="Enter new scenario name">
+            </div>
+            <div class="well-editor-gpt-buttons">
+              <button type="button" id="wellEditorSaveScenario" class="well-editor-secondary">Save GPT Scenario</button>
+              <button type="button" id="wellEditorSaveGptToWell" class="well-editor-secondary">Save GPT to Well</button>
+            </div>
+          </div>
+        </div>
+        <div id="wellEditorStatus" class="well-editor-status" role="status" aria-live="polite"></div>
       </div>
     </div>
   </div>
