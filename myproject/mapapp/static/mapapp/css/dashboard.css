@@ -2720,7 +2720,8 @@ input#year[type="range"] {
       border-radius: 999px;
       color: #f8fafc;
       font-size: 0.9rem;
-      min-width: 240px;
+      min-width: 120px;
+      width: 120px;
       padding: 0.4rem 0.9rem;
     }
 
