@@ -2882,7 +2882,7 @@ window.syncRoyaltyPanelHeight = () => {
       FAST_EDIT_STATE.autoFitActive = nextState;
       if (FAST_EDIT_ELEMENTS.autoFitButton) {
         FAST_EDIT_ELEMENTS.autoFitButton.classList.toggle('is-active', nextState);
-        FAST_EDIT_ELEMENTS.autoFitButton.textContent = nextState ? 'Cancel Auto-Fit' : 'Auto-Fit DCA';
+        FAST_EDIT_ELEMENTS.autoFitButton.textContent = nextState ? 'Cancel Auto-Fit' : 'Auto-Fit';
       }
       if (window.Plotly && FAST_EDIT_ELEMENTS.chart) {
         const dragmode = nextState ? 'lasso' : 'zoom';
@@ -3178,7 +3178,7 @@ window.syncRoyaltyPanelHeight = () => {
       const declineValue = getFieldValue(getFastEditDeclineField()) || 'EXP';
       const isHyperbolic = declineValue === 'HYP';
       FAST_EDIT_ELEMENTS.declineToggle.checked = isHyperbolic;
-      FAST_EDIT_ELEMENTS.declineLabel.textContent = `Decline: ${isHyperbolic ? 'Hyperbolic' : 'Exponential'}`;
+      FAST_EDIT_ELEMENTS.declineLabel.textContent = isHyperbolic ? 'Hyperbolic' : 'Exponential';
     };
 
     const getFastEditFields = () => {

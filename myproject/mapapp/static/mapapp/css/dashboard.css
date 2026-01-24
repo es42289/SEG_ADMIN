@@ -2211,9 +2211,10 @@ input#year[type="range"] {
     }
 
     .well-editor-layout {
-      display: flex;
+      display: grid;
       gap: 1rem;
       align-items: flex-start;
+      grid-template-columns: minmax(0, 1fr) 320px;
     }
 
     .well-editor-left {
@@ -2221,6 +2222,8 @@ input#year[type="range"] {
       min-width: 0;
       display: flex;
       flex-direction: column;
+      grid-column: 1;
+      grid-row: 1;
     }
 
     .well-editor-right {
@@ -2230,6 +2233,18 @@ input#year[type="range"] {
       flex-direction: column;
       gap: 0.75rem;
       height: 380px;
+      grid-column: 2;
+      grid-row: 1 / span 3;
+    }
+
+    .well-editor-gpt {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .well-editor-status {
+      grid-column: 1;
+      grid-row: 3;
     }
 
     .well-editor-form {
@@ -2527,18 +2542,29 @@ input#year[type="range"] {
 
     @media (max-width: 900px) {
       .well-editor-layout {
+        display: flex;
         flex-direction: column;
         align-items: stretch;
       }
 
       .well-editor-left {
         width: 100%;
+        order: 1;
       }
 
       .well-editor-right {
         width: 100%;
         max-width: 100%;
         height: auto;
+        order: 2;
+      }
+
+      .well-editor-gpt {
+        order: 3;
+      }
+
+      .well-editor-status {
+        order: 4;
       }
 
       #wellEditorChart {
@@ -2547,6 +2573,40 @@ input#year[type="range"] {
 
       .well-editor-modal__dialog {
         padding: 1rem;
+      }
+
+      .well-editor-modal__header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .well-editor-modal__header-actions {
+        justify-content: flex-start;
+        margin-right: 0;
+        width: 100%;
+      }
+
+      .well-editor-fast-edit {
+        width: 100%;
+      }
+
+      .well-editor-well-select {
+        min-width: 0;
+        width: 100%;
+      }
+
+      .well-editor-actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .well-editor-approval {
+        margin-right: 0;
+        width: 100%;
+      }
+
+      .well-editor-actions button {
+        width: 100%;
       }
     }
 
@@ -2660,7 +2720,8 @@ input#year[type="range"] {
       border-radius: 999px;
       color: #f8fafc;
       font-size: 0.9rem;
-      min-width: 240px;
+      min-width: 120px;
+      width: 120px;
       padding: 0.4rem 0.9rem;
     }
 
