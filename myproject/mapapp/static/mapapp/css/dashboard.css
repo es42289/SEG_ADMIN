@@ -2100,7 +2100,7 @@ input#year[type="range"] {
     .well-editor-modal__dialog {
       position: relative;
       z-index: 1;
-      max-width: 1320px;
+      max-width: 1650px;
       margin: 2vh auto;
       padding: 1.25rem;
       background: #0f3d56;
