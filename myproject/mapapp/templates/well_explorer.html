@@ -95,21 +95,19 @@
       <button type="button" class="well-editor-modal__close" data-well-editor-close aria-label="Close well editor dialog">
         <span aria-hidden="true">&times;</span>
       </button>
-      <header class="well-editor-modal__header">
-        <div>
-          <p class="well-editor-modal__eyebrow">Well Forecast Editor</p>
+      <header class="well-editor-modal__header well-editor-modal__header--compact">
+        <p class="well-editor-modal__eyebrow">Well Forecast Editor</p>
+        <div class="well-editor-modal__header-actions">
           <select id="wellEditorWellSelect" class="well-editor-well-select" aria-label="Select well">
             <option value="">Select a well...</option>
           </select>
-        </div>
-        <div class="well-editor-modal__header-actions">
           <label class="well-editor-approval">
             <input type="checkbox" id="wellEditorApproved" data-field="DCA_APPROVED" />
             <span>Approved DCA</span>
           </label>
           <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
           <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Reset</button>
-          <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
+          <button type="button" id="wellEditorDownload" class="well-editor-download">Save CSV</button>
           <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
         </div>
       </header>
