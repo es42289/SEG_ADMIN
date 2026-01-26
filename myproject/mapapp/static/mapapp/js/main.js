@@ -2301,11 +2301,11 @@ window.syncRoyaltyPanelHeight = () => {
       const typeValue = getFieldValue(typeField) || 'EXP';
 
       if (typeValue === 'HYP') {
-        setRangeAttributes(declineField, { min: 0.04, max: 0.5, step: 0.005 });
+        setRangeAttributes(declineField, { min: 0.1, max: 0.99, step: 0.005 });
         setRangeAttributes(dminField, { min: 0.02, max: 0.1, step: 0.005 });
         setRangeAttributes(bField, { min: 0.5, max: 1.1, step: 0.01 });
       } else {
-        setRangeAttributes(declineField, { min: 0.04, max: 0.5, step: 0.005 });
+        setRangeAttributes(declineField, { min: 0.1, max: 0.99, step: 0.005 });
         setRangeAttributes(dminField, { min: 0.02, max: 0.1, step: 0.005 });
         setRangeAttributes(bField, { min: 0.5, max: 1.1, step: 0.01 });
       }
