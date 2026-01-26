@@ -3434,7 +3434,7 @@ window.syncRoyaltyPanelHeight = () => {
         return;
       }
       if (!gptValuesMatchScenario(scenarioKey)) {
-        setWellEditorStatus('GPT parameters must be saved as a scenario before assigning to a well.', true);
+        setWellEditorStatus('GPT parameters must be saved as a scenario with a unique name before assigning to a well. Enter a name in the "New GPT Scenario" box above and then click "SAVE GPT SCENARIO" to then be able to save it to a well.', true);
         return;
       }
       await saveWellEditorParams();
