@@ -2211,6 +2211,33 @@ input#year[type="range"] {
       color: #0f172a;
     }
 
+    .well-editor-next-well {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      border-radius: 8px;
+      color: #f8fafc;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .well-editor-next-well:hover {
+      background: rgba(15, 23, 42, 0.8);
+      border-color: #94a3b8;
+    }
+
+    .well-editor-next-well span {
+      display: inline-block;
+      transition: transform 0.15s ease;
+    }
+
+    .well-editor-next-well:hover span {
+      transform: translateX(3px);
+    }
+
     .well-editor-modal__meta {
       text-align: right;
     }

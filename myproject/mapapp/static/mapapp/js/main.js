@@ -1900,6 +1900,7 @@ window.syncRoyaltyPanelHeight = () => {
     const WELL_EDITOR_ELEMENTS = {
       modal: document.getElementById('wellEditorModal'),
       wellSelect: document.getElementById('wellEditorWellSelect'),
+      nextWell: document.getElementById('wellEditorNextWell'),
       chart: document.getElementById('wellEditorChart'),
       status: document.getElementById('wellEditorStatus'),
       download: document.getElementById('wellEditorDownload'),
@@ -3626,6 +3627,21 @@ window.syncRoyaltyPanelHeight = () => {
           return;
         }
         window.openWellEditor(nextApi);
+      });
+    }
+
+    if (WELL_EDITOR_ELEMENTS.nextWell) {
+      WELL_EDITOR_ELEMENTS.nextWell.addEventListener('click', () => {
+        const select = WELL_EDITOR_ELEMENTS.wellSelect;
+        if (!select || select.options.length <= 1) return;
+        let nextIndex = select.selectedIndex + 1;
+        // Skip the placeholder option and loop back to start
+        if (nextIndex >= select.options.length) {
+          nextIndex = 1; // Skip index 0 which is "Select a well..."
+        }
+        if (nextIndex < select.options.length && select.options[nextIndex].value) {
+          window.openWellEditor(select.options[nextIndex].value);
+        }
       });
     }
 
