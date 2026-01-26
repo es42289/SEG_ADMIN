@@ -103,6 +103,13 @@
           </select>
         </div>
         <div class="well-editor-modal__header-actions">
+          <label class="well-editor-approval">
+            <input type="checkbox" id="wellEditorApproved" data-field="DCA_APPROVED" />
+            <span>Approved DCA</span>
+          </label>
+          <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
+          <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Reset</button>
+          <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
           <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
         </div>
       </header>
@@ -260,15 +267,6 @@
               </div>
             </div>
 
-          </div>
-          <div class="well-editor-actions">
-            <label class="well-editor-approval">
-              <input type="checkbox" id="wellEditorApproved" data-field="DCA_APPROVED" />
-              <span>Approved DCA</span>
-            </label>
-            <button type="button" id="wellEditorSave" class="well-editor-save">Save Parameters</button>
-            <button type="button" id="wellEditorLoadApproved" class="well-editor-load-approved">Reset</button>
-            <button type="button" id="wellEditorDownload" class="well-editor-download">Download CSV</button>
           </div>
         </div>
         <div class="well-editor-form__section well-editor-gpt">
