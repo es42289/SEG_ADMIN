@@ -267,8 +267,9 @@
 
           </div>
         </div>
-        <div class="well-editor-form__section well-editor-gpt">
-          <h3 class="well-editor-form__title">GPT Inputs</h3>
+        <details class="well-editor-form__section well-editor-gpt well-editor-collapsible">
+          <summary class="well-editor-form__title well-editor-collapsible__toggle">GPT Inputs</summary>
+          <div class="well-editor-collapsible__content">
           <div class="well-editor-field">
             <label class="well-editor-field__label" for="wellEditorEconScenario">Economic Scenario</label>
             <select id="wellEditorEconScenario" data-field="ECON_SCENARIO"></select>
@@ -346,7 +347,8 @@
               <button type="button" id="wellEditorSaveGptToWell" class="well-editor-secondary">Save GPT to Well</button>
             </div>
           </div>
-        </div>
+          </div>
+        </details>
         <div id="wellEditorStatus" class="well-editor-status" role="status" aria-live="polite"></div>
       </div>
     </div>

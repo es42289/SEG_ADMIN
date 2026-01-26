@@ -2276,6 +2276,42 @@ input#year[type="range"] {
       grid-row: 2;
     }
 
+    .well-editor-collapsible {
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 8px;
+      padding: 0;
+    }
+
+    .well-editor-collapsible__toggle {
+      cursor: pointer;
+      padding: 0.75rem 1rem;
+      margin: 0;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .well-editor-collapsible__toggle::-webkit-details-marker {
+      display: none;
+    }
+
+    .well-editor-collapsible__toggle::after {
+      content: '+';
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #94a3b8;
+      transition: transform 0.2s ease;
+    }
+
+    .well-editor-collapsible[open] .well-editor-collapsible__toggle::after {
+      content: '−';
+    }
+
+    .well-editor-collapsible__content {
+      padding: 0 1rem 1rem;
+    }
+
     .well-editor-status {
       grid-column: 1;
       grid-row: 3;
