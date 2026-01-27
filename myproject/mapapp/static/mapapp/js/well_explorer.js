@@ -176,12 +176,6 @@
             Remove
           </button>
         </td>
-        <td>${well.api_uwi || '--'}</td>
-        <td>${well.wellname || '--'}</td>
-        <td>${well.county || '--'}</td>
-        <td>${well.envoperator || '--'}</td>
-        <td>${well.envwellstatus || '--'}</td>
-        <td>${well.trajectory || '--'}</td>
         <td>
           <input
             type="checkbox"
@@ -191,6 +185,12 @@
             aria-label="DCA approval status"
           >
         </td>
+        <td>${well.api_uwi || '--'}</td>
+        <td>${well.wellname || '--'}</td>
+        <td>${well.county || '--'}</td>
+        <td>${well.envoperator || '--'}</td>
+        <td>${well.envwellstatus || '--'}</td>
+        <td>${well.trajectory || '--'}</td>
       `;
       tableBody.appendChild(row);
     });
