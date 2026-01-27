@@ -3345,12 +3345,7 @@ input#year[type="range"] {
       padding: 1.5rem;
     }
 
-    .well-explorer-table th:first-child,
     .well-explorer-table td:first-child {
-      position: sticky;
-      left: 0;
-      background: #0f3d56;
-      z-index: 1;
       white-space: nowrap;
     }
 
