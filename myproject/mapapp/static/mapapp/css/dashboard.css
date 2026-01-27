@@ -2860,9 +2860,16 @@ input#year[type="range"] {
       border-radius: 999px;
       color: #f8fafc;
       font-size: 0.9rem;
-      min-width: 120px;
-      width: 120px;
+      min-width: 240px;
+      width: 240px;
       padding: 0.4rem 0.9rem;
+    }
+
+    @media (max-width: 640px), (max-height: 480px) {
+      .fast-edit-well-select {
+        min-width: 120px;
+        width: 120px;
+      }
     }
 
     .fast-edit-well-select:focus {
