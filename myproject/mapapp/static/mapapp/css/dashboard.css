@@ -3052,7 +3052,7 @@ input#year[type="range"] {
       z-index: 2;
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 480px), (max-height: 480px) {
       .fast-edit-pad {
         height: min(22vw, 160px);
         max-height: 160px;
