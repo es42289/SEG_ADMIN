@@ -2150,6 +2150,28 @@ window.syncRoyaltyPanelHeight = () => {
       return field.value;
     };
 
+    // Conversion functions for Nominal Di <-> Secant Effective Des
+    // t_ref = 1 year for annual decline rates
+    const nominalToSecant = (di, b) => {
+      if (!Number.isFinite(di) || di <= 0) return 0;
+      if (Math.abs(b) < 1e-6) {
+        // Exponential: Des = 1 - exp(-Di)
+        return 1 - Math.exp(-di);
+      }
+      // Hyperbolic: Des = 1 - (1 + b * Di)^(-1/b)
+      return 1 - Math.pow(1 + b * di, -1 / b);
+    };
+
+    const secantToNominal = (des, b) => {
+      if (!Number.isFinite(des) || des <= 0 || des >= 1) return 0;
+      if (Math.abs(b) < 1e-6) {
+        // Exponential: Di = -ln(1 - Des)
+        return -Math.log(1 - des);
+      }
+      // Hyperbolic: Di = ((1 - Des)^(-b) - 1) / b
+      return (Math.pow(1 - des, -b) - 1) / b;
+    };
+
     const setFieldValue = (fieldName, value) => {
       const field = WELL_EDITOR_FIELDS.find((el) => el.dataset.field === fieldName);
       if (!field) return;
@@ -2686,27 +2708,38 @@ window.syncRoyaltyPanelHeight = () => {
       return { grossOil, grossGas, netOil, netGas, remainingNet, estimatedValue };
     };
 
-    const collectParamsFromFields = () => ({
-      OIL_CALC_QI: getFieldValue('OIL_CALC_QI'),
-      OIL_Q_MIN: getFieldValue('OIL_Q_MIN'),
-      OIL_EMPIRICAL_DI: getFieldValue('OIL_EMPIRICAL_DI'),
-      OIL_CALC_B_FACTOR: getFieldValue('OIL_CALC_B_FACTOR'),
-      OIL_D_MIN: getFieldValue('OIL_D_MIN'),
-      OIL_DECLINE_TYPE: getFieldValue('OIL_DECLINE_TYPE'),
-      FCST_START_OIL: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_OIL'))),
-      OIL_FCST_YRS: getFieldValue('OIL_FCST_YRS'),
-      GAS_CALC_QI: getFieldValue('GAS_CALC_QI'),
-      GAS_Q_MIN: getFieldValue('GAS_Q_MIN'),
-      GAS_EMPIRICAL_DI: getFieldValue('GAS_EMPIRICAL_DI'),
-      GAS_CALC_B_FACTOR: getFieldValue('GAS_CALC_B_FACTOR'),
-      GAS_D_MIN: getFieldValue('GAS_D_MIN'),
-      GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
-      FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
-      GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
-      ECON_SCENARIO: getFieldValue('ECON_SCENARIO'),
-      ...getGptParams(),
-      APPROVED: getFieldValue('APPROVED') ?? getFieldValue('DCA_APPROVED'),
-    });
+    const collectParamsFromFields = () => {
+      // Get b-factors and convert Des (displayed) back to Di (stored in backend)
+      const oilB = getFieldValue('OIL_CALC_B_FACTOR') ?? 0.8;
+      const oilDes = getFieldValue('OIL_EMPIRICAL_DI') ?? 0;
+      const oilDi = secantToNominal(oilDes, oilB);
+
+      const gasB = getFieldValue('GAS_CALC_B_FACTOR') ?? 0.8;
+      const gasDes = getFieldValue('GAS_EMPIRICAL_DI') ?? 0;
+      const gasDi = secantToNominal(gasDes, gasB);
+
+      return {
+        OIL_CALC_QI: getFieldValue('OIL_CALC_QI'),
+        OIL_Q_MIN: getFieldValue('OIL_Q_MIN'),
+        OIL_EMPIRICAL_DI: oilDi,
+        OIL_CALC_B_FACTOR: oilB,
+        OIL_D_MIN: getFieldValue('OIL_D_MIN'),
+        OIL_DECLINE_TYPE: getFieldValue('OIL_DECLINE_TYPE'),
+        FCST_START_OIL: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_OIL'))),
+        OIL_FCST_YRS: getFieldValue('OIL_FCST_YRS'),
+        GAS_CALC_QI: getFieldValue('GAS_CALC_QI'),
+        GAS_Q_MIN: getFieldValue('GAS_Q_MIN'),
+        GAS_EMPIRICAL_DI: gasDi,
+        GAS_CALC_B_FACTOR: gasB,
+        GAS_D_MIN: getFieldValue('GAS_D_MIN'),
+        GAS_DECLINE_TYPE: getFieldValue('GAS_DECLINE_TYPE'),
+        FCST_START_GAS: formatDateLabel(sliderValueToDate(getFieldValue('FCST_START_GAS'))),
+        GAS_FCST_YRS: getFieldValue('GAS_FCST_YRS'),
+        ECON_SCENARIO: getFieldValue('ECON_SCENARIO'),
+        ...getGptParams(),
+        APPROVED: getFieldValue('APPROVED') ?? getFieldValue('DCA_APPROVED'),
+      };
+    };
 
     const updateWellEditorForecast = () => {
       const params = collectParamsFromFields();
@@ -2830,10 +2863,13 @@ window.syncRoyaltyPanelHeight = () => {
       updateDeclineRanges(FAST_EDIT_STATE.mode === 'oil' ? 'OIL' : 'GAS');
 
       const qiValue = clampFieldValue(fields.qi, qi);
-      const diValue = clampFieldValue(fields.di, decline);
       const bValue = clampFieldValue(fields.b, b);
+      // Convert nominal Di to secant Des for display
+      const effectiveB = declineType === 'HYP' ? bValue : 0;
+      const desValue = nominalToSecant(decline, effectiveB);
+      const clampedDes = clampFieldValue(fields.di, desValue);
       setFieldValue(fields.qi, qiValue);
-      setFieldValue(fields.di, diValue);
+      setFieldValue(fields.di, clampedDes);
       if (declineType === 'HYP') {
         setFieldValue(fields.b, bValue);
       }
@@ -3078,18 +3114,26 @@ window.syncRoyaltyPanelHeight = () => {
         gasStartField.value = Math.min(dateToSliderValue(gasStart), maxValue);
       }
 
+      // Oil parameters - convert Di to Des for display
+      const oilB = params.OIL_CALC_B_FACTOR ?? 0.8;
+      const oilDi = params.OIL_EMPIRICAL_DI ?? 0;
+      const oilDes = nominalToSecant(oilDi, oilB);
       setFieldValue('OIL_CALC_QI', params.OIL_CALC_QI ?? 0);
       setFieldValue('OIL_Q_MIN', params.OIL_Q_MIN ?? 0);
-      setFieldValue('OIL_EMPIRICAL_DI', params.OIL_EMPIRICAL_DI ?? 0);
-      setFieldValue('OIL_CALC_B_FACTOR', params.OIL_CALC_B_FACTOR ?? 0.8);
+      setFieldValue('OIL_CALC_B_FACTOR', oilB);
+      setFieldValue('OIL_EMPIRICAL_DI', oilDes);
       setFieldValue('OIL_D_MIN', params.OIL_D_MIN ?? 0);
       setFieldValue('OIL_DECLINE_TYPE', params.OIL_DECLINE_TYPE || 'EXP');
       setFieldValue('OIL_FCST_YRS', params.OIL_FCST_YRS ?? 0);
 
+      // Gas parameters - convert Di to Des for display
+      const gasB = params.GAS_CALC_B_FACTOR ?? 0.8;
+      const gasDi = params.GAS_EMPIRICAL_DI ?? 0;
+      const gasDes = nominalToSecant(gasDi, gasB);
       setFieldValue('GAS_CALC_QI', params.GAS_CALC_QI ?? 0);
       setFieldValue('GAS_Q_MIN', params.GAS_Q_MIN ?? 0);
-      setFieldValue('GAS_EMPIRICAL_DI', params.GAS_EMPIRICAL_DI ?? 0);
-      setFieldValue('GAS_CALC_B_FACTOR', params.GAS_CALC_B_FACTOR ?? 0.8);
+      setFieldValue('GAS_CALC_B_FACTOR', gasB);
+      setFieldValue('GAS_EMPIRICAL_DI', gasDes);
       setFieldValue('GAS_D_MIN', params.GAS_D_MIN ?? 0);
       setFieldValue('GAS_DECLINE_TYPE', params.GAS_DECLINE_TYPE || 'EXP');
       setFieldValue('GAS_FCST_YRS', params.GAS_FCST_YRS ?? 0);
