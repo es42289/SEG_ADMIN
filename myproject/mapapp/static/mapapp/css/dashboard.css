@@ -3050,12 +3050,12 @@ input#year[type="range"] {
       align-items: center;
       justify-content: center;
       text-align: center;
-      height: min(26.4vw, 192px);
-      max-height: 192px;
-      max-width: 192px;
+      height: min(31.68vw, 230.4px);
+      max-height: 230.4px;
+      max-width: 230.4px;
       position: absolute;
       touch-action: none;
-      width: min(26.4vw, 192px);
+      width: min(31.68vw, 230.4px);
       z-index: 2;
     }
 
