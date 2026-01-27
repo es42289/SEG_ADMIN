@@ -569,5 +569,14 @@
     }
   };
 
+  window.updateWellExplorerApproval = function updateWellExplorerApproval(api, approved) {
+    if (!api) return;
+    const well = state.wellMap.get(api);
+    if (well) {
+      well.dca_approved = Boolean(approved);
+      renderTable();
+    }
+  };
+
   init();
 })();

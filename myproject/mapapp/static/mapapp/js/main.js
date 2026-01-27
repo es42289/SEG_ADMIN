@@ -3361,6 +3361,9 @@ window.syncRoyaltyPanelHeight = () => {
           applyPerWellPvMap(window.latestPerWellPvMap);
         }
         updateWellApprovalState(WELL_EDITOR_STATE.api, params.APPROVED === 'Y');
+        if (typeof window.updateWellExplorerApproval === 'function') {
+          window.updateWellExplorerApproval(WELL_EDITOR_STATE.api, params.APPROVED === 'Y');
+        }
         wellEditorNeedsRefresh = true;
         setWellEditorStatus('Parameters saved successfully.');
       } catch (error) {
