@@ -287,28 +287,60 @@ def get_effective_user_email(request):
 
 
 def get_admin_user_emails():
-    try:
-        rows = snowflake_helpers.fetch_all(ADMIN_USER_EMAILS_SQL)
-    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
-        logger.exception("Failed to load admin user email list.")
-        return []
-    return [row.get("AUTH0_EMAIL") for row in rows if row.get("AUTH0_EMAIL")]
+    now = time.monotonic()
+    cached = _admin_emails_cache.get("emails")
+    if cached is not None and (now - _admin_emails_cache["timestamp"] < _ADMIN_CACHE_TTL_SECONDS):
+        return cached
+
+    with _admin_emails_lock:
+        cached = _admin_emails_cache.get("emails")
+        if cached is not None and (now - _admin_emails_cache["timestamp"] < _ADMIN_CACHE_TTL_SECONDS):
+            return cached
+
+        try:
+            rows = snowflake_helpers.fetch_all(ADMIN_USER_EMAILS_SQL)
+        except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
+            logger.exception("Failed to load admin user email list.")
+            return cached if cached is not None else []
+
+        emails = [row.get("AUTH0_EMAIL") for row in rows if row.get("AUTH0_EMAIL")]
+        _admin_emails_cache["emails"] = emails
+        _admin_emails_cache["timestamp"] = time.monotonic()
+        return emails
 
 
 def get_admin_contact_name(email):
     if not email:
         return None
+
+    now = time.monotonic()
+    cache_key = email.lower()
+
+    with _admin_contact_lock:
+        entry = _admin_contact_cache.get(cache_key)
+        if entry and (now - entry["timestamp"] < _ADMIN_CACHE_TTL_SECONDS):
+            return entry["name"]
+
     try:
         row = snowflake_helpers.fetch_one(ADMIN_CONTACT_NAME_SQL, (email,))
     except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
         logger.exception("Failed to load admin contact name for %s", email)
-        return None
+        with _admin_contact_lock:
+            entry = _admin_contact_cache.get(cache_key)
+        return entry["name"] if entry else None
+
     if not row:
-        return None
-    first_name = row.get("FIRST_NAME") or ""
-    last_name = row.get("LAST_NAME") or ""
-    full_name = f"{first_name} {last_name}".strip()
-    return full_name or None
+        result = None
+    else:
+        first_name = row.get("FIRST_NAME") or ""
+        last_name = row.get("LAST_NAME") or ""
+        full_name = f"{first_name} {last_name}".strip()
+        result = full_name or None
+
+    with _admin_contact_lock:
+        _admin_contact_cache[cache_key] = {"name": result, "timestamp": time.monotonic()}
+
+    return result
 
 
 def get_admin_banner_context(request):
@@ -333,68 +365,48 @@ def get_snowflake_connection():
 
 
 def get_executive_dashboard_context():
-    try:
-        owner_rows = snowflake_helpers.fetch_all(EXECUTIVE_OWNER_ACCOUNTS_SQL)
-    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
-        logger.exception("Failed to load executive dashboard owner accounts.")
-        owner_rows = []
+    owner_rows = []
+    feedback_rows = []
+    document_rows = []
+    row = None
 
+    conn = get_snowflake_connection()
     try:
-        feedback_rows = snowflake_helpers.fetch_all(EXECUTIVE_FEEDBACK_OVERVIEW_SQL)
-    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
-        logger.exception("Failed to load executive dashboard feedback overview.")
-        feedback_rows = []
-
-    try:
-        document_rows = snowflake_helpers.fetch_all(EXECUTIVE_DOCUMENTS_SQL)
-    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
-        logger.exception("Failed to load executive dashboard documents with owner names.")
+        cur = conn.cursor(DictCursor)
         try:
-            document_rows = snowflake_helpers.fetch_all(EXECUTIVE_DOCUMENTS_SQL_FALLBACK)
-        except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
-            logger.exception("Failed to load executive dashboard documents.")
-            document_rows = []
+            cur.execute(EXECUTIVE_OWNER_ACCOUNTS_SQL)
+            owner_rows = cur.fetchall() or []
+        except snowflake_errors.Error:
+            logger.exception("Failed to load executive dashboard owner accounts.")
 
-    try:
-        row = snowflake_helpers.fetch_one(EXECUTIVE_DASHBOARD_SQL)
-    except (snowflake_errors.Error, snowflake_helpers.SnowflakeConfigurationError):
-        logger.exception("Failed to load executive dashboard metrics.")
-        return {
-            "owner_count": 0,
-            "pending_feedback_count": 0,
-            "document_count": 0,
-            "owner_accounts": [
-                {
-                    "owner_name": entry.get("OWNER_NAME"),
-                    "email": entry.get("AUTH0_EMAIL"),
-                }
-                for entry in owner_rows
-                if entry.get("OWNER_NAME") and entry.get("AUTH0_EMAIL")
-            ],
-            "feedback_overview": [
-                {
-                    "owner_name": entry.get("OWNER_NAME"),
-                    "email": entry.get("USERNAME"),
-                    "total_feedback": int(entry.get("TOTAL_FEEDBACK") or 0),
-                    "unanswered_feedback": int(entry.get("UNANSWERED_FEEDBACK") or 0),
-                }
-                for entry in feedback_rows
-                if entry.get("OWNER_NAME") and entry.get("USERNAME")
-            ],
-            "documents": [
-                {
-                    "owner_name": entry.get("OWNER_NAME"),
-                    "user_email": entry.get("USER_EMAIL"),
-                    "filename": entry.get("FILENAME"),
-                    "note": entry.get("NOTE"),
-                    "bytes": entry.get("BYTES"),
-                    "created_at": _format_timestamp_for_json(entry.get("CREATED_AT")),
-                }
-                for entry in document_rows
-                if entry.get("FILENAME")
-            ],
-            "loaded": False,
-        }
+        try:
+            cur.execute(EXECUTIVE_FEEDBACK_OVERVIEW_SQL)
+            feedback_rows = cur.fetchall() or []
+        except snowflake_errors.Error:
+            logger.exception("Failed to load executive dashboard feedback overview.")
+
+        try:
+            cur.execute(EXECUTIVE_DOCUMENTS_SQL)
+            document_rows = cur.fetchall() or []
+        except snowflake_errors.Error:
+            logger.exception("Failed to load executive dashboard documents with owner names.")
+            try:
+                cur.execute(EXECUTIVE_DOCUMENTS_SQL_FALLBACK)
+                document_rows = cur.fetchall() or []
+            except snowflake_errors.Error:
+                logger.exception("Failed to load executive dashboard documents.")
+
+        try:
+            cur.execute(EXECUTIVE_DASHBOARD_SQL)
+            row = cur.fetchone()
+        except snowflake_errors.Error:
+            logger.exception("Failed to load executive dashboard metrics.")
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+        conn.close()
 
     if not row:
         return {
@@ -590,6 +602,16 @@ def _profile_row_to_dict(row, email):
 _MAP_DATA_CACHE_TTL_SECONDS = 300
 _map_data_cache = {"payload": None, "timestamp": 0.0}
 _map_data_lock = Lock()
+
+_ADMIN_CACHE_TTL_SECONDS = 300
+_admin_emails_cache = {"emails": None, "timestamp": 0.0}
+_admin_emails_lock = Lock()
+_admin_contact_cache = {}
+_admin_contact_lock = Lock()
+
+_OWNER_NAME_CACHE_TTL_SECONDS = 300
+_owner_name_cache = {}
+_owner_name_lock = Lock()
 
 
 def _fetch_map_payload():
@@ -880,19 +902,35 @@ def well_explorer_wellsets(request):
     return JsonResponse({"wellset": {"name": wellset_name, "apis": api_list}})
 
 def get_user_owner_name(user_email):
-    """Query Snowflake to get the owner name for a user's email"""
+    """Query Snowflake to get the owner name for a user's email, with caching."""
+    if not user_email:
+        return None
+
+    now = time.monotonic()
+    cache_key = user_email.lower()
+
+    with _owner_name_lock:
+        entry = _owner_name_cache.get(cache_key)
+        if entry and (now - entry["timestamp"] < _OWNER_NAME_CACHE_TTL_SECONDS):
+            return entry["owner_name"]
+
     conn = get_snowflake_connection()
     try:
         cur = conn.cursor()
         cur.execute("SELECT OWNER_NAME FROM WELLS.MINERALS.USER_MAPPINGS WHERE AUTH0_EMAIL = %s", (user_email,))
         result = cur.fetchone()
-        return result[0] if result else None
+        owner_name = result[0] if result else None
     finally:
         try:
             cur.close()
         except Exception:
             pass
         conn.close()
+
+    with _owner_name_lock:
+        _owner_name_cache[cache_key] = {"owner_name": owner_name, "timestamp": time.monotonic()}
+
+    return owner_name
 
 
 @lru_cache(maxsize=1)
