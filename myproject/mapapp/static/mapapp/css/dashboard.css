@@ -3315,10 +3315,13 @@ input#year[type="range"] {
 
     .well-explorer-table-wrap {
       margin-top: 1.5rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .well-explorer-table {
       width: 100%;
+      min-width: 800px;
       border-collapse: collapse;
       font-size: 0.9rem;
     }
@@ -3340,6 +3343,15 @@ input#year[type="range"] {
       text-align: center;
       color: rgba(232, 245, 251, 0.75);
       padding: 1.5rem;
+    }
+
+    .well-explorer-table th:first-child,
+    .well-explorer-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: #0f3d56;
+      z-index: 1;
+      white-space: nowrap;
     }
 
     .well-explorer-edit-button {

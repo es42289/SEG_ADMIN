@@ -168,6 +168,14 @@
     selected.forEach((well) => {
       const row = document.createElement('tr');
       row.innerHTML = `
+        <td>
+          <button type="button" class="well-explorer-edit-button" data-api="${well.api_uwi || ''}">
+            Edit
+          </button>
+          <button type="button" class="well-explorer-remove-button" data-api="${well.api_uwi || ''}">
+            Remove
+          </button>
+        </td>
         <td>${well.api_uwi || '--'}</td>
         <td>${well.wellname || '--'}</td>
         <td>${well.county || '--'}</td>
@@ -182,14 +190,6 @@
             disabled
             aria-label="DCA approval status"
           >
-        </td>
-        <td>
-          <button type="button" class="well-explorer-edit-button" data-api="${well.api_uwi || ''}">
-            Edit
-          </button>
-          <button type="button" class="well-explorer-remove-button" data-api="${well.api_uwi || ''}">
-            Remove
-          </button>
         </td>
       `;
       tableBody.appendChild(row);
