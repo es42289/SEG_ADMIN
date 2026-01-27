@@ -3043,13 +3043,22 @@ input#year[type="range"] {
       align-items: center;
       justify-content: center;
       text-align: center;
-      height: min(22vw, 160px);
-      max-height: 160px;
-      max-width: 160px;
+      height: min(26.4vw, 192px);
+      max-height: 192px;
+      max-width: 192px;
       position: absolute;
       touch-action: none;
-      width: min(22vw, 160px);
+      width: min(26.4vw, 192px);
       z-index: 2;
+    }
+
+    @media (max-width: 480px) {
+      .fast-edit-pad {
+        height: min(22vw, 160px);
+        max-height: 160px;
+        max-width: 160px;
+        width: min(22vw, 160px);
+      }
     }
 
     .fast-edit-pad--left {
