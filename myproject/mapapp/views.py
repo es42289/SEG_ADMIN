@@ -801,6 +801,34 @@ def _build_well_explorer_payload():
         else:
             filters[key] = []
 
+    # Query ECON_INPUT_1PASS for approved wells
+    approved_apis = set()
+    api_list = wells_df["API_UWI"].dropna().tolist() if "API_UWI" in wells_df.columns else []
+    if api_list:
+        conn = get_snowflake_connection()
+        try:
+            cur = conn.cursor(DictCursor)
+            placeholders = ",".join(["%s"] * len(api_list))
+            cur.execute(
+                f"""
+                SELECT DISTINCT API_UWI
+                FROM WELLS.MINERALS.ECON_INPUT_1PASS
+                WHERE API_UWI IN ({placeholders})
+                  AND APPROVED = 'Y'
+                """,
+                api_list,
+            )
+            rows = cur.fetchall() or []
+            approved_apis = {row.get("API_UWI") for row in rows if row.get("API_UWI")}
+        except snowflake_errors.Error:
+            logger.exception("Failed to load approved wells for well explorer.")
+        finally:
+            try:
+                cur.close()
+            except Exception:
+                pass
+            conn.close()
+
     wells = []
     for _, row in wells_df.iterrows():
         api_uwi = row.get("API_UWI")
@@ -815,7 +843,7 @@ def _build_well_explorer_payload():
                 "county": row.get("COUNTY") or "",
                 "lat": float(row.get("LATITUDE")) if row.get("LATITUDE") is not None else None,
                 "lon": float(row.get("LONGITUDE")) if row.get("LONGITUDE") is not None else None,
-                "dca_approved": bool(row.get("DCA_APPROVED")) if "DCA_APPROVED" in wells_df.columns else False,
+                "dca_approved": api_uwi in approved_apis,
             }
         )
 
