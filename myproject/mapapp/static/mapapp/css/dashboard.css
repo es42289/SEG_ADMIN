@@ -2498,6 +2498,49 @@ input#year[type="range"] {
       margin-bottom: 0.6rem;
     }
 
+    .well-editor-gpt-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0.75rem;
+      font-size: 0.85rem;
+    }
+
+    .well-editor-gpt-table th {
+      color: #94a3b8;
+      font-weight: 600;
+      text-align: center;
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .well-editor-gpt-table td {
+      padding: 0.35rem 0.4rem;
+    }
+
+    .well-editor-gpt-table__label {
+      color: #cbd5e1;
+      font-weight: 500;
+      text-align: right;
+      padding-right: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .well-editor-gpt-table input[type="number"] {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 6px;
+      color: #f8fafc;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+
+    .well-editor-gpt-table input[type="number"]:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+
     .well-editor-gpt-actions {
       display: flex;
       flex-direction: column;
