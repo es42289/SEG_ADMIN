@@ -3283,6 +3283,16 @@ input#year[type="range"] {
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     }
 
+    .well-explorer-csv {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .well-explorer-csv .well-explorer-textarea {
+      width: 100%;
+    }
+
     .well-explorer-map {
       min-height: 420px;
       flex: 1;
