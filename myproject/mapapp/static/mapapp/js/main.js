@@ -2633,8 +2633,8 @@ window.syncRoyaltyPanelHeight = () => {
         `b: ${bValue}`,
       ].join('<br>');
 
-      // Use smaller annotation font on mobile (4pts smaller: 12 -> 8)
-      const annotationFontSize = window.innerWidth <= 640 ? 8 : 12;
+      // Use smaller annotation font on mobile (8pts smaller: 12 -> 4)
+      const annotationFontSize = window.innerWidth <= 640 ? 4 : 12;
 
       const layout = {
         height: FAST_EDIT_ELEMENTS.chart.clientHeight || window.innerHeight,

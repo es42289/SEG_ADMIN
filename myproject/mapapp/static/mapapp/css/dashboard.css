@@ -2872,28 +2872,53 @@ input#year[type="range"] {
       }
     }
 
-    /* Mobile font size reductions for fast edit header (2pts smaller) */
+    /* Mobile: compact fast edit header to fit single row */
     @media (max-width: 640px) {
       .fast-edit-modal__eyebrow {
-        font-size: 0.725rem;
+        font-size: 0.65rem;
+      }
+      .fast-edit-modal__controls {
+        gap: 0.35rem;
       }
       .fast-edit-well-select {
-        font-size: 0.775rem;
+        font-size: 0.65rem;
+        min-width: 90px;
+        width: 90px;
+        padding: 0.25rem 0.5rem;
       }
       .fast-edit-nav-button {
-        font-size: 0.975rem;
+        font-size: 0.85rem;
+        height: 1.5rem;
+        width: 1.5rem;
       }
       .fast-edit-save-approve,
       .fast-edit-toggle,
       .fast-edit-autofit,
       .fast-edit-reset {
-        font-size: 0.75rem;
+        font-size: 0.6rem;
+        padding: 0.25rem 0.5rem;
       }
       .fast-edit-decline-label {
-        font-size: 0.725rem;
+        font-size: 0.6rem;
+      }
+      .fast-edit-decline-toggle {
+        gap: 0.25rem;
+      }
+      .fast-edit-switch__slider {
+        height: 1.1rem;
+        width: 2rem;
+      }
+      .fast-edit-switch__slider::after {
+        height: 0.85rem;
+        width: 0.85rem;
+      }
+      .fast-edit-switch__input:checked + .fast-edit-switch__slider::after {
+        transform: translateX(0.9rem);
       }
       .fast-edit-modal__close {
-        font-size: 1.25rem;
+        font-size: 1.1rem;
+        height: 1.5rem;
+        width: 1.5rem;
       }
     }
 
