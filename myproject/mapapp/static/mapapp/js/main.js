@@ -2633,8 +2633,9 @@ window.syncRoyaltyPanelHeight = () => {
         `b: ${bValue}`,
       ].join('<br>');
 
-      // Use smaller annotation font on mobile (8pts smaller: 12 -> 4)
-      const annotationFontSize = window.innerWidth <= 640 ? 4 : 12;
+      // Mobile: smaller font (8pts smaller: 12 -> 4) and side-by-side annotations
+      const isMobile = window.innerWidth <= 640;
+      const annotationFontSize = isMobile ? 4 : 12;
 
       const layout = {
         height: FAST_EDIT_ELEMENTS.chart.clientHeight || window.innerHeight,
@@ -2657,11 +2658,11 @@ window.syncRoyaltyPanelHeight = () => {
           {
             xref: 'paper',
             yref: 'paper',
-            x: 0.98,
+            x: isMobile ? 0.52 : 0.98,
             y: 0.98,
             text: kpiText,
             showarrow: false,
-            align: 'right',
+            align: isMobile ? 'left' : 'right',
             bgcolor: 'rgba(15, 23, 42, 0.85)',
             bordercolor: '#38bdf8',
             borderwidth: 1,
@@ -2671,7 +2672,7 @@ window.syncRoyaltyPanelHeight = () => {
             xref: 'paper',
             yref: 'paper',
             x: 0.98,
-            y: 0.68,
+            y: isMobile ? 0.98 : 0.68,
             text: inputText,
             showarrow: false,
             align: 'right',
