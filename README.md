@@ -317,6 +317,7 @@ docker tag seg-admin:latest 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-adm
 aws ecr get-login-password --region us-east-1 --profile myaws | docker login --username AWS --password-stdin 983102014556.dkr.ecr.us-east-1.amazonaws.com
 docker push 983102014556.dkr.ecr.us-east-1.amazonaws.com/seg-admin:latest
 aws ecs update-service --cluster seg-admin-cluster --service seg-admin-service --task-definition seg-admin --force-new-deployment --region us-east-1 --profile myaws
+
 ```
 wait 1-2 minutes for ip
 ```bash
