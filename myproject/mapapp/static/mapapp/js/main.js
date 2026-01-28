@@ -2636,7 +2636,7 @@ window.syncRoyaltyPanelHeight = () => {
       // Mobile: smaller font and side-by-side annotations
       // Detect both portrait (width <= 640) and landscape phones (height <= 500)
       const isMobile = window.innerWidth <= 640 || window.innerHeight <= 500;
-      const annotationFontSize = isMobile ? 8 : 24;
+      const annotationFontSize = isMobile ? 12 : 28;
 
       const layout = {
         height: FAST_EDIT_ELEMENTS.chart.clientHeight || window.innerHeight,
@@ -2659,7 +2659,7 @@ window.syncRoyaltyPanelHeight = () => {
           {
             xref: 'paper',
             yref: 'paper',
-            x: isMobile ? 0.62 : 0.98,
+            x: isMobile ? 0.75 : 0.98,
             y: 0.98,
             text: kpiText,
             showarrow: false,
