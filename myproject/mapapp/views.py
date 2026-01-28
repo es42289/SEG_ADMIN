@@ -797,7 +797,17 @@ def _build_well_explorer_payload():
     filters = {}
     for key, column in WELL_EXPLORER_FILTER_FIELDS.items():
         if column in wells_df.columns:
-            filters[key] = _normalize_filter_values(wells_df[column])
+            if key == "owner_list":
+                # Explode pipe-delimited owner names into unique values
+                all_owners = set()
+                for val in wells_df[column].dropna().astype(str):
+                    for owner in val.split("|"):
+                        owner = owner.strip()
+                        if owner:
+                            all_owners.add(owner)
+                filters[key] = sorted(all_owners)
+            else:
+                filters[key] = _normalize_filter_values(wells_df[column])
         else:
             filters[key] = []
 
