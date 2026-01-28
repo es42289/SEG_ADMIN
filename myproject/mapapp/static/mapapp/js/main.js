@@ -2890,13 +2890,18 @@ window.syncRoyaltyPanelHeight = () => {
         return;
       }
       const startDate = points[0].date;
-      const exponentialFit = fitExponentialDecline(points, startDate);
-      const hyperbolicFit = points.length >= 3 ? fitHyperbolicDecline(points, startDate) : null;
-      let declineType = exponentialFit ? 'EXP' : 'HYP';
-      let fit = exponentialFit || hyperbolicFit;
-      if (hyperbolicFit && exponentialFit && hyperbolicFit.rmse <= exponentialFit.rmse * 0.95) {
-        declineType = 'HYP';
-        fit = hyperbolicFit;
+      // Use the current toggle state to determine decline type
+      const isHyperbolic = FAST_EDIT_ELEMENTS.declineToggle?.checked || false;
+      const declineType = isHyperbolic ? 'HYP' : 'EXP';
+      let fit;
+      if (isHyperbolic) {
+        if (points.length < 3) {
+          showTemporaryStatus('Select at least three points for hyperbolic fit.');
+          return;
+        }
+        fit = fitHyperbolicDecline(points, startDate);
+      } else {
+        fit = fitExponentialDecline(points, startDate);
       }
       if (!fit || !Number.isFinite(fit.qi) || !Number.isFinite(fit.decline)) {
         showTemporaryStatus('Unable to auto-fit decline from selection.');
@@ -2905,7 +2910,7 @@ window.syncRoyaltyPanelHeight = () => {
       const result = {
         qi: fit.qi,
         decline: fit.decline,
-        b: declineType === 'HYP' ? fit.b : getFieldValue(getFastEditFields().b) || 0.8,
+        b: isHyperbolic ? fit.b : getFieldValue(getFastEditFields().b) || 0.8,
         declineType,
         startDate,
         terminal: deriveTerminalDecline(fit.decline, FAST_EDIT_STATE.mode),
