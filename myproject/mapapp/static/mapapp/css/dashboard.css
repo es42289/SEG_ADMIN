@@ -2872,6 +2872,31 @@ input#year[type="range"] {
       }
     }
 
+    /* Mobile font size reductions for fast edit header (2pts smaller) */
+    @media (max-width: 640px) {
+      .fast-edit-modal__eyebrow {
+        font-size: 0.725rem;
+      }
+      .fast-edit-well-select {
+        font-size: 0.775rem;
+      }
+      .fast-edit-nav-button {
+        font-size: 0.975rem;
+      }
+      .fast-edit-save-approve,
+      .fast-edit-toggle,
+      .fast-edit-autofit,
+      .fast-edit-reset {
+        font-size: 0.75rem;
+      }
+      .fast-edit-decline-label {
+        font-size: 0.725rem;
+      }
+      .fast-edit-modal__close {
+        font-size: 1.25rem;
+      }
+    }
+
     .fast-edit-well-select:focus {
       outline: 2px solid rgba(56, 189, 248, 0.8);
       outline-offset: 2px;
