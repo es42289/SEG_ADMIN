@@ -2633,10 +2633,10 @@ window.syncRoyaltyPanelHeight = () => {
         `b: ${bValue}`,
       ].join('<br>');
 
-      // Mobile: smaller font (8pts smaller: 12 -> 4) and side-by-side annotations
+      // Mobile: smaller font and side-by-side annotations
       // Detect both portrait (width <= 640) and landscape phones (height <= 500)
       const isMobile = window.innerWidth <= 640 || window.innerHeight <= 500;
-      const annotationFontSize = isMobile ? 4 : 12;
+      const annotationFontSize = isMobile ? 8 : 24;
 
       const layout = {
         height: FAST_EDIT_ELEMENTS.chart.clientHeight || window.innerHeight,
@@ -2659,7 +2659,7 @@ window.syncRoyaltyPanelHeight = () => {
           {
             xref: 'paper',
             yref: 'paper',
-            x: isMobile ? 0.52 : 0.98,
+            x: isMobile ? 0.62 : 0.98,
             y: 0.98,
             text: kpiText,
             showarrow: false,
@@ -2673,7 +2673,7 @@ window.syncRoyaltyPanelHeight = () => {
             xref: 'paper',
             yref: 'paper',
             x: 0.98,
-            y: isMobile ? 0.98 : 0.68,
+            y: isMobile ? 0.98 : 0.78,
             text: inputText,
             showarrow: false,
             align: 'right',
