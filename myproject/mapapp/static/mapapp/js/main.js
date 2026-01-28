@@ -2634,7 +2634,8 @@ window.syncRoyaltyPanelHeight = () => {
       ].join('<br>');
 
       // Mobile: smaller font (8pts smaller: 12 -> 4) and side-by-side annotations
-      const isMobile = window.innerWidth <= 640;
+      // Detect both portrait (width <= 640) and landscape phones (height <= 500)
+      const isMobile = window.innerWidth <= 640 || window.innerHeight <= 500;
       const annotationFontSize = isMobile ? 4 : 12;
 
       const layout = {

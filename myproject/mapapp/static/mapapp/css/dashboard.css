@@ -2872,8 +2872,8 @@ input#year[type="range"] {
       }
     }
 
-    /* Mobile: compact fast edit header to fit single row */
-    @media (max-width: 640px) {
+    /* Mobile: compact fast edit header to fit single row (landscape phones have max-height ~430px) */
+    @media (max-width: 640px), (max-height: 500px) {
       .fast-edit-modal__eyebrow {
         font-size: 0.65rem;
       }
