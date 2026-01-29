@@ -1978,6 +1978,13 @@ input#year[type="range"] {
       flex-wrap: wrap;
     }
 
+    .well-table-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
     .well-select-toggle {
       background: #ffffff;
       color: #156082;

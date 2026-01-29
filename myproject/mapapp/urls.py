@@ -28,6 +28,7 @@ urlpatterns = [
     path('econ-scenarios/save/', views.save_econ_scenario, name='save_econ_scenario'),
     path('price-decks/', views.price_decks, name='price_decks'),
     path('econ-data/', views.economics_data, name='economics_data'),
+    path('econ-data/export/', views.export_economics_csv, name='export_economics_csv'),
     path('feedback/', views.user_feedback_entries, name='user_feedback_entries'),
     path('api/user-info/', views.user_info, name='user_info'),
     path('impersonate/select-user/', views.admin_select_user, name='admin_select_user'),
