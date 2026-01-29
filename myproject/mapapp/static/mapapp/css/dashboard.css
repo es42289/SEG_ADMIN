@@ -2908,15 +2908,15 @@ input#year[type="range"] {
       border-radius: 999px;
       color: #f8fafc;
       font-size: 0.9rem;
-      min-width: 480px;
-      width: 480px;
+      min-width: 420px;
+      width: 420px;
       padding: 0.4rem 0.9rem;
     }
 
     @media (max-width: 640px), (max-height: 480px) {
       .fast-edit-well-select {
-        min-width: 240px;
-        width: 240px;
+        min-width: 210px;
+        width: 210px;
       }
     }
 
@@ -2930,8 +2930,8 @@ input#year[type="range"] {
       }
       .fast-edit-well-select {
         font-size: 0.65rem;
-        min-width: 180px;
-        width: 180px;
+        min-width: 158px;
+        width: 158px;
         padding: 0.25rem 0.5rem;
       }
       .fast-edit-nav-button {
