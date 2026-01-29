@@ -2530,7 +2530,7 @@ window.syncRoyaltyPanelHeight = () => {
       const yMax = vols.length ? Math.max(...vols) : 1000;
       const yRange = [
         Math.log10(yMin),
-        Math.log10(Math.max(yMax, yMin * 10)),
+        Math.log10(Math.max(yMax * 2, yMin * 10)),
       ];
 
       const traces = [];
