@@ -2888,7 +2888,23 @@ def export_economics_csv(request):
         ]
         fc[money_cols] = fc[money_cols].mul(fc["OwnerInterest"], axis=0)
 
+    pv_start = pd.Timestamp.today().normalize() + pd.offsets.MonthBegin(1)
+    pv_end = pv_start + pd.DateOffset(years=15)
+    pv_start_period = pv_start.to_period("M")
+    fc["months_from_pv_start"] = (
+        fc["PRODUCINGMONTH"].dt.to_period("M") - pv_start_period
+    ).apply(lambda r: r.n)
+    pv_mask = (
+        (~fc["has_hist_volume"])
+        & (fc["PRODUCINGMONTH"] >= pv_start)
+        & (fc["PRODUCINGMONTH"] < pv_end)
+    )
+    fc["DiscountedFutureNCF"] = 0.0
+    fc.loc[pv_mask, "DiscountedFutureNCF"] = fc.loc[pv_mask, "NetCashFlow"] / (
+        (1 + 0.17) ** (fc.loc[pv_mask, "months_from_pv_start"] / 12)
+    )
     fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d")
+
     export_columns = [
         "API_UWI",
         "PRODUCINGMONTH",
@@ -2926,6 +2942,7 @@ def export_economics_csv(request):
         "SevTax",
         "AdValTax",
         "NetCashFlow",
+        "DiscountedFutureNCF",
     ]
     for col in export_columns:
         if col not in fc.columns:
