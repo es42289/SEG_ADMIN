@@ -2659,11 +2659,11 @@ window.syncRoyaltyPanelHeight = () => {
           {
             xref: 'paper',
             yref: 'paper',
-            x: isMobile ? 0.75 : 0.98,
+            x: isMobile ? 0.90 : 0.98,
             y: 0.98,
             text: kpiText,
             showarrow: false,
-            align: isMobile ? 'left' : 'right',
+            align: 'right',
             bgcolor: 'rgba(15, 23, 42, 0.85)',
             bordercolor: '#38bdf8',
             borderwidth: 1,
