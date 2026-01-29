@@ -2624,7 +2624,7 @@ window.syncRoyaltyPanelHeight = () => {
       const kpiText = [
         `EUR OIL: ${formatNumber(metrics?.grossOil, 0)}`,
         `EUR GAS: ${formatNumber(metrics?.grossGas, 0)}`,
-        `EST NRI: ${formatCurrency(metrics?.estimatedValue)}`,
+        `EST NRI: ${formatCurrency(WELL_EDITOR_STATE.baseNriValue)}`,
       ].join('<br>');
       const inputText = [
         `Start: ${startLabel}`,
