@@ -1755,7 +1755,8 @@ def export_well_dca_inputs(request):
     owner_name = get_user_owner_name(user_email)
     wells = _snowflake_user_wells(owner_name) if owner_name else []
     interest_map = {w.get("api_uwi"): w.get("owner_interest") for w in wells}
-    owner_interest = float(interest_map.get(api) or 0)
+    # Default to 100% ownership when no owner interest is found (e.g., wellset explorer)
+    owner_interest = float(interest_map.get(api) or 1)
 
     fc = forecast_df.copy()
     fc["OilVolWI"] = (
@@ -2390,7 +2391,8 @@ def economics_data(request):
     interest_map = {
         api.replace('-', ''): data["owner_interest"] for api, data in wells_by_api.items()
     }
-    fc["OwnerInterest"] = fc["API_NODASH"].map(interest_map).fillna(0)
+    # Default to 100% ownership when no owner interest is found (e.g., wellset explorer)
+    fc["OwnerInterest"] = fc["API_NODASH"].map(interest_map).fillna(1)
 
     hist_oil = pd.to_numeric(fc.get("LIQUIDSPROD_BBL"), errors="coerce")
     hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
