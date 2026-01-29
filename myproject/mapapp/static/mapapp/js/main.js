@@ -2660,7 +2660,7 @@ window.syncRoyaltyPanelHeight = () => {
           {
             xref: 'paper',
             yref: 'paper',
-            x: isMobile ? 0.90 : 0.98,
+            x: isMobile ? 0.825 : 0.98,
             y: 0.98,
             text: kpiText,
             showarrow: false,
