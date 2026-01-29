@@ -112,27 +112,98 @@
           <button type="button" id="wellEditorFastEdit" class="well-editor-fast-edit">FAST EDIT</button>
         </div>
       </header>
+
+      <details class="well-editor-form__section well-editor-gpt well-editor-collapsible">
+        <summary class="well-editor-form__title well-editor-collapsible__toggle">
+          <span class="well-editor-collapsible__label">GPT Inputs</span>
+          <div class="well-editor-gpt-header-select" onclick="event.stopPropagation()">
+            <label class="well-editor-field__label" for="wellEditorEconScenario">Economic Scenario</label>
+            <select id="wellEditorEconScenario" data-field="ECON_SCENARIO"></select>
+          </div>
+        </summary>
+        <div class="well-editor-collapsible__content">
+        <p id="wellEditorGptWarning" class="well-editor-warning" hidden>GPT parameters are not saved to well.</p>
+        <table class="well-editor-gpt-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Oil</th>
+              <th>Gas</th>
+              <th>NGL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="well-editor-gpt-table__label">Diff %</td>
+              <td><input id="wellEditorOilDiffPct" type="number" step="0.001" inputmode="decimal" data-field="OIL_DIFF_PCT"></td>
+              <td><input id="wellEditorGasDiffPct" type="number" step="0.001" inputmode="decimal" data-field="GAS_DIFF_PCT"></td>
+              <td><input id="wellEditorNglDiffPct" type="number" step="0.001" inputmode="decimal" data-field="NGL_DIFF_PCT"></td>
+            </tr>
+            <tr>
+              <td class="well-editor-gpt-table__label">Diff $</td>
+              <td><input id="wellEditorOilDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="OIL_DIFF_AMT"></td>
+              <td><input id="wellEditorGasDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="GAS_DIFF_AMT"></td>
+              <td><input id="wellEditorNglDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="NGL_DIFF_AMT"></td>
+            </tr>
+            <tr>
+              <td class="well-editor-gpt-table__label">GPT $</td>
+              <td><input id="wellEditorOilGpt" type="number" step="0.01" inputmode="decimal" data-field="OIL_GPT_DEDUCT"></td>
+              <td><input id="wellEditorGasGpt" type="number" step="0.01" inputmode="decimal" data-field="GAS_GPT_DEDUCT"></td>
+              <td><input id="wellEditorNglGpt" type="number" step="0.01" inputmode="decimal" data-field="NGL_GPT_DEDUCT"></td>
+            </tr>
+            <tr>
+              <td class="well-editor-gpt-table__label">Tax %</td>
+              <td><input id="wellEditorOilTax" type="number" step="0.001" inputmode="decimal" data-field="OIL_TAX"></td>
+              <td><input id="wellEditorGasTax" type="number" step="0.001" inputmode="decimal" data-field="GAS_TAX"></td>
+              <td><input id="wellEditorNglTax" type="number" step="0.001" inputmode="decimal" data-field="NGL_TAX"></td>
+            </tr>
+            <tr>
+              <td class="well-editor-gpt-table__label">Shrink/Yield</td>
+              <td></td>
+              <td><input id="wellEditorGasShrink" type="number" step="0.001" inputmode="decimal" data-field="GAS_SHRINK"></td>
+              <td><input id="wellEditorNglYield" type="number" step="0.01" inputmode="decimal" data-field="NGL_YIELD"></td>
+            </tr>
+            <tr>
+              <td class="well-editor-gpt-table__label">Ad Val Tax</td>
+              <td colspan="3"><input id="wellEditorAdValTax" type="number" step="0.001" inputmode="decimal" data-field="AD_VAL_TAX"></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="well-editor-gpt-actions">
+          <div class="well-editor-field">
+            <label class="well-editor-field__label" for="wellEditorNewScenarioName">New GPT Scenario</label>
+            <input id="wellEditorNewScenarioName" type="text" placeholder="Enter new scenario name">
+          </div>
+          <div class="well-editor-gpt-buttons">
+            <button type="button" id="wellEditorSaveScenario" class="well-editor-secondary">Save GPT Scenario</button>
+            <button type="button" id="wellEditorSaveGptToWell" class="well-editor-secondary">Save GPT to Well</button>
+          </div>
+        </div>
+        </div>
+      </details>
+
+      <div class="well-editor-metrics">
+        <div class="well-editor-metric">
+          <span class="well-editor-metric__label">Gross Oil EUR (BBL)</span>
+          <span id="wellEditorGrossOilEur" class="well-editor-metric__value">--</span>
+        </div>
+        <div class="well-editor-metric">
+          <span class="well-editor-metric__label">Gross Gas EUR (MCF)</span>
+          <span id="wellEditorGrossGasEur" class="well-editor-metric__value">--</span>
+        </div>
+        <div class="well-editor-metric well-editor-metric--wide">
+          <span class="well-editor-metric__label">Estimated NRI Value</span>
+          <span class="well-editor-metric__value">
+            <span id="wellEditorNriValue">--</span>
+            <span class="well-editor-metric__percent">(NRI: <span id="wellEditorNriPercent">--</span>%)</span>
+          </span>
+        </div>
+      </div>
+
       <div class="well-editor-layout">
         <div class="well-editor-left">
           <div class="well-editor-modal__chart">
             <div id="wellEditorChart"></div>
-          </div>
-          <div class="well-editor-metrics">
-            <div class="well-editor-metric">
-              <span class="well-editor-metric__label">Gross Oil EUR (BBL)</span>
-              <span id="wellEditorGrossOilEur" class="well-editor-metric__value">--</span>
-            </div>
-            <div class="well-editor-metric">
-              <span class="well-editor-metric__label">Gross Gas EUR (MCF)</span>
-              <span id="wellEditorGrossGasEur" class="well-editor-metric__value">--</span>
-            </div>
-            <div class="well-editor-metric well-editor-metric--wide">
-              <span class="well-editor-metric__label">Estimated NRI Value</span>
-              <span class="well-editor-metric__value">
-                <span id="wellEditorNriValue">--</span>
-                <span class="well-editor-metric__percent">(NRI: <span id="wellEditorNriPercent">--</span>%)</span>
-              </span>
-            </div>
           </div>
         </div>
         <div class="well-editor-right">
@@ -268,72 +339,6 @@
 
           </div>
         </div>
-        <details class="well-editor-form__section well-editor-gpt well-editor-collapsible">
-          <summary class="well-editor-form__title well-editor-collapsible__toggle">GPT Inputs</summary>
-          <div class="well-editor-collapsible__content">
-          <div class="well-editor-field">
-            <label class="well-editor-field__label" for="wellEditorEconScenario">Economic Scenario</label>
-            <select id="wellEditorEconScenario" data-field="ECON_SCENARIO"></select>
-          </div>
-          <p id="wellEditorGptWarning" class="well-editor-warning" hidden>GPT parameters are not saved to well.</p>
-          <table class="well-editor-gpt-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Oil</th>
-                <th>Gas</th>
-                <th>NGL</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="well-editor-gpt-table__label">Diff %</td>
-                <td><input id="wellEditorOilDiffPct" type="number" step="0.001" inputmode="decimal" data-field="OIL_DIFF_PCT"></td>
-                <td><input id="wellEditorGasDiffPct" type="number" step="0.001" inputmode="decimal" data-field="GAS_DIFF_PCT"></td>
-                <td><input id="wellEditorNglDiffPct" type="number" step="0.001" inputmode="decimal" data-field="NGL_DIFF_PCT"></td>
-              </tr>
-              <tr>
-                <td class="well-editor-gpt-table__label">Diff $</td>
-                <td><input id="wellEditorOilDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="OIL_DIFF_AMT"></td>
-                <td><input id="wellEditorGasDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="GAS_DIFF_AMT"></td>
-                <td><input id="wellEditorNglDiffAmt" type="number" step="0.01" inputmode="decimal" data-field="NGL_DIFF_AMT"></td>
-              </tr>
-              <tr>
-                <td class="well-editor-gpt-table__label">GPT $</td>
-                <td><input id="wellEditorOilGpt" type="number" step="0.01" inputmode="decimal" data-field="OIL_GPT_DEDUCT"></td>
-                <td><input id="wellEditorGasGpt" type="number" step="0.01" inputmode="decimal" data-field="GAS_GPT_DEDUCT"></td>
-                <td><input id="wellEditorNglGpt" type="number" step="0.01" inputmode="decimal" data-field="NGL_GPT_DEDUCT"></td>
-              </tr>
-              <tr>
-                <td class="well-editor-gpt-table__label">Tax %</td>
-                <td><input id="wellEditorOilTax" type="number" step="0.001" inputmode="decimal" data-field="OIL_TAX"></td>
-                <td><input id="wellEditorGasTax" type="number" step="0.001" inputmode="decimal" data-field="GAS_TAX"></td>
-                <td><input id="wellEditorNglTax" type="number" step="0.001" inputmode="decimal" data-field="NGL_TAX"></td>
-              </tr>
-              <tr>
-                <td class="well-editor-gpt-table__label">Shrink/Yield</td>
-                <td></td>
-                <td><input id="wellEditorGasShrink" type="number" step="0.001" inputmode="decimal" data-field="GAS_SHRINK"></td>
-                <td><input id="wellEditorNglYield" type="number" step="0.01" inputmode="decimal" data-field="NGL_YIELD"></td>
-              </tr>
-              <tr>
-                <td class="well-editor-gpt-table__label">Ad Val Tax</td>
-                <td colspan="3"><input id="wellEditorAdValTax" type="number" step="0.001" inputmode="decimal" data-field="AD_VAL_TAX"></td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="well-editor-gpt-actions">
-            <div class="well-editor-field">
-              <label class="well-editor-field__label" for="wellEditorNewScenarioName">New GPT Scenario</label>
-              <input id="wellEditorNewScenarioName" type="text" placeholder="Enter new scenario name">
-            </div>
-            <div class="well-editor-gpt-buttons">
-              <button type="button" id="wellEditorSaveScenario" class="well-editor-secondary">Save GPT Scenario</button>
-              <button type="button" id="wellEditorSaveGptToWell" class="well-editor-secondary">Save GPT to Well</button>
-            </div>
-          </div>
-          </div>
-        </details>
         <div id="wellEditorStatus" class="well-editor-status" role="status" aria-live="polite"></div>
       </div>
     </div>
