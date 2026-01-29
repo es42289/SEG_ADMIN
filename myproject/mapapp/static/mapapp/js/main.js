@@ -2338,8 +2338,8 @@ window.syncRoyaltyPanelHeight = () => {
     };
 
     const initializeFixedRanges = () => {
-      setRangeAttributes('OIL_Q_MIN', { min: 10, max: 1000, step: 1 });
-      setRangeAttributes('GAS_Q_MIN', { min: 10, max: 1000, step: 1 });
+      setRangeAttributes('OIL_Q_MIN', { min: 0, max: 1000, step: 1 });
+      setRangeAttributes('GAS_Q_MIN', { min: 0, max: 1000, step: 1 });
       setRangeAttributes('OIL_FCST_YRS', { min: 10, max: 74, step: 1 });
       setRangeAttributes('GAS_FCST_YRS', { min: 10, max: 74, step: 1 });
     };
