@@ -2299,8 +2299,7 @@ input#year[type="range"] {
     }
 
     .well-editor-gpt {
-      grid-column: 1;
-      grid-row: 2;
+      margin-bottom: 1rem;
     }
 
     .well-editor-collapsible {
@@ -2317,10 +2316,15 @@ input#year[type="range"] {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 1rem;
     }
 
     .well-editor-collapsible__toggle::-webkit-details-marker {
       display: none;
+    }
+
+    .well-editor-collapsible__label {
+      flex-shrink: 0;
     }
 
     .well-editor-collapsible__toggle::after {
@@ -2329,6 +2333,7 @@ input#year[type="range"] {
       font-weight: 600;
       color: #94a3b8;
       transition: transform 0.2s ease;
+      flex-shrink: 0;
     }
 
     .well-editor-collapsible[open] .well-editor-collapsible__toggle::after {
@@ -2337,6 +2342,36 @@ input#year[type="range"] {
 
     .well-editor-collapsible__content {
       padding: 0 1rem 1rem;
+    }
+
+    .well-editor-gpt-header-select {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    .well-editor-gpt-header-select .well-editor-field__label {
+      margin: 0;
+      white-space: nowrap;
+      font-size: 0.85rem;
+    }
+
+    .well-editor-gpt-header-select select {
+      min-width: 180px;
+      max-width: 300px;
+      padding: 0.4rem 0.6rem;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 0.85rem;
+    }
+
+    .well-editor-gpt-header-select select:focus {
+      outline: none;
+      border-color: #38bdf8;
     }
 
     .well-editor-status {
@@ -2699,12 +2734,23 @@ input#year[type="range"] {
         order: 2;
       }
 
-      .well-editor-gpt {
+      .well-editor-status {
         order: 3;
       }
 
-      .well-editor-status {
-        order: 4;
+      .well-editor-gpt-header-select {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+      }
+
+      .well-editor-gpt-header-select select {
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .well-editor-collapsible__toggle {
+        flex-wrap: wrap;
       }
 
       #wellEditorChart {
