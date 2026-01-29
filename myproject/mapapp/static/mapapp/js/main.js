@@ -3800,10 +3800,12 @@ window.syncRoyaltyPanelHeight = () => {
         setWellEditorStatus('Loading well data...');
         const meta = getWellMeta(api);
         WELL_EDITOR_STATE.api = api;
-        WELL_EDITOR_STATE.ownerInterest = meta.ownerInterest;
+        // Default to 100% ownership when no owner interest is available (e.g., wellset explorer)
+        const ownerInterest = meta.ownerInterest || 1;
+        WELL_EDITOR_STATE.ownerInterest = ownerInterest;
         WELL_EDITOR_STATE.baseNriValue = meta.pv17;
         if (WELL_EDITOR_ELEMENTS.nriPercent) {
-          const percent = Number.isFinite(meta.ownerInterest) ? meta.ownerInterest * 100 : 0;
+          const percent = ownerInterest * 100;
           WELL_EDITOR_ELEMENTS.nriPercent.textContent = percent.toFixed(2);
         }
         if (WELL_EDITOR_ELEMENTS.wellSelect) {
