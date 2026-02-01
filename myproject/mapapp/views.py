@@ -2377,7 +2377,8 @@ def economics_data(request):
     wells_by_api = {w["api_uwi"]: w for w in wells}
     apis = list(wells_by_api.keys())
     price_df = fetch_price_decks()
-    deck_df = get_blended_price_deck(deck, price_df)
+    deck_name = deck or _default_price_deck_name(price_df)
+    deck_df = get_blended_price_deck(deck_name, price_df)
     fc = fetch_forecasts_for_apis(apis)
     # Start with 100% working-interest volumes. Depending on the setting below,
     # the owner's net-interest may be applied before or after economic
@@ -2707,3 +2708,247 @@ def economics_data(request):
         "per_well_pv": per_well_pv,
         "royalty_curve": royalty_curve,
     })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def export_economics_csv(request):
+    if "user" not in request.session:
+        return JsonResponse({"detail": "Authentication required."}, status=401)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+    apis = payload.get("apis") or []
+    deck = payload.get("deck")
+    if not apis:
+        return JsonResponse({"detail": "At least one API is required."}, status=400)
+
+    user_email = get_effective_user_email(request)
+    owner_name = get_user_owner_name(user_email)
+    wells = _snowflake_user_wells(owner_name)
+    selected_clean = {str(api).replace("-", "") for api in apis if str(api).strip()}
+    wells = [
+        w
+        for w in wells
+        if w.get("api_uwi") and w["api_uwi"].replace("-", "") in selected_clean
+    ]
+    wells_by_api = {w["api_uwi"]: w for w in wells}
+    apis = list(wells_by_api.keys())
+    if not apis:
+        return JsonResponse({"detail": "No matching wells found for export."}, status=404)
+
+    price_df = fetch_price_decks()
+    deck_name = deck or _default_price_deck_name(price_df)
+    deck_df = get_blended_price_deck(deck_name, price_df)
+    fc = fetch_forecasts_for_apis(apis)
+    if fc.empty:
+        export_columns = [
+            "API_UWI",
+            "PRODUCINGMONTH",
+            "ECON_SCENARIO",
+            "LIQUIDSPROD_BBL",
+            "GASPROD_MCF",
+            "OilFcst_BBL",
+            "GasFcst_MCF",
+            "OilVolWI",
+            "GasVolWI",
+            "OwnerInterest",
+            "OilVol",
+            "GasVol",
+            "NGLVol",
+            "OIL",
+            "GAS",
+            "RealOil",
+            "RealGas",
+            "RealNGL",
+            "OilRevenue",
+            "GasRevenue",
+            "NGLRevenue",
+            "GrossRevenue",
+            "OilGPT",
+            "GasGPT",
+            "NGLGPT",
+            "GPT",
+            "OilOPT",
+            "GasOPT",
+            "NGLOPT",
+            "OPT",
+            "OilSev",
+            "GasSev",
+            "NGLSev",
+            "SevTax",
+            "AdValTax",
+            "NetCashFlow",
+        ]
+        empty_df = pd.DataFrame(columns=export_columns)
+        csv_data = empty_df.to_csv(index=False)
+        response = HttpResponse(csv_data, content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="well_econ_export.csv"'
+        return response
+
+    fc["OilVolWI"] = (
+        fc["LIQUIDSPROD_BBL"].fillna(fc["OilFcst_BBL"]).fillna(0)
+    )
+    fc["GasVolWI"] = (
+        fc["GASPROD_MCF"].fillna(fc["GasFcst_MCF"]).fillna(0)
+    )
+    interest_map = {
+        api.replace("-", ""): data["owner_interest"] for api, data in wells_by_api.items()
+    }
+    fc["OwnerInterest"] = fc["API_NODASH"].map(interest_map).fillna(1)
+
+    hist_oil = pd.to_numeric(fc.get("LIQUIDSPROD_BBL"), errors="coerce")
+    hist_gas = pd.to_numeric(fc.get("GASPROD_MCF"), errors="coerce")
+    fc["has_hist_volume"] = hist_oil.fillna(0).ne(0) | hist_gas.fillna(0).ne(0)
+
+    fc["ECON_SCENARIO"] = fc["ECON_SCENARIO"].map(_normalize_econ_scenario)
+    scenario_names = fc["ECON_SCENARIO"].dropna().unique().tolist()
+    scenario_df = fetch_econ_scenarios(scenario_names)
+    fc = fc.merge(scenario_df, on="ECON_SCENARIO", how="left")
+    for col in ECON_SCENARIO_COLUMNS:
+        if col != "ECON_SCENARIO":
+            fc[col] = pd.to_numeric(fc[col], errors="coerce")
+            if col in ECON_SCENARIO_DEFAULTS:
+                fc[col] = fc[col].fillna(ECON_SCENARIO_DEFAULTS[col])
+
+    apply_nri_before_tax = True
+    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"] + pd.offsets.MonthEnd(0)
+    fc = fc.merge(
+        deck_df[["MONTH_DATE", "OIL", "GAS"]],
+        left_on="PRODUCINGMONTH",
+        right_on="MONTH_DATE",
+        how="left",
+    )
+    fc[["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]] = fc[
+        ["OilVolWI", "GasVolWI", "OIL", "GAS", "OwnerInterest"]
+    ].fillna(0)
+
+    if apply_nri_before_tax:
+        fc["OilVol"] = fc["OilVolWI"] * fc["OwnerInterest"]
+        fc["GasVol"] = fc["GasVolWI"] * fc["OwnerInterest"]
+    else:
+        fc["OilVol"] = fc["OilVolWI"]
+        fc["GasVol"] = fc["GasVolWI"]
+
+    net_gas = fc["GasVol"] * fc["GAS_SHRINK"]
+    fc["NGLVol"] = (net_gas / 1000.0) * fc["NGL_YIELD"]
+
+    fc["RealOil"] = fc["OIL"] * fc["OIL_DIFF_PCT"] + fc["OIL_DIFF_AMT"]
+    fc["RealGas"] = fc["GAS"] * fc["GAS_DIFF_PCT"] + fc["GAS_DIFF_AMT"]
+    fc["RealNGL"] = fc["OIL"] * fc["NGL_DIFF_PCT"] + fc["NGL_DIFF_AMT"]
+
+    fc["OilRevenue"] = fc["OilVol"] * fc["RealOil"]
+    fc["GasRevenue"] = net_gas * fc["RealGas"]
+    fc["NGLRevenue"] = fc["NGLVol"] * fc["RealNGL"]
+    fc["GrossRevenue"] = fc["OilRevenue"] + fc["GasRevenue"] + fc["NGLRevenue"]
+
+    fc["OilGPT"] = fc["OilVol"] * fc["OIL_GPT_DEDUCT"]
+    fc["GasGPT"] = fc["GasVol"] * fc["GAS_GPT_DEDUCT"]
+    fc["NGLGPT"] = fc["NGLVol"] * fc["NGL_GPT_DEDUCT"]
+    fc["GPT"] = fc["OilGPT"] + fc["GasGPT"] + fc["NGLGPT"]
+
+    fc["OilOPT"] = 0.0
+    fc["GasOPT"] = 0.0
+    fc["NGLOPT"] = 0.0
+    fc["OPT"] = fc["OilOPT"] + fc["GasOPT"] + fc["NGLOPT"]
+
+    fc["OilSev"] = fc["OilRevenue"] * fc["OIL_TAX"]
+    fc["GasSev"] = fc["GasRevenue"] * fc["GAS_TAX"]
+    fc["NGLSev"] = fc["NGLRevenue"] * fc["NGL_TAX"]
+    fc["SevTax"] = fc["OilSev"] + fc["GasSev"] + fc["NGLSev"]
+    fc["AdValTax"] = fc["GrossRevenue"] * fc["AD_VAL_TAX"]
+
+    fc["NetCashFlow"] = (
+        fc["GrossRevenue"] - fc["GPT"] - fc["OPT"] - fc["SevTax"] - fc["AdValTax"]
+    )
+
+    if not apply_nri_before_tax:
+        money_cols = [
+            "OilRevenue",
+            "GasRevenue",
+            "NGLRevenue",
+            "GrossRevenue",
+            "OilGPT",
+            "GasGPT",
+            "NGLGPT",
+            "GPT",
+            "OilOPT",
+            "GasOPT",
+            "NGLOPT",
+            "OPT",
+            "OilSev",
+            "GasSev",
+            "NGLSev",
+            "SevTax",
+            "AdValTax",
+            "NetCashFlow",
+        ]
+        fc[money_cols] = fc[money_cols].mul(fc["OwnerInterest"], axis=0)
+
+    pv_start = pd.Timestamp.today().normalize() + pd.offsets.MonthBegin(1)
+    pv_end = pv_start + pd.DateOffset(years=15)
+    pv_start_period = pv_start.to_period("M")
+    fc["months_from_pv_start"] = (
+        fc["PRODUCINGMONTH"].dt.to_period("M") - pv_start_period
+    ).apply(lambda r: r.n)
+    pv_mask = (
+        (~fc["has_hist_volume"])
+        & (fc["PRODUCINGMONTH"] >= pv_start)
+        & (fc["PRODUCINGMONTH"] < pv_end)
+    )
+    fc["DiscountedFutureNCF"] = 0.0
+    fc.loc[pv_mask, "DiscountedFutureNCF"] = fc.loc[pv_mask, "NetCashFlow"] / (
+        (1 + 0.17) ** (fc.loc[pv_mask, "months_from_pv_start"] / 12)
+    )
+    fc["PRODUCINGMONTH"] = fc["PRODUCINGMONTH"].dt.strftime("%Y-%m-%d")
+
+    export_columns = [
+        "API_UWI",
+        "PRODUCINGMONTH",
+        "ECON_SCENARIO",
+        "LIQUIDSPROD_BBL",
+        "GASPROD_MCF",
+        "OilFcst_BBL",
+        "GasFcst_MCF",
+        "OilVolWI",
+        "GasVolWI",
+        "OwnerInterest",
+        "OilVol",
+        "GasVol",
+        "NGLVol",
+        "OIL",
+        "GAS",
+        "RealOil",
+        "RealGas",
+        "RealNGL",
+        "OilRevenue",
+        "GasRevenue",
+        "NGLRevenue",
+        "GrossRevenue",
+        "OilGPT",
+        "GasGPT",
+        "NGLGPT",
+        "GPT",
+        "OilOPT",
+        "GasOPT",
+        "NGLOPT",
+        "OPT",
+        "OilSev",
+        "GasSev",
+        "NGLSev",
+        "SevTax",
+        "AdValTax",
+        "NetCashFlow",
+        "DiscountedFutureNCF",
+    ]
+    for col in export_columns:
+        if col not in fc.columns:
+            fc[col] = 0
+    output = fc[export_columns].fillna(0)
+    csv_data = output.to_csv(index=False)
+    response = HttpResponse(csv_data, content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="well_econ_export.csv"'
+    return response

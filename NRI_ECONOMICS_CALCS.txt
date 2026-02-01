@@ -1,0 +1,296 @@
+NRI Economics Calculation Reference (SEG_ADMIN)
+================================================
+
+Purpose
+-------
+This document explains how SEG_ADMIN calculates estimated NRI economics per well,
+including the source tables/fields and the exact equations used to derive net
+cash flow (and related metrics). Use this to align calculations in another app.
+
+Scope
+-----
+This mirrors the server-side logic in:
+- myproject/mapapp/views.py (economics_data, fetch_forecasts_for_apis, _calc_decline_forecast)
+
+Key Source Tables
+-----------------
+1) WELLS.MINERALS.RAW_WELL_DATA_WITH_OWNERS
+   - Used to determine the owner's NRI (owner_interest) per well.
+   - Fields used:
+     - API_UWI
+     - OWNER_LIST (pipe-delimited owner names)
+     - NRI_LIST (pipe-delimited percentages matching OWNER_LIST order)
+       - If NRI_LIST is missing, OWNER_INTEREST_LIST is used instead.
+
+2) WELLS.MINERALS.RAW_PROD_DATA
+   - Historical production by month.
+   - Fields used:
+     - API_UWI
+     - PRODUCINGMONTH
+     - LIQUIDSPROD_BBL
+     - GASPROD_MCF
+
+3) WELLS.MINERALS.ECON_INPUT_1PASS
+   - Per-well forecast/econ parameters.
+   - Fields used in decline forecast (examples):
+     - FCST_START_OIL, FCST_START_GAS
+     - OIL_CALC_QI, OIL_Q_MIN, OIL_DECLINE_TYPE, OIL_EMPIRICAL_DI, OIL_CALC_B_FACTOR, OIL_D_MIN, OIL_FCST_YRS
+     - GAS_CALC_QI, GAS_Q_MIN, GAS_DECLINE_TYPE, GAS_EMPIRICAL_DI, GAS_CALC_B_FACTOR, GAS_D_MIN, GAS_FCST_YRS
+     - ECON_SCENARIO
+
+4) WELLS.MINERALS.ECON_SCENARIOS
+   - Econ parameter sets used in cashflow math.
+   - Columns (used in calculations):
+     - OIL_DIFF_PCT, OIL_DIFF_AMT
+     - GAS_DIFF_PCT, GAS_DIFF_AMT
+     - NGL_DIFF_PCT, NGL_DIFF_AMT
+     - OIL_GPT_DEDUCT, GAS_GPT_DEDUCT, NGL_GPT_DEDUCT
+     - OIL_TAX, GAS_TAX, NGL_TAX
+     - AD_VAL_TAX
+     - GAS_SHRINK
+     - NGL_YIELD
+
+5) PRICE_DECK
+   - Price decks (including HIST) used to price oil/gas at month-end.
+   - Columns: PRICE_DECK_NAME, MONTH_DATE, OIL, GAS
+   - Active deck is blended with HIST by month-end and interpolated (see get_blended_price_deck).
+
+Owner Interest (NRI) Extraction
+-------------------------------
+Source: RAW_WELL_DATA_WITH_OWNERS
+
+- OWNER_LIST is pipe-delimited ("Owner A|Owner B|...")
+- NRI_LIST or OWNER_INTEREST_LIST is pipe-delimited with the same order ("0.05|0.01|...")
+
+Algorithm:
+1) Split OWNER_LIST into owners[].
+2) Split NRI_LIST (or OWNER_INTEREST_LIST) into interests[].
+3) For each owner/interests pair where owner matches the current user (case-insensitive):
+   - Convert interest to float and sum to get total owner_interest.
+
+Result:
+- owner_interest is expressed as a decimal fraction (e.g., 0.05 for 5%).
+
+Production & Forecast Volumes
+-----------------------------
+Source: RAW_PROD_DATA + ECON_INPUT_1PASS
+
+1) Historical volumes by month:
+   - OilHist = LIQUIDSPROD_BBL
+   - GasHist = GASPROD_MCF
+
+2) Forecast volumes (if FCST_START_* defined):
+   - Uses decline curve math (_calc_decline_forecast) to create OilFcst_BBL/GasFcst_MCF
+   - Forecast starts at earliest of FCST_START_OIL / FCST_START_GAS
+   - Forecast lengths may be capped by OIL_FCST_YRS / GAS_FCST_YRS
+
+3) Combined working-interest volumes (WI):
+   - OilVolWI = COALESCE(LIQUIDSPROD_BBL, OilFcst_BBL, 0)
+   - GasVolWI = COALESCE(GASPROD_MCF, GasFcst_MCF, 0)
+
+Economics Calculation Flow
+--------------------------
+Source logic: economics_data
+
+Important switch:
+- apply_nri_before_tax = True
+  => NRI is applied to volumes *before* deductions and taxes.
+
+Steps per well per month:
+
+1) Apply NRI (owner_interest) to volumes (because apply_nri_before_tax = True):
+   OilVol = OilVolWI * OwnerInterest
+   GasVol = GasVolWI * OwnerInterest
+
+2) Gas shrink and NGL yield:
+   net_gas = GasVol * GAS_SHRINK
+   NGLVol = (net_gas / 1000) * NGL_YIELD
+
+3) Realized prices (price deck + diffs):
+   RealOil = OIL * OIL_DIFF_PCT + OIL_DIFF_AMT
+   RealGas = GAS * GAS_DIFF_PCT + GAS_DIFF_AMT
+   RealNGL = OIL * NGL_DIFF_PCT + NGL_DIFF_AMT
+
+4) Revenues:
+   OilRevenue = OilVol * RealOil
+   GasRevenue = net_gas * RealGas
+   NGLRevenue = NGLVol * RealNGL
+   GrossRevenue = OilRevenue + GasRevenue + NGLRevenue
+
+5) Deductions (GPT) and OPT:
+   OilGPT = OilVol * OIL_GPT_DEDUCT
+   GasGPT = GasVol * GAS_GPT_DEDUCT
+   NGLGPT = NGLVol * NGL_GPT_DEDUCT
+   GPT = OilGPT + GasGPT + NGLGPT
+
+   OilOPT = 0
+   GasOPT = 0
+   NGLOPT = 0
+   OPT = OilOPT + GasOPT + NGLOPT
+
+6) Taxes:
+   OilSev = OilRevenue * OIL_TAX
+   GasSev = GasRevenue * GAS_TAX
+   NGLSev = NGLRevenue * NGL_TAX
+   SevTax = OilSev + GasSev + NGLSev
+   AdValTax = GrossRevenue * AD_VAL_TAX
+
+7) Net Cash Flow:
+   NetCashFlow = GrossRevenue - GPT - OPT - SevTax - AdValTax
+
+If apply_nri_before_tax were False (NOT CURRENT BEHAVIOR), the above would be
+calculated on WI volumes and then *all money columns* would be multiplied by
+OwnerInterest afterwards. Current behavior applies NRI before taxes/deductions.
+
+Price Deck Alignment
+--------------------
+- Production/forecast months are shifted to month-end for pricing:
+  PRODUCINGMONTH = PRODUCINGMONTH + MonthEnd(0)
+- The price deck is month-end based, blended with HIST, interpolated, and cut
+  off at 2038-01-01.
+- Joined fields for each month:
+  - OIL, GAS (from blended price deck)
+
+Scenario Defaults (when ECON_SCENARIO values are missing)
+--------------------------------------------------------
+Defaults applied if ECON_SCENARIO column is NULL:
+- OIL_DIFF_PCT = 1.0
+- OIL_DIFF_AMT = 0.0
+- GAS_DIFF_PCT = 1.0
+- GAS_DIFF_AMT = 0.0
+- NGL_DIFF_PCT = 0.3
+- NGL_DIFF_AMT = 0.0
+- NGL_YIELD = 10.0
+- GAS_SHRINK = 0.9
+- OIL_GPT_DEDUCT = 0.0
+- GAS_GPT_DEDUCT = 0.0
+- NGL_GPT_DEDUCT = 0.0
+- OIL_TAX = 0.046
+- GAS_TAX = 0.075
+- NGL_TAX = 0.046
+- AD_VAL_TAX = 0.02
+
+Outputs Used by UI (per well/per month and aggregated)
+------------------------------------------------------
+Key per-month fields produced by the economics pipeline:
+- OilVolWI, GasVolWI (working-interest volumes)
+- OilVol, GasVol (after NRI applied)
+- NetCashFlow
+- GrossRevenue, GPT, OPT, SevTax, AdValTax
+- OilRevenue, GasRevenue, NGLRevenue
+
+Aggregations (grouped by PRODUCINGMONTH across selected wells):
+- Sum of revenues, taxes, NCF, volumes
+- Cumulative GrossRevenue and NetCashFlow
+- Discounted PV metrics and summary ranges (see economics_data)
+
+Notes for Reconciling Differences
+---------------------------------
+1) Ensure NRI application timing matches (before vs after taxes/deductions).
+2) Confirm that gas shrink, NGL yield, and NGL pricing are identical.
+3) Verify price deck blending and month-end alignment.
+4) Apply ECON_SCENARIO defaults when scenario fields are missing.
+5) Use the same owner_interest extraction from OWNER_LIST + NRI_LIST.
+
+Snowflake SQL: Sample Inputs for a Single Well
+----------------------------------------------
+Use the following queries to collect the exact inputs required to emulate the
+single-well economics for:
+- OWNER_NAME = "RELYEA TIM & MIRIAM"
+- API_UWI = "42-041-32540"
+
+1) Owner/NRI source row (RAW_WELL_DATA_WITH_OWNERS)
+   - Provides OWNER_LIST + NRI_LIST (or OWNER_INTEREST_LIST) used to derive owner_interest.
+
+SELECT
+  API_UWI,
+  OWNER_LIST,
+  NRI_LIST,
+  OWNER_INTEREST_LIST,
+  COMPLETIONDATE,
+  FIRSTPRODMONTHOIL,
+  FIRSTPRODMONTHGAS,
+  LASTPRODUCINGMONTHOIL,
+  LASTPRODUCINGMONTHGAS,
+  LASTPRODUCINGMONTH
+FROM WELLS.MINERALS.RAW_WELL_DATA_WITH_OWNERS
+WHERE API_UWI = '42-041-32540';
+
+2) Historical production (RAW_PROD_DATA)
+   - Feeds LIQUIDSPROD_BBL and GASPROD_MCF.
+
+SELECT
+  API_UWI,
+  PRODUCINGMONTH,
+  LIQUIDSPROD_BBL,
+  GASPROD_MCF
+FROM WELLS.MINERALS.RAW_PROD_DATA
+WHERE API_UWI = '42-041-32540'
+ORDER BY PRODUCINGMONTH;
+
+3) Forecast/econ parameters (ECON_INPUT_1PASS)
+   - Use the latest row per API (ORDER BY LAST_EDIT_DATE DESC).
+
+SELECT *
+FROM (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY API_UWI
+      ORDER BY LAST_EDIT_DATE DESC
+    ) AS rn
+  FROM WELLS.MINERALS.ECON_INPUT_1PASS
+  WHERE API_UWI = '42-041-32540'
+)
+WHERE rn = 1;
+
+4) Econ scenario parameters (ECON_SCENARIOS)
+   - Use ECON_SCENARIO from query #3 (normalize to UPPER).
+
+-- Replace <ECON_SCENARIO> with the value from query #3 (uppercased)
+SELECT
+  ECON_SCENARIO,
+  OIL_DIFF_PCT,
+  OIL_DIFF_AMT,
+  GAS_DIFF_PCT,
+  GAS_DIFF_AMT,
+  NGL_DIFF_PCT,
+  NGL_DIFF_AMT,
+  OIL_GPT_DEDUCT,
+  GAS_GPT_DEDUCT,
+  NGL_GPT_DEDUCT,
+  OIL_TAX,
+  GAS_TAX,
+  NGL_TAX,
+  AD_VAL_TAX,
+  GAS_SHRINK,
+  NGL_YIELD
+FROM WELLS.MINERALS.ECON_SCENARIOS
+WHERE UPPER(ECON_SCENARIO) = '<ECON_SCENARIO>';
+
+5) Price deck (PRICE_DECK)
+   - Use the deck name from your app selection. Blend with HIST and interpolate
+     in-app to match the server logic. This query fetches both the chosen deck
+     and HIST for the well’s production/forecast months.
+
+-- Replace <PRICE_DECK_NAME> with the active deck name (non-HIST)
+SELECT
+  PRICE_DECK_NAME,
+  MONTH_DATE,
+  OIL,
+  GAS
+FROM PRICE_DECK
+WHERE PRICE_DECK_NAME IN ('HIST', '<PRICE_DECK_NAME>')
+ORDER BY MONTH_DATE;
+
+6) Owner interest extraction check (optional)
+   - If you want to verify that the owner appears in the owner list.
+
+SELECT
+  API_UWI,
+  OWNER_LIST,
+  NRI_LIST,
+  OWNER_INTEREST_LIST
+FROM WELLS.MINERALS.RAW_WELL_DATA_WITH_OWNERS
+WHERE API_UWI = '42-041-32540'
+  AND OWNER_LIST ILIKE '%RELYEA TIM & MIRIAM%';

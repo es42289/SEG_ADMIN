@@ -955,6 +955,52 @@ window.syncRoyaltyPanelHeight = () => {
       return selectionInitialized;
     };
 
+    const exportWellEconomicsCsv = async () => {
+      const exportButton = document.getElementById('wellEconExport');
+      const apis = window.getSelectedWellApis ? window.getSelectedWellApis() : [];
+      if (!apis.length) {
+        window.alert('Select at least one well to export.');
+        return;
+      }
+      if (exportButton) {
+        exportButton.disabled = true;
+        exportButton.textContent = 'Exporting...';
+      }
+      try {
+        const deckSelect = document.getElementById('priceDeckSelect');
+        const payload = {
+          apis,
+          deck: deckSelect?.value || null,
+        };
+        const response = await fetch('/econ-data/export/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body?.detail || 'Unable to export economics CSV.');
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'well_econ_export.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Failed to export economics CSV', error);
+        window.alert(error.message || 'Failed to export economics CSV.');
+      } finally {
+        if (exportButton) {
+          exportButton.disabled = false;
+          exportButton.textContent = 'Export Econ CSV';
+        }
+      }
+    };
+
     // ===== One-time loader for user production (fetches once, caches forever) =====
     window.productionByApi = window.productionByApi || {};
     let productionLoadPromise = null;
@@ -1771,6 +1817,14 @@ window.syncRoyaltyPanelHeight = () => {
           });
         }
         table._bulkSelectionListenerAttached = true;
+      }
+
+      if (!table._econExportListenerAttached) {
+        const exportButton = document.getElementById('wellEconExport');
+        if (exportButton) {
+          exportButton.addEventListener('click', exportWellEconomicsCsv);
+        }
+        table._econExportListenerAttached = true;
       }
     }
 
