@@ -10,7 +10,8 @@ cash flow (and related metrics). Use this to align calculations in another app.
 Scope
 -----
 This mirrors the server-side logic in:
-- myproject/mapapp/views.py (economics_data, fetch_forecasts_for_apis, _calc_decline_forecast)
+- myproject/mapapp/views.py (economics_data, export_economics_csv, fetch_forecasts_for_apis, _calc_decline_forecast)
+- myproject/mapapp/views.py (get_blended_price_deck, _default_price_deck_name)
 
 Key Source Tables
 -----------------
@@ -55,6 +56,15 @@ Key Source Tables
    - Columns: PRICE_DECK_NAME, MONTH_DATE, OIL, GAS
    - Active deck is blended with HIST by month-end and interpolated (see get_blended_price_deck).
 
+Well Selection & API Normalization (EXACT)
+-----------------------------------------
+1) User wells are fetched from RAW_WELL_DATA_WITH_OWNERS and filtered by
+   OWNER_LIST membership.
+2) When filtering by selected wells in the UI, API_UWI is normalized by removing
+   dashes for comparison (API_NODASH).
+3) When forecasts are fetched, the system uses the original API_UWI values but
+   maintains API_NODASH for mapping owner interest back to forecast rows.
+
 Owner Interest (NRI) Extraction
 -------------------------------
 Source: RAW_WELL_DATA_WITH_OWNERS
@@ -71,53 +81,139 @@ Algorithm:
 Result:
 - owner_interest is expressed as a decimal fraction (e.g., 0.05 for 5%).
 
-Production & Forecast Volumes
------------------------------
+Production & Forecast Volumes (EXACT)
+-------------------------------------
 Source: RAW_PROD_DATA + ECON_INPUT_1PASS
 
-1) Historical volumes by month:
-   - OilHist = LIQUIDSPROD_BBL
-   - GasHist = GASPROD_MCF
+This is a step-by-step mirror of _calc_decline_forecast() and its helpers.
 
-2) Forecast volumes (if FCST_START_* defined):
-   - Uses decline curve math (_calc_decline_forecast) to create OilFcst_BBL/GasFcst_MCF
-   - Forecast starts at earliest of FCST_START_OIL / FCST_START_GAS
-   - Forecast lengths may be capped by OIL_FCST_YRS / GAS_FCST_YRS
+A) Historical production input
+   - From RAW_PROD_DATA, filtered by API_UWI and ordered by PRODUCINGMONTH.
+   - Columns:
+     - LIQUIDSPROD_BBL (oil history)
+     - GASPROD_MCF (gas history)
+   - PRODUCINGMONTH is parsed to datetime; rows with invalid dates are dropped.
 
-3) Combined working-interest volumes (WI):
+B) Forecast start dates
+   - Oil forecast start: FCST_START_OIL (parsed to datetime).
+   - Gas forecast start: FCST_START_GAS (parsed to datetime).
+   - If present, each is normalized to the first day of its month (day=1).
+   - earliest_fcst_start = min(FCST_START_OIL, FCST_START_GAS) among non-null values.
+   - If BOTH start dates are null:
+     - Forecast frame only contains historical months with OilFcst_BBL=0 and GasFcst_MCF=0.
+
+C) Forecast date grid (if any start date exists)
+   - Create a monthly series of length max_months=600:
+     dates = pd.date_range(start=earliest_fcst_start, periods=600, freq="MS")
+   - This creates month-start timestamps for forecast rows.
+
+D) Decline curve rate generation (_calculate_decline_rates)
+   Inputs:
+     - qi: initial rate (OIL_CALC_QI or GAS_CALC_QI)
+     - qf: minimum rate (OIL_Q_MIN or GAS_Q_MIN)
+     - decline_type: OIL_DECLINE_TYPE / GAS_DECLINE_TYPE (default "EXP")
+     - b_factor: OIL_CALC_B_FACTOR / GAS_CALC_B_FACTOR (default 0.75)
+     - initial_decline: OIL_EMPIRICAL_DI / GAS_EMPIRICAL_DI
+     - terminal_decline: OIL_D_MIN / GAS_D_MIN
+     - max_months = 600
+
+   EXP decline:
+     - monthly_decline = 1 - exp(-(initial_decline / 12))
+     - rates are appended while current_rate > qf and len(rates) < max_months:
+       current_rate_next = current_rate * (1 - monthly_decline)
+
+   Hyperbolic / terminal decline:
+     - b = b_factor (float, default 0.75)
+     - monthly_terminal = 1 - exp(-(terminal_decline / 12))
+     - t starts at 0 (months)
+     - For each month:
+       current_decline = initial_decline / (1 + b * initial_decline * t / 12)
+       If current_decline <= terminal_decline:
+         switch to terminal exponential decline:
+           current_rate_next = current_rate * (1 - monthly_terminal)
+           continue until current_rate <= qf or max_months reached
+       Else:
+         current_rate_next = qi / (1 + b * initial_decline * (t + 1) / 12)^(1 / b)
+       Append current_rate each step before updating.
+
+E) Gas forecast series
+   - If FCST_START_GAS is defined:
+     - Compute gas_rates using above decline logic.
+     - gas_offset = max(0, (gas_fcst_start - earliest_fcst_start).days // 30)
+     - data_length = min(len(gas_rates), len(date_grid) - gas_offset)
+     - GasFcst_MCF is NaN until gas_offset, then gas_rates[0:data_length] inserted.
+   - Else:
+     - GasFcst_MCF = 0 for all forecast rows.
+
+F) Oil forecast series
+   - If FCST_START_OIL is defined:
+     - Compute oil_rates using above decline logic.
+     - oil_offset = max(0, (oil_fcst_start - earliest_fcst_start).days // 30)
+     - data_length = min(len(oil_rates), len(date_grid) - oil_offset)
+     - OilFcst_BBL is NaN until oil_offset, then oil_rates[0:data_length] inserted.
+   - Else:
+     - OilFcst_BBL = 0 for all forecast rows.
+
+G) Merge history and forecast
+   - Merge historical production (prd) with forecast (well_fcst) on PRODUCINGMONTH (outer join).
+   - Sort by PRODUCINGMONTH.
+   - Drop any rows with PRODUCINGMONTH > 2050-12-31.
+
+H) Forecast year caps (hard stops)
+   - GAS_FCST_YRS: if provided, compute gas_cutoff_date = min_producing_month + years(GAS_FCST_YRS)
+     - Set GasFcst_MCF = None beyond cutoff.
+   - OIL_FCST_YRS: if provided, compute oil_cutoff_date = min_producing_month + years(OIL_FCST_YRS)
+     - Set OilFcst_BBL = None beyond cutoff.
+
+I) API_UWI fill rules
+   - If API_UWI exists in merged data and any non-null values exist:
+     - Fill null API_UWI entries with the first non-null API_UWI.
+
+J) Working-interest volumes (WI)
    - OilVolWI = COALESCE(LIQUIDSPROD_BBL, OilFcst_BBL, 0)
    - GasVolWI = COALESCE(GASPROD_MCF, GasFcst_MCF, 0)
 
-Economics Calculation Flow
---------------------------
+Economics Calculation Flow (EXACT)
+----------------------------------
 Source logic: economics_data
+
+Inputs:
+- Forecast/production frame from section above (including OilVolWI, GasVolWI).
+- OwnerInterest (from owner list; default 1.0 if missing).
+- ECON_SCENARIO parameters (resolved from table + defaults).
+- Price deck (blended and interpolated; OIL/GAS at month-end).
 
 Important switch:
 - apply_nri_before_tax = True
   => NRI is applied to volumes *before* deductions and taxes.
 
-Steps per well per month:
+Step 0) Price deck alignment and merge
+   - PRODUCINGMONTH is shifted to month-end:
+     PRODUCINGMONTH = PRODUCINGMONTH + MonthEnd(0)
+   - Merge with blended price deck on month-end:
+     join keys: PRODUCINGMONTH == MONTH_DATE
+   - Fill NA for OilVolWI, GasVolWI, OIL, GAS, OwnerInterest with 0.
 
-1) Apply NRI (owner_interest) to volumes (because apply_nri_before_tax = True):
+Step 1) Apply NRI (owner_interest) to volumes (because apply_nri_before_tax = True):
    OilVol = OilVolWI * OwnerInterest
    GasVol = GasVolWI * OwnerInterest
 
-2) Gas shrink and NGL yield:
+Step 2) Gas shrink and NGL yield:
    net_gas = GasVol * GAS_SHRINK
    NGLVol = (net_gas / 1000) * NGL_YIELD
 
-3) Realized prices (price deck + diffs):
+Step 3) Realized prices (price deck + diffs):
    RealOil = OIL * OIL_DIFF_PCT + OIL_DIFF_AMT
    RealGas = GAS * GAS_DIFF_PCT + GAS_DIFF_AMT
    RealNGL = OIL * NGL_DIFF_PCT + NGL_DIFF_AMT
 
-4) Revenues:
+Step 4) Revenues:
    OilRevenue = OilVol * RealOil
    GasRevenue = net_gas * RealGas
    NGLRevenue = NGLVol * RealNGL
    GrossRevenue = OilRevenue + GasRevenue + NGLRevenue
 
-5) Deductions (GPT) and OPT:
+Step 5) Deductions (GPT) and OPT:
    OilGPT = OilVol * OIL_GPT_DEDUCT
    GasGPT = GasVol * GAS_GPT_DEDUCT
    NGLGPT = NGLVol * NGL_GPT_DEDUCT
@@ -128,47 +224,94 @@ Steps per well per month:
    NGLOPT = 0
    OPT = OilOPT + GasOPT + NGLOPT
 
-6) Taxes:
+Step 6) Taxes:
    OilSev = OilRevenue * OIL_TAX
    GasSev = GasRevenue * GAS_TAX
    NGLSev = NGLRevenue * NGL_TAX
    SevTax = OilSev + GasSev + NGLSev
    AdValTax = GrossRevenue * AD_VAL_TAX
 
-7) Net Cash Flow:
+Step 7) Net Cash Flow:
    NetCashFlow = GrossRevenue - GPT - OPT - SevTax - AdValTax
 
-If apply_nri_before_tax were False (NOT CURRENT BEHAVIOR), the above would be
-calculated on WI volumes and then *all money columns* would be multiplied by
-OwnerInterest afterwards. Current behavior applies NRI before taxes/deductions.
+Step 8) NRI-after-tax alternative (NOT CURRENT BEHAVIOR)
+   - If apply_nri_before_tax were False:
+     * Compute the same equations on WI volumes.
+     * Then multiply all money columns by OwnerInterest:
+       OilRevenue, GasRevenue, NGLRevenue, GrossRevenue, OilGPT, GasGPT,
+       NGLGPT, GPT, OilOPT, GasOPT, NGLOPT, OPT, OilSev, GasSev, NGLSev,
+       SevTax, AdValTax, NetCashFlow.
 
-Price Deck Alignment
---------------------
-- Production/forecast months are shifted to month-end for pricing:
-  PRODUCINGMONTH = PRODUCINGMONTH + MonthEnd(0)
-- The price deck is month-end based, blended with HIST, interpolated, and cut
-  off at 2038-01-01.
-- Joined fields for each month:
-  - OIL, GAS (from blended price deck)
+Step 9) Output columns (per well per month)
+   - API_UWI
+   - PRODUCINGMONTH (month-end date)
+   - LIQUIDSPROD_BBL, GASPROD_MCF (history)
+   - OilFcst_BBL, GasFcst_MCF (forecast)
+   - OilVolWI, GasVolWI
+   - OwnerInterest
+   - OilVol, GasVol, NGLVol
+   - OIL, GAS (deck prices)
+   - RealOil, RealGas, RealNGL
+   - OilRevenue, GasRevenue, NGLRevenue, GrossRevenue
+   - OilGPT, GasGPT, NGLGPT, GPT
+   - OilOPT, GasOPT, NGLOPT, OPT
+   - OilSev, GasSev, NGLSev, SevTax, AdValTax
+   - NetCashFlow
 
-Scenario Defaults (when ECON_SCENARIO values are missing)
---------------------------------------------------------
-Defaults applied if ECON_SCENARIO column is NULL:
-- OIL_DIFF_PCT = 1.0
-- OIL_DIFF_AMT = 0.0
-- GAS_DIFF_PCT = 1.0
-- GAS_DIFF_AMT = 0.0
-- NGL_DIFF_PCT = 0.3
-- NGL_DIFF_AMT = 0.0
-- NGL_YIELD = 10.0
-- GAS_SHRINK = 0.9
-- OIL_GPT_DEDUCT = 0.0
-- GAS_GPT_DEDUCT = 0.0
-- NGL_GPT_DEDUCT = 0.0
-- OIL_TAX = 0.046
-- GAS_TAX = 0.075
-- NGL_TAX = 0.046
-- AD_VAL_TAX = 0.02
+Price Deck Blending (EXACT)
+---------------------------
+Source logic: get_blended_price_deck
+
+1) Input price deck selection:
+   - If a deck is explicitly selected, use that.
+   - If no deck is provided, default to the first non-HIST deck, preferring a
+     name that normalizes to "livestrip" (see _default_price_deck_name).
+
+2) Blending with HIST:
+   - hist = rows where PRICE_DECK_NAME == "HIST"
+   - df = rows where PRICE_DECK_NAME == <active deck>
+   - combined = concat(df, hist), then drop duplicates by MONTH_DATE.
+
+3) Month-end alignment and interpolation:
+   - MONTH_DATE is coerced to datetime and used as index.
+   - Reindex the time series to month-end frequency ("ME") from min date to 2075-01-01.
+   - OIL and GAS columns are coerced to numeric and interpolated to fill gaps.
+   - Reset index, rename to MONTH_DATE, and fill missing PRICE_DECK_NAME with "Interpolated".
+   - Trim all rows where MONTH_DATE > 2038-01-01.
+   - Drop rows where OIL or GAS are null after interpolation.
+
+4) Join with economics:
+   - Economies data uses PRODUCINGMONTH shifted to month-end.
+   - Merge on PRODUCINGMONTH == MONTH_DATE to assign OIL/GAS.
+
+Scenario Resolution (EXACT)
+---------------------------
+Source logic: fetch_econ_scenarios + ECON_SCENARIO_DEFAULTS
+
+1) For each well, ECON_SCENARIO is normalized to uppercase (strip + upper).
+2) ECON_SCENARIO parameters are fetched from WELLS.MINERALS.ECON_SCENARIOS.
+3) For each ECON_SCENARIO field, values are coerced to numeric.
+4) If a field is null or non-numeric, the following defaults are used:
+   - OIL_DIFF_PCT = 1.0
+   - OIL_DIFF_AMT = 0.0
+   - GAS_DIFF_PCT = 1.0
+   - GAS_DIFF_AMT = 0.0
+   - NGL_DIFF_PCT = 0.3
+   - NGL_DIFF_AMT = 0.0
+   - NGL_YIELD = 10.0
+   - GAS_SHRINK = 0.9
+   - OIL_GPT_DEDUCT = 0.0
+   - GAS_GPT_DEDUCT = 0.0
+   - NGL_GPT_DEDUCT = 0.0
+   - OIL_TAX = 0.046
+   - GAS_TAX = 0.075
+   - NGL_TAX = 0.046
+   - AD_VAL_TAX = 0.02
+
+4b) NOTE (export-only override behavior):
+   - In export_well_dca_inputs, scenario values can be overridden by per-well
+     params if provided (explicit params take precedence). This override does
+     not occur in economics_data (which uses scenario table + defaults only).
 
 Outputs Used by UI (per well/per month and aggregated)
 ------------------------------------------------------
@@ -183,6 +326,54 @@ Aggregations (grouped by PRODUCINGMONTH across selected wells):
 - Sum of revenues, taxes, NCF, volumes
 - Cumulative GrossRevenue and NetCashFlow
 - Discounted PV metrics and summary ranges (see economics_data)
+
+PV / Estimated NRI Value (EXACT)
+--------------------------------
+Source logic: economics_data + export_economics_csv
+
+1) Define PV window:
+   - pv_start = first day of next month (today normalized + MonthBegin(1))
+   - pv_end = pv_start + 15 years
+
+2) Identify forecast months:
+   - has_hist_volume = (LIQUIDSPROD_BBL != 0) OR (GASPROD_MCF != 0)
+   - Only months where has_hist_volume is False are included in PV.
+
+3) Discounting:
+   - months_from_start = (PRODUCINGMONTH.to_period("M") - pv_start.to_period("M")).n
+   - Discount factor = (1 + rate)^(months_from_start / 12)
+   - PV contribution = NetCashFlow / Discount factor
+
+4) Rates and outputs:
+   - economics_data computes PV at rates:
+     0.0, 0.10, 0.12, 0.14, 0.16, 0.17, 0.18 (stats)
+     and 0.20 (per-well table export)
+   - The UI's “Estimated NRI Value” uses PV17 (rate=0.17).
+
+5) CSV export alignment:
+   - export_economics_csv adds DiscountedFutureNCF for rate=0.17 only, using the
+     exact PV window above. Sum of DiscountedFutureNCF per well equals PV17.
+
+Missing Data / Default Handling (EXACT)
+---------------------------------------
+1) Owner interest:
+   - If no matching owner_interest is found for a well, default OwnerInterest = 1.0.
+
+2) Price deck merge:
+   - If OIL/GAS prices are missing after merge, they are filled with 0 prior to
+     revenue calculations (which will zero out revenue for that month).
+
+3) Econ scenario numeric parsing:
+   - All scenario values are coerced to numeric; non-numeric becomes null and
+     then falls back to defaults.
+
+4) Forecast without parameters:
+   - If FCST_START_OIL and FCST_START_GAS are null, forecast values are zero and
+     only historical production rows remain.
+
+5) Forecast horizon:
+   - Any forecasted month after 2050-12-31 is dropped.
+   - Additional caps applied by OIL_FCST_YRS and GAS_FCST_YRS.
 
 Notes for Reconciling Differences
 ---------------------------------
